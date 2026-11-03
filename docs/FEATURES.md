@@ -32,9 +32,9 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M3 PayPal invoices and webhooks [PayPal integration]
 
-- [ ] **Invoices:** create once per milestone, send, cancel; partial payment and minimum amount due for deposits.
-  - Done when: sandbox integration tests pass, and a retry with the same `PayPal-Request-Id` creates no duplicate.
-  - Status: built and committed, not ticked. The no-duplicate retry passes in the real sandbox (via the invoice number; PayPal ignores the request id). The partial-payment sandbox tests fail because PayPal blocks partial payments for this sandbox account's country; see `docs/NEEDS_YOU.md`.
+- [ ] **Invoices and installments:** one PayPal invoice per milestone or per installment: create, send, cancel. No PayPal partial payments anywhere. Installment plans of 2 to 12 (exact totals, last installment absorbs the rounding remainder): set up on a pay-on-invoice milestone, or a deposit (installment 1 at kickoff, the rest on delivery). Each installment invoice says "Installment 2 of 3", the milestone total, paid so far and the other due dates. New migration for the installment fields and `installment_plans`.
+  - Done when: sandbox integration tests pass; a retry with the same `PayPal-Request-Id` creates no duplicate; no PayPal request contains `partial_payment`, `allow_partial_payment` or `minimum_amount_due`; a milestone with installments goes Partially paid, then Paid; an installment plan with anything paid can't be cancelled.
+  - History: first built with PayPal partial payments, which the sandbox refused for this account's country. Reworked for installments (`docs/CHANGE-installments-and-templates.md`, approved 3 Nov 2026).
 - [x] **Webhook handler** (n8n `06_paypal_webhook`): verify the signature, then update invoice and milestone status (Paid, Partially paid, refund, dispute).
   - Done when: an unsigned or forged event is rejected, and paid stops all pending reminders for that invoice.
   - Note: both checks pass in tests (PayPal mocked), and the real sandbox answers FAILURE for a forged delivery. A live delivery through n8n hasn't run yet: it needs a public URL (see `docs/NEEDS_YOU.md`).
@@ -52,6 +52,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [ ] **Drafter** (n8n `02_drafter`): builds context (client, amount, deliverable, days overdue, terms, pay link).
 - [ ] **Legal gating:** Tier 3 cites only the contract clause or `legal/statutes.json`; otherwise it's a "final notice" with a not-legal-advice note.
   - Done when: a test with a country missing from the table produces no legal citation.
+- [ ] **Invoice templates** [Invoice templates]: three built-ins (Classic, Modern, Minimal) and custom HTML/CSS templates with tags; sanitised on save; live preview in a sandboxed iframe; PDF by headless Chromium with JavaScript and network off; AI fills only the text tags (`prompts/schemas/invoice-text.schema.json`); default per account, overridable per client. New migration for `invoice_templates`, `invoices.template_id` and `pdf_path`, and `clients.default_template_id`.
+  - Done when: every tag fills; an unknown tag errors; values are HTML-escaped; the sanitiser removes scripts, event handlers and remote URLs; a template with a remote image is refused; PDF rendering runs with network off; AI text with an amount or a date in it is rejected; the PDF is attached to reminder emails (and to the PayPal invoice if the sandbox allows attachments).
 
 ## M6 Approvals [Reviewing drafts: Outbox and Telegram]
 
@@ -65,7 +67,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 - [ ] **Sender** (n8n `04_sender`): Gmail on the original thread, only for approved drafts, inside the send window.
 - [ ] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
-  - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, and no reply text can change status or amount.
+  - Installments branch: drafts a split of the unpaid remainder (amounts and due dates) for the freelancer to approve. On approval, in one step, the open unpaid invoices are cancelled and the installment invoices are created (`created_from: client_request`). An invoice with money on it is never cancelled.
+  - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, no reply text can change status or amount, and an approved split replaces the open invoice with installments while a paid invoice is never cancelled.
 
 ## M8 Retainers and maintenance [Retainers and maintenance reminders]
 

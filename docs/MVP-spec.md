@@ -2,6 +2,8 @@
 
 Exported from the shared doc on 2 Nov 2026. If the shared doc changes, re-export it to this file.
 
+Changed on 3 Nov 2026 (approved): installments replace PayPal partial payments, and freelancers get invoice templates. The approved change is `docs/CHANGE-installments-and-templates.md`; this spec now includes it.
+
 ## Overview
 
 The product gets cross-border freelancers paid on time in two ways: it protects payment before work starts (deposits and milestone holds), and it recovers payment after a deadline passes (AI-drafted, freelancer-approved reminders with a PayPal pay link in every message).
@@ -15,7 +17,8 @@ The product gets cross-border freelancers paid on time in two ways: it protects 
 - **Reads client replies:** a reply like "I'll pay on the 15th" pauses or reroutes the sequence instead of triggering another reminder.
 - **Human approval:** the freelancer reviews every draft in the dashboard Outbox or on Telegram before it goes out; final notices always need approval.
 - **Bring your own AI:** any cloud model (Claude, OpenAI, Gemini and others) or a local model (Ollama, LM Studio).
-- **One PayPal invoice per milestone**, reused in every reminder, with partial payments turned on.
+- **One PayPal invoice per milestone or per installment**, reused in every reminder. A client who needs to pay in parts gets installments: separate invoices with fixed amounts and their own due dates.
+- **Invoice templates:** the freelancer's own invoice document (PDF) from a built-in or custom template.
 
 ## Target users and launch markets
 
@@ -74,12 +77,29 @@ A project is either one invoice or a milestone plan. Each milestone gets its own
 | Mode | How it works | Best for |
 | --- | --- | --- |
 | Pay on invoice | PayPal invoice created when the milestone is delivered | Default, any length |
-| Deposit | Invoice sent at kickoff with partial payment on and a minimum amount due | First milestone, new clients |
+| Deposit | Installment 1 is invoiced at kickoff for an amount the freelancer sets; the rest is installment 2, invoiced when the milestone is delivered | First milestone, new clients |
 | Milestone hold | Client authorizes the payment at milestone start; it's captured on acceptance | Short milestones only |
+
+A pay-on-invoice milestone can also be set to **Pay in installments** (below).
+
+**Installments**
+
+PayPal's partial payments aren't offered in every country, so the app never uses them. Installments are separate PayPal invoices with fixed amounts and their own due dates. They work everywhere, and each payment gets its own reminders, its own paid status and a clear line on the invoice.
+
+- **A plan** splits one milestone (or a single-invoice project's 100% milestone) into 2 to 12 installments. Each has an amount and a due date. Amounts are integer cents and must add up exactly to the milestone amount; an even split rounds each share half up and the last installment absorbs the remainder (the same rule as milestone percentages).
+- **One PayPal invoice per installment,** created and sent like any other invoice (invoice number guard, no PayPal emails). Each one has its own reminder schedule from its own due date.
+- **When installments are created:**
+  - **At setup:** the freelancer picks "Pay in installments" on a pay-on-invoice milestone and sets each installment's amount and due date. All its invoices are created when the milestone is delivered.
+  - **Deposit:** installment 1 is due at kickoff. The freelancer sets its amount: more than 0 and less than the milestone amount; the rest is installment 2, invoiced when the milestone is delivered. Each is due per the payment terms from the day it's invoiced. A deposit of the whole milestone amount is one invoice at kickoff, with no plan.
+  - **When a client asks to pay in parts:** the reply listener sorts the reply as an installment request and drafts a split of the unpaid remainder (e.g. 2 × $750, due today and on the 15th) for the freelancer to approve. On approval, the open unpaid invoices are cancelled and the installment invoices are created. Nothing changes without approval. An invoice that already has money on it is never cancelled; only the unpaid remainder can be split.
+- **What the invoice says** (PayPal's invoice note, plus the item description): "Installment 2 of 3 for Website redesign: Build", then "Milestone total USD 1,500.00 · Paid so far USD 500.00 · This installment USD 500.00 · Remaining after this USD 500.00", then the due dates of the other installments.
+- **Statuses:** a milestone with installments is Partially paid while some are paid, and Paid when all are. Installment invoices use the normal invoice statuses.
+- **Cancelling:** an installment plan is cancelled as a whole, and only while nothing on it is paid. Once something is paid, only the unpaid remainder can be split again.
+- **Reminders and tiers** run per installment. A reminder for installment 2 never mentions installment 3 as overdue unless it is.
 
 PayPal authorizations hold funds for up to 29 days, and capture is most reliable within the first 3 days. After that, the app reauthorizes before capturing. The app warns when a milestone deadline is more than 29 days after the hold.
 
-**Milestone lifecycle:** Planned, In progress, Delivered, Accepted, Invoiced, then Paid. A milestone can also become Partially paid, Overdue or Disputed.
+**Milestone lifecycle:** Planned, In progress, Delivered, Accepted, Invoiced, then Paid. A milestone can also become Partially paid (some installments paid), Overdue or Disputed.
 
 **Example:** a $3,000 website project split into Design (30%, deposit), Build (50%, pay on invoice) and Launch (20%, pay on invoice).
 
@@ -133,7 +153,7 @@ Reminders escalate on the freelancer's schedule, react to what the client says, 
 | Client says | What the app does |
 | --- | --- |
 | Promises a date | Pauses until the day after that date |
-| Asks to pay in parts | Drafts a partial-payment link for the freelancer to approve |
+| Asks to pay in parts | Drafts an installment split of the unpaid remainder for the freelancer to approve; on approval the open invoice is replaced by the installment invoices |
 | Says they paid another way | Pauses and asks the freelancer to confirm |
 | Disputes the work | Stops reminders, alerts the freelancer, opens the evidence timeline |
 | Out of office | Reschedules for after their return date |
@@ -218,12 +238,12 @@ Users pick any cloud or local model in Settings. Every model is reached through 
 
 ## PayPal integration
 
-Each invoice or milestone gets one PayPal invoice, and the same link appears in every reminder. Checkout orders are used only for milestone holds.
+Each milestone, installment or retainer cycle gets one PayPal invoice, and the same link appears in every reminder. Checkout orders are used only for milestone holds.
 
 | Need | PayPal API | Notes |
 | --- | --- | --- |
 | Invoice a milestone | `POST /v2/invoicing/invoices`, then `/send` | Created once and reused in all reminders |
-| Deposit or installments | Invoice `configuration.partial_payment` | `allow_partial_payment: true` plus `minimum_amount_due` |
+| Deposit or installments | One invoice per installment, with the same create and send calls | Never PayPal partial payments (`partial_payment`, `allow_partial_payment`, `minimum_amount_due`): they aren't offered in every country. `detail.note` carries the installment line |
 | Milestone hold | `POST /v2/checkout/orders` with `intent: AUTHORIZE` | Capture on acceptance; reauthorize after day 3; void if cancelled |
 | Cancel an invoice | `POST /v2/invoicing/invoices/{id}/cancel` | When a milestone is dropped |
 | Payment status | Webhooks | `INVOICING.INVOICE.PAID`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED` |
@@ -236,20 +256,44 @@ Each invoice or milestone gets one PayPal invoice, and the same link appears in 
 
 **Positioning:** PayPal Invoicing can already send basic reminders. This product's value is the schedule rules, reply handling, AI escalation and milestone protection around it.
 
+## Invoice templates
+
+PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal's layout. So a template produces **the freelancer's own invoice document, as a PDF**, with the same PayPal pay link used everywhere else. It's attached to the PayPal invoice if the Invoicing API allows attachments in the sandbox (check the API reference first), always attached to the reminder emails sent from the freelancer's Gmail, and downloadable from the dashboard.
+
+- **Three built-in templates:** Classic (clean, formal), Modern (bold header, accent colour) and Minimal (plain, lots of white space). Each shows the freelancer's name and logo, client details, line items, totals, the installment line, payment terms and the pay link.
+- **Custom templates:** the freelancer writes their own HTML and CSS with tags the app fills in. A live preview uses sample data. "Set as default" works per account, overridable per client.
+- **Tags:** logic-less placeholders in double braces. An unknown tag is an error shown in the editor, not a blank.
+
+| Group | Tags |
+| --- | --- |
+| Freelancer | `{{freelancer.name}}`, `{{freelancer.business_name}}`, `{{freelancer.email}}`, `{{freelancer.address}}`, `{{freelancer.logo}}` |
+| Client | `{{client.name}}`, `{{client.company}}`, `{{client.email}}`, `{{client.address}}` |
+| Invoice | `{{invoice.number}}`, `{{invoice.issue_date}}`, `{{invoice.due_date}}`, `{{invoice.title}}`, `{{invoice.pay_link}}`, `{{invoice.terms}}`, `{{invoice.late_fee_clause}}` |
+| Line items | `{{#items}} … {{/items}}` repeating `{{name}}`, `{{description}}`, `{{quantity}}`, `{{unit_price}}`, `{{amount}}`; also `{{expense_1}}`, `{{expense_2}}` … as shortcuts for the first rows |
+| Totals | `{{totals.subtotal}}`, `{{totals.tax}}`, `{{totals.discount}}`, `{{totals.total}}`, `{{currency}}` |
+| Installments | `{{installment.number}}`, `{{installment.count}}`, `{{installment.paid_so_far}}`, `{{installment.remaining}}`, `{{#installment.schedule}} … {{/installment.schedule}}` |
+| AI-written text | `{{greeting}}`, `{{thank_you_note}}`, `{{project_summary}}`, `{{notes}}` |
+
+- **What the AI fills:** only the text tags (greeting, thank-you note, project summary, notes), through the AI router, checked against `prompts/schemas/invoice-text.schema.json`. The freelancer sees and can edit the text before the invoice is created. Everything else (names, amounts, dates, invoice numbers, installment figures, the pay link) comes from the database, with money from the one money formatter. AI text that mentions an amount or a date is rejected and regenerated, or the freelancer writes it.
+- **Security (custom HTML is untrusted input):** sanitise on save: strip `<script>`, event handlers (`on*=`), `<iframe>`, `<object>`, `<embed>`, forms, `javascript:` URLs and `@import`, and allow only a known set of tags and CSS properties. No outside resources: no remote images, fonts or stylesheets; images such as the logo are embedded by the app, so the PDF is the same every time and a template can't leak data to another server. Every tag value is HTML-escaped when filled (a logic-less engine such as Mustache). The preview is a sandboxed iframe with no scripts; the PDF is made by headless Chromium with JavaScript disabled and network access off. HTML plus CSS is limited to 100 KB per template.
+- **Screens:** Settings > Invoice templates (the built-ins and custom ones; Preview, Duplicate, Set as default), a template editor (HTML and CSS side by side, live preview, click-to-insert tag list, sanitiser errors inline), and on Create invoice a template pick plus the AI-written text with Edit.
+
 ## Data model
 
-Eleven tables cover the MVP. Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
+Thirteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
 
 | Table | Key fields |
 | --- | --- |
 | users | id, name, email, Gmail token (encrypted), PayPal account, Telegram chat ID, default settings |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
-| clients | user_id, name, email, country, time_zone, settings override |
+| clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional) |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status |
-| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status |
+| installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
+| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path |
+| invoice_templates | user_id, name, kind (builtin / custom), html, css, is_default |
 | reminders | invoice_id, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
 | messages | invoice_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |
@@ -312,7 +356,8 @@ The MVP proves one loop: set the rules, get paid, or recover the money without s
 | --- | --- |
 | Manual entry of clients, projects, milestones and retainers | Auto-import invoices by parsing email |
 | All schedule settings, with account, client and project layers | Public holiday calendars per country |
-| Deposits, pay-on-invoice, milestone holds and monthly auto-pay | Exportable evidence pack (PDF) for disputes and small claims |
+| Deposits, installments, pay-on-invoice, milestone holds and monthly auto-pay | Exportable evidence pack (PDF) for disputes and small claims |
+| Invoice templates (built-in and custom) and a PDF invoice | |
 | Four tiers, reply sorting, approvals in the Outbox and on Telegram | Net-amount preview after fees and exchange rates |
 | Bring your own AI: Claude, Ollama, any OpenAI-compatible URL | More gateway presets, usage cost tracking, WhatsApp approvals |
 | PayPal sandbox, one account | PayPal partner onboarding for many users |
@@ -324,11 +369,11 @@ The MVP proves one loop: set the rules, get paid, or recover the money without s
 The demo shows the full loop in about 5 minutes. A dev-only clock offset lets the presenter jump forward in time instead of waiting for real days to pass.
 
 1. **Set up:** create "Website redesign, $3,000" for a New York client with 3 milestones (30% deposit, 50%, 20%), Net 7, a reminder every 3 days, and a 9:00 to 17:00 send window in client time.
-2. **Deposit:** pay the $900 deposit invoice in the PayPal sandbox. The webhook marks milestone 1 Paid live.
+2. **Deposit:** the $900 Design milestone is a deposit for its whole amount, so one invoice goes out at kickoff. Pay it in the PayPal sandbox. The webhook marks milestone 1 Paid live.
 3. **Overdue:** jump the clock so the $1,500 Build milestone is 14 days overdue. Run the scheduler. Claude drafts a Tier 2 email and an approval card arrives in Telegram on the presenter's phone, and the same draft shows in the Outbox. Tap Approve in Telegram and the Outbox updates live.
 4. **Delivered:** show the client inbox: the email is on the original thread with the PayPal link.
-5. **Client replies:** "Can I pay half now and half on the 15th?" The AI sorts it as an installment request and drafts a partial-payment reply. The presenter replies in Telegram with "mention the 15th" and approves the redraft.
-6. **Partial payment:** pay $750 in the sandbox. The status changes to Partially paid and the next reminder moves to the 15th.
+5. **Client replies:** "Can I pay half now and half on the 15th?" The AI sorts it as an installment request and drafts a 2-installment split of the $1,500 Build milestone (2 × $750, due today and on the 15th). The presenter replies in Telegram with "mention the 15th" and approves the redraft; the open invoice is replaced by the two installment invoices.
+6. **Installment paid:** pay installment 1 ($750) in the sandbox. The milestone shows Partially paid (1 of 2), and the next reminder is for installment 2, due on the 15th.
 7. **Switch AI:** change the provider to a local Ollama model in Settings and redraft the same email live.
 8. **Close:** the dashboard shows the amount recovered and days saved.
 
