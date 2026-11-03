@@ -1,15 +1,36 @@
 {
   "name": "freelancer-payment-recovery",
   "private": true,
-  "workspaces": ["apps/*"],
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace web",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p .",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p apps/web",
     "check": "npm run lint && npm run typecheck && npm test",
-    "db:migrate": "echo 'TODO in M0: apply db/migrations in order' && exit 1",
-    "db:seed": "echo 'TODO in M0: load db/seed.sql' && exit 1"
+    "format": "prettier --write .",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/db.ts migrate",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/db.ts seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.4.4",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "pg": "^8.23.1",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
   }
 }

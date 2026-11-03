@@ -4,7 +4,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M0 Foundations
 
-- [ ] **Repo tooling:** root `package.json` with npm workspaces, TypeScript strict, ESLint, Prettier, vitest, Playwright; scripts `dev`, `test`, `test:e2e`, `lint`, `typecheck`, `check`, `db:migrate`, `db:seed`.
+- [x] **Repo tooling:** root `package.json` with npm workspaces, TypeScript strict, ESLint, Prettier, vitest, Playwright; scripts `dev`, `test`, `test:e2e`, `lint`, `typecheck`, `check`, `db:migrate`, `db:seed`.
   - Done when: `npm run check` runs (and passes) on the empty project.
 - [ ] **Local stack:** `docker-compose.yml` runs n8n, Postgres, LiteLLM, plus Ollama as an optional profile.
   - Done when: `docker compose up -d` starts all services and each health check passes.
