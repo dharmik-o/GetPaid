@@ -258,7 +258,7 @@ Each milestone, installment or retainer cycle gets one PayPal invoice, and the s
 
 ## Invoice templates
 
-PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal's layout. So a template produces **the freelancer's own invoice document, as a PDF**, with the same PayPal pay link used everywhere else. It's attached to the PayPal invoice if the Invoicing API allows attachments in the sandbox (check the API reference first), always attached to the reminder emails sent from the freelancer's Gmail, and downloadable from the dashboard.
+PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal's layout. So a template produces **the freelancer's own invoice document, as a PDF**, with the same PayPal pay link used everywhere else. It's attached to the PayPal invoice if the Invoicing API allows attachments in the sandbox (checked 3 Nov 2026: the API has no file upload, so it isn't), always attached to the reminder emails sent from the freelancer's Gmail, and downloadable from the dashboard.
 
 - **Three built-in templates:** Classic (clean, formal), Modern (bold header, accent colour) and Minimal (plain, lots of white space). Each shows the freelancer's name and logo, client details, line items, totals, the installment line, payment terms and the pay link.
 - **Custom templates:** the freelancer writes their own HTML and CSS with tags the app fills in. A live preview uses sample data. "Set as default" works per account, overridable per client.
@@ -284,16 +284,16 @@ Thirteen tables cover the MVP (`invoice_templates` arrives with the Invoice temp
 
 | Table | Key fields |
 | --- | --- |
-| users | id, name, email, Gmail token (encrypted), PayPal account, Telegram chat ID, default settings |
+| users | id, name, email, Gmail token (encrypted), PayPal account, Telegram chat ID, default settings, default_template_id, business_name, address, logo (embedded image) |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
-| clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional) |
+| clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
-| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path |
-| invoice_templates | user_id, name, kind (builtin / custom), html, css, is_default |
+| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
+| invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
 | reminders | invoice_id, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
 | messages | invoice_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |

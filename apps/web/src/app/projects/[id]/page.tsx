@@ -9,6 +9,7 @@ import { listActivePlansForProject } from "@/lib/installment-plans";
 import { listInvoicesForProject } from "@/lib/invoices";
 import { listMilestones } from "@/lib/milestones";
 import { getProject, listClientChoices } from "@/lib/projects";
+import { listTemplates } from "@/lib/invoice-templates";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { todayIn } from "@/lib/schedule";
 import { describeSchedule } from "@/lib/schedule-preview";
@@ -27,16 +28,19 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { project, clients, milestones, invoices, plans } = await runAsCurrentUser(async (db) => {
-    const found = await getProject(db, id);
-    return {
-      project: found,
-      clients: await listClientChoices(db),
-      milestones: found ? await listMilestones(db, found) : [],
-      invoices: found ? await listInvoicesForProject(db, found.id) : [],
-      plans: found ? await listActivePlansForProject(db, found.id) : [],
-    };
-  });
+  const { project, clients, milestones, invoices, plans, templates } = await runAsCurrentUser(
+    async (db) => {
+      const found = await getProject(db, id);
+      return {
+        project: found,
+        clients: await listClientChoices(db),
+        milestones: found ? await listMilestones(db, found) : [],
+        invoices: found ? await listInvoicesForProject(db, found.id) : [],
+        plans: found ? await listActivePlansForProject(db, found.id) : [],
+        templates: await listTemplates(db),
+      };
+    },
+  );
   if (!project) notFound();
 
   const schedule = { ...project.inherited, ...project.settings };
@@ -92,6 +96,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
       <section className="card" aria-labelledby="invoices">
         <h2 id="invoices">Invoices</h2>
         <InvoicePanel
+          templates={templates.map(({ id: templateId, name }) => ({ id: templateId, name }))}
           currency={project.currency}
           today={todayIn(new Date(), project.clientTimeZone)}
           rows={milestones.map((m) => {

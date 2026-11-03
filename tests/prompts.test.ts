@@ -17,12 +17,15 @@ const REQUESTS: DraftRequest[] = [
   { kind: "maintenance", facts: maintenanceFacts() },
 ];
 
+/** The email-draft prompts; prompts/invoice_text.md is tested in tests/invoice-text.test.ts. */
+const DRAFT_PROMPTS = Object.values(PROMPT_FOR);
+
 describe("prompts/*.md", () => {
   it.each(PROMPT_FILES)("%s matches lib/prompt-text.ts (run npm run ai:prompts)", (name) => {
     expect(PROMPT_TEXT[name]).toBe(promptBody(name));
   });
 
-  it.each(PROMPT_FILES)("%s asks for JSON with subject and body, from the facts only", (name) => {
+  it.each(DRAFT_PROMPTS)("%s asks for JSON with subject and body, from the facts only", (name) => {
     const text = PROMPT_TEXT[name];
     expect(text).toContain("<facts>");
     expect(text).toMatch(/Use only those facts\. Never invent amounts, dates, fees/);
@@ -32,7 +35,9 @@ describe("prompts/*.md", () => {
   });
 
   it("covers every kind of draft", () => {
-    expect(Object.values(PROMPT_FOR).sort()).toEqual([...PROMPT_FILES].sort());
+    expect([...DRAFT_PROMPTS].sort()).toEqual(
+      PROMPT_FILES.filter((name) => name !== "invoice_text").sort(),
+    );
   });
 
   it("reminder prompts carry the pay link exactly; maintenance has no link", () => {

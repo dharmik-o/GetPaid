@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClientForm } from "@/components/ClientForm";
+import { ClientInvoiceDetailsForm } from "@/components/ClientInvoiceDetailsForm";
 import { DeleteClientButton } from "@/components/DeleteClientButton";
 import { getClient } from "@/lib/clients";
 import { allTimeZones, COUNTRIES } from "@/lib/countries";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
+import { getClientDetails } from "@/lib/invoice-details";
+import { listTemplates } from "@/lib/invoice-templates";
 import { listProjectsForClient } from "@/lib/projects";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -16,9 +19,11 @@ export const dynamic = "force-dynamic";
 const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { client, projects } = await runAsCurrentUser(async (db) => ({
+  const { client, projects, invoiceDetails, templates } = await runAsCurrentUser(async (db) => ({
     client: await getClient(db, id),
     projects: await listProjectsForClient(db, id),
+    invoiceDetails: await getClientDetails(db, id),
+    templates: await listTemplates(db),
   }));
   if (!client) notFound();
 
@@ -96,6 +101,15 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             country: client.country,
             timeZone: client.timeZone,
           }}
+        />
+      </section>
+
+      <section className="card" aria-labelledby="invoice-details">
+        <h2 id="invoice-details">Invoice details</h2>
+        <ClientInvoiceDetailsForm
+          clientId={client.id}
+          initial={invoiceDetails ?? { company: null, address: null, defaultTemplateId: null }}
+          templates={templates.map(({ id: templateId, name }) => ({ id: templateId, name }))}
         />
       </section>
 

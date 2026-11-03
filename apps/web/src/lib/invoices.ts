@@ -1,3 +1,4 @@
+import type { InvoiceText } from "./ai-schemas";
 import type { Db } from "./db";
 import { toCents } from "./db-values";
 
@@ -156,6 +157,10 @@ export type NewInvoice = {
   /** The milestone's status before its first invoice; null once it's already invoiced. */
   milestoneStatusBefore: string | null;
   installment: (InstallmentRef & { planId: string }) | null;
+  /** The invoice document's template (lib/invoice-templates.ts resolves the default). */
+  templateId?: string | null;
+  /** The document's text tags, as approved by the freelancer. */
+  invoiceText?: InvoiceText | null;
 };
 
 /**
@@ -165,8 +170,9 @@ export type NewInvoice = {
 export const insertDraftInvoice = async (db: Db, invoice: NewInvoice): Promise<InvoiceRecord> => {
   await db.query(
     `INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency, due_date,
-       milestone_status_before, installment_number, installment_count, installment_plan_id)
-     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8)
+       milestone_status_before, installment_number, installment_count, installment_plan_id,
+       template_id, invoice_text)
+     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (milestone_id, (coalesce(installment_number, 0))) WHERE status <> 'cancelled'
      DO NOTHING`,
     [
@@ -178,6 +184,8 @@ export const insertDraftInvoice = async (db: Db, invoice: NewInvoice): Promise<I
       invoice.installment?.number ?? null,
       invoice.installment?.count ?? null,
       invoice.installment?.planId ?? null,
+      invoice.templateId ?? null,
+      invoice.invoiceText ? JSON.stringify(invoice.invoiceText) : null,
     ],
   );
   const saved = await findOpenInvoice(db, invoice.milestoneId, invoice.installment?.number ?? null);

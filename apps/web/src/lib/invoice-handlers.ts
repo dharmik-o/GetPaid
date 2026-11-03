@@ -9,7 +9,13 @@ import { PaypalError, type PaypalClient } from "./paypal";
 // Both answer { invoices }: one plain invoice, or the installments the request covered.
 // The database runner, PayPal client and clock are injected so tests can mock all three.
 
-type Deps = { runAsUser: UserDbRunner; paypal: () => PaypalClient; now: () => Date };
+type Deps = {
+  runAsUser: UserDbRunner;
+  paypal: () => PaypalClient;
+  now: () => Date;
+  /** Makes the invoice's PDF after it's sent (optional: tests leave it out). */
+  pdf?: (invoiceId: string) => Promise<unknown>;
+};
 type IdContext = { params: Promise<{ id: string }> };
 
 const PAYPAL_NOT_SET_UP =
@@ -37,7 +43,12 @@ const failure = (event: string, error: unknown): Response => {
 export const invoiceHandlers = (deps: Deps) => {
   const flowDeps = (): Parameters<typeof issueMilestoneInvoice>[0] | undefined => {
     try {
-      return { runAsUser: deps.runAsUser, paypal: deps.paypal(), now: deps.now() };
+      return {
+        runAsUser: deps.runAsUser,
+        paypal: deps.paypal(),
+        now: deps.now(),
+        ...(deps.pdf ? { pdf: deps.pdf } : {}),
+      };
     } catch {
       return undefined;
     }

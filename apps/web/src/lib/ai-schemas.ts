@@ -37,14 +37,32 @@ export const draftSchema = z.strictObject({
 
 export type Draft = z.infer<typeof draftSchema>;
 
+/**
+ * The text tags of an invoice document: the only parts the AI writes. Never amounts or dates
+ * (lib/invoice-text.ts checks); everything else on the invoice comes from the database.
+ */
+export const invoiceTextSchema = z.strictObject({
+  greeting: z.string().min(1).max(200),
+  thank_you_note: z.string().min(1).max(400),
+  project_summary: z.string().min(1).max(800),
+  notes: z.string().max(800),
+});
+
+export type InvoiceText = z.infer<typeof invoiceTextSchema>;
+
 export const AI_SCHEMAS = {
   classification: classificationSchema,
   draft: draftSchema,
+  invoiceText: invoiceTextSchema,
 } as const;
 
 export type AiSchemaName = keyof typeof AI_SCHEMAS;
 
 export const AI_SCHEMA_NAMES = Object.keys(AI_SCHEMAS) as [AiSchemaName, ...AiSchemaName[]];
+
+/** "invoiceText" is saved as prompts/schemas/invoice-text.schema.json. */
+export const schemaFileName = (name: AiSchemaName): string =>
+  `${name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}.schema.json`;
 
 /** The JSON Schema file content for one schema (what prompts/schemas/<name>.schema.json holds). */
 export const jsonSchemaFor = (name: AiSchemaName): Record<string, unknown> => ({

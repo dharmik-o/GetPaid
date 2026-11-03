@@ -128,3 +128,32 @@ describe("InvoicePanel", () => {
     expect(html).not.toContain("Pay in installments");
   });
 });
+
+describe("InvoicePanel: the invoice document", () => {
+  const TEMPLATES = [
+    { id: "t1", name: "Classic" },
+    { id: "t2", name: "My template" },
+  ];
+
+  it("offers a template pick and AI-written text before creating the invoice", () => {
+    const html = renderToStaticMarkup(
+      createElement(InvoicePanel, {
+        currency: "USD",
+        today: "2026-11-03",
+        rows: [{ ...base, milestoneId: "m1" }],
+        templates: TEMPLATES,
+      }),
+    );
+    expect(html).toContain("Invoice document (PDF)");
+    expect(html).toContain(">Default for this client</option>");
+    expect(html).toContain('<option value="t2">My template</option>');
+    expect(html).toContain("Write the text with AI");
+  });
+
+  it("links each sent invoice's PDF", () => {
+    const html = render([
+      { ...base, milestoneId: "m1", status: "invoiced", invoices: [invoice({})] },
+    ]);
+    expect(html).toContain('href="/api/invoices/i1/pdf"');
+  });
+});

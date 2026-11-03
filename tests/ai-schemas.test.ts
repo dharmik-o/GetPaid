@@ -6,15 +6,17 @@ import {
   classificationSchema,
   draftSchema,
   jsonSchemaFor,
+  schemaFileName,
+  type AiSchemaName,
 } from "@/lib/ai-schemas";
 
 // The zod schemas and prompts/schemas/*.json must say the same thing: AI output is checked
 // with zod, and the JSON files are what prompts and n8n refer to.
 
-const fileFor = (name: string): unknown =>
+const fileFor = (name: AiSchemaName): unknown =>
   JSON.parse(
     readFileSync(
-      join(import.meta.dirname, "..", "prompts", "schemas", `${name}.schema.json`),
+      join(import.meta.dirname, "..", "prompts", "schemas", schemaFileName(name)),
       "utf8",
     ),
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { invoiceTextSchema } from "./ai-schemas";
 import type { FieldIssue } from "./field-issues";
 import { formatDay, formatMoney } from "./format";
 import { BEFORE_INVOICE, type MilestoneContext } from "./invoice-context";
@@ -28,6 +29,10 @@ export const issueBodySchema = z.strictObject({
     .min(1, "must be 1 or more")
     .max(MAX_INSTALLMENTS, `can't be more than ${String(MAX_INSTALLMENTS)}`)
     .optional(),
+  /** The invoice document's template; omit for the client's or the account's default. */
+  templateId: z.uuid({ error: "must be picked from the list" }).optional(),
+  /** The document's text tags, as the freelancer approved them; omit for the fixed text. */
+  text: invoiceTextSchema.optional(),
 });
 
 export type IssueBody = z.infer<typeof issueBodySchema>;

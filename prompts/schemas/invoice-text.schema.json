@@ -1,0 +1,33 @@
+{
+  "$comment": "Generated from apps/web/src/lib/ai-schemas.ts (invoiceTextSchema); tests/ai-schemas.test.ts keeps them identical.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "greeting": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "thank_you_note": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "project_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 800
+    }
+  },
+  "required": [
+    "greeting",
+    "thank_you_note",
+    "project_summary",
+    "notes"
+  ],
+  "additionalProperties": false
+}

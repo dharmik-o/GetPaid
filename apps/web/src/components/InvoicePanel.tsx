@@ -2,6 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  InvoiceDocumentFields,
+  type DocumentFields,
+  type TemplateChoice,
+} from "@/components/InvoiceDocumentFields";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount } from "@/lib/currencies";
@@ -36,7 +41,13 @@ export type InvoiceRowData = {
   plan: { createdFrom: "setup" | "deposit" | "client_request"; items: InstallmentItem[] } | null;
 };
 
-type Props = { currency: string; today: string; rows: InvoiceRowData[] };
+type Props = {
+  currency: string;
+  today: string;
+  rows: InvoiceRowData[];
+  /** For the invoice document's template pick. */
+  templates?: TemplateChoice[];
+};
 
 const INVOICE_LABELS: Record<string, string> = {
   draft: "Not sent yet",
@@ -55,7 +66,14 @@ const FIELD_NAMES: Record<string, string> = {
   paymentTerms: "Payment terms",
   status: "Status",
   paymentMode: "Payment mode",
+  templateId: "Template",
+  "text.greeting": "Greeting",
+  "text.thank_you_note": "Thank-you note",
+  "text.project_summary": "Project summary",
+  "text.notes": "Notes",
 };
+
+const NO_DOCUMENT_CHOICE: DocumentFields = { templateId: "", text: null };
 
 const openInvoices = (row: InvoiceRowData) => row.invoices.filter((i) => i.status !== "cancelled");
 
@@ -93,16 +111,22 @@ const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; curren
     ) : null}
     <div className="field-hint">Due {formatDay(invoice.dueDate)} (client&apos;s date)</div>
     {invoice.link && invoice.status !== "cancelled" ? (
-      <a href={invoice.link} target="_blank" rel="noreferrer">
-        PayPal pay link
-      </a>
+      <div>
+        <a href={invoice.link} target="_blank" rel="noreferrer">
+          PayPal pay link
+        </a>
+        {" · "}
+        <a href={`/api/invoices/${invoice.id}/pdf`}>Invoice PDF</a>
+      </div>
     ) : null}
   </div>
 );
 
-export const InvoicePanel = ({ currency, today, rows }: Props) => {
+export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) => {
   const router = useRouter();
   const [deposits, setDeposits] = useState<Record<string, string>>({});
+  const [documents, setDocuments] = useState<Record<string, DocumentFields>>({});
+  const documentOf = (milestoneId: string) => documents[milestoneId] ?? NO_DOCUMENT_CHOICE;
   const [busy, setBusy] = useState<string>();
   const [message, setMessage] = useState<{ text: string; error: boolean }>();
 
@@ -120,14 +144,18 @@ export const InvoicePanel = ({ currency, today, rows }: Props) => {
   };
 
   const create = (row: InvoiceRowData) => {
-    let body: { depositCents?: number } = {};
+    const document = documentOf(row.milestoneId);
+    let body: { depositCents?: number; templateId?: string; text?: DocumentFields["text"] } = {
+      ...(document.templateId ? { templateId: document.templateId } : {}),
+      ...(document.text ? { text: document.text } : {}),
+    };
     if (row.paymentMode === "deposit") {
       const deposit = parseAmount(deposits[row.milestoneId] ?? "", currency);
       if (!deposit.ok) {
         setMessage({ text: `Deposit ${deposit.message}`, error: true });
         return;
       }
-      body = { depositCents: deposit.minor };
+      body = { ...body, depositCents: deposit.minor };
     }
     const what = row.plan ? "Installment invoices" : "Invoice";
     void call(
@@ -235,6 +263,16 @@ export const InvoicePanel = ({ currency, today, rows }: Props) => {
               }}
             />
           </label>
+        ) : null}
+        {!blocked ? (
+          <InvoiceDocumentFields
+            milestoneId={row.milestoneId}
+            templates={templates}
+            value={documentOf(row.milestoneId)}
+            onChange={(value) => {
+              setDocuments((current) => ({ ...current, [row.milestoneId]: value }));
+            }}
+          />
         ) : null}
         {!blocked ? (
           <button

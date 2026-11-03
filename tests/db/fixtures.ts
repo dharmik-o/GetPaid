@@ -19,6 +19,12 @@ export const OWNED_TABLES = [
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
 
+/**
+ * Tables with shared rows as well as owned ones: invoice_templates holds the built-ins
+ * (user_id NULL) beside each user's own. tests/db/invoice-templates-rls.test.ts covers them.
+ */
+export const SHARED_TABLES = ["invoice_templates"] as const;
+
 /** `users` is owned through its primary key; every other table through `user_id`. */
 export const ownerColumn = (table: OwnedTable): "id" | "user_id" =>
   table === "users" ? "id" : "user_id";

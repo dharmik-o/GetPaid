@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MIGRATIONS_DIR } from "../../scripts/lib/paths";
 import { migrate } from "../../scripts/lib/runner";
 import type { SqlClient } from "../../scripts/lib/sql-client";
-import { OWNED_TABLES, USER_A, ownerColumn, seedOwnerSql } from "./fixtures";
+import { OWNED_TABLES, SHARED_TABLES, USER_A, ownerColumn, seedOwnerSql } from "./fixtures";
 import { inRollback, openMigratedPglite, type TestDatabase } from "./pglite";
 
 let handle: TestDatabase | undefined;
@@ -43,7 +43,9 @@ describe("001_init and 002_indexes", () => {
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations'`,
     );
-    expect(rows.map((row) => row.table_name).sort()).toEqual([...OWNED_TABLES].sort());
+    expect(rows.map((row) => row.table_name).sort()).toEqual(
+      [...OWNED_TABLES, ...SHARED_TABLES].sort(),
+    );
   });
 
   it.each(OWNED_TABLES)("%s has row-level security and an owner policy", async (table) => {
@@ -232,7 +234,6 @@ describe("004 and 005: invoice numbers", () => {
       expect(await newNumber()).toBe("FPR-1234567890");
     });
   });
-
 });
 
 // Installments replace PayPal partial payments: one invoice per installment, numbered within

@@ -20,13 +20,14 @@ export const PROMPT_MODULE = join(
 export const STATUTES_FILE = join(import.meta.dirname, "..", "..", "legal", "statutes.json");
 export const STATUTE_MODULE = join(PROMPT_MODULE, "..", "statute-table.ts");
 
-/** The drafting prompts the app uses (M7 adds classify_reply, M6 redraft_from_feedback). */
+/** The prompts the app uses (M7 adds classify_reply, M6 redraft_from_feedback). */
 export const PROMPT_FILES = [
   "courtesy_pre_due",
   "tier1_friendly",
   "tier2_firm",
   "tier3_final_notice",
   "maintenance_heads_up",
+  "invoice_text",
 ] as const;
 
 /** A prompt file without its title line. */

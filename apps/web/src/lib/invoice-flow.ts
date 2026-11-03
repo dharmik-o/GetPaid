@@ -6,6 +6,7 @@ import {
   issueBodySchema,
   issueTargets,
   requestedNumbers,
+  type IssueBody,
   type Target,
 } from "./invoice-targets";
 import { insertPlan } from "./installment-plans";
@@ -22,13 +23,24 @@ import {
 } from "./invoices";
 import type { InvoiceDraft, PaypalClient } from "./paypal";
 import { invoiceDates } from "./schedule";
+import type { InvoiceText } from "./ai-schemas";
+import { getFreelancerDetails } from "./invoice-details";
+import { invoiceTextIssues, invoiceTextTemplate, textFactsFor } from "./invoice-text";
+import { getTemplate, resolveTemplateId } from "./invoice-templates";
+import { errorKind, logEvent } from "./log";
 
 // Server-only: one PayPal invoice per milestone, or one per installment: create and send.
 // Rows (with their request ids and invoice numbers) are committed before PayPal is called, and
 // PayPal is never called inside a transaction, so a retry after any failure resumes the same
 // invoices instead of creating new ones. Never PayPal partial payments.
 
-export type FlowDeps = { runAsUser: UserDbRunner; paypal: PaypalClient; now: Date };
+export type FlowDeps = {
+  runAsUser: UserDbRunner;
+  paypal: PaypalClient;
+  now: Date;
+  /** Makes and stores an invoice's PDF; a failure is logged and never undoes the invoice. */
+  pdf?: (invoiceId: string) => Promise<unknown>;
+};
 
 export type InvoiceResult =
   | { ok: true; invoices: InvoiceView[]; sentNow: boolean }
@@ -48,6 +60,8 @@ type Prepared =
 const recordsFor = (context: MilestoneContext, numbers: (number | null)[]): InvoiceRecord[] =>
   context.open.filter((record) => numbers.includes(record.installment?.number ?? null));
 
+type DocumentChoice = { templateId: string; invoiceText: InvoiceText };
+
 const saveDrafts = async (
   db: Db,
   context: MilestoneContext,
@@ -55,10 +69,12 @@ const saveDrafts = async (
   dueDate: string,
   planId: string | null,
   count: number,
+  document: DocumentChoice,
 ): Promise<void> => {
   const { milestone, project } = context;
   for (const target of targets) {
     await insertDraftInvoice(db, {
+      ...document,
       milestoneId: milestone.id,
       amountCents: target.amountCents,
       currency: project.currency,
@@ -68,6 +84,33 @@ const saveDrafts = async (
         target.number === null || planId === null ? null : { number: target.number, count, planId },
     });
   }
+};
+
+/**
+ * The template and text for new invoices: the freelancer's pick, or the defaults. Their own
+ * text is held to the AI's rule (no amounts or dates): those come from the records.
+ */
+const documentChoice = async (
+  db: Db,
+  context: MilestoneContext,
+  body: IssueBody,
+): Promise<{ ok: true; choice: DocumentChoice } | { ok: false; errors: FieldIssue[] }> => {
+  if (body.templateId && !(await getTemplate(db, body.templateId))) {
+    return {
+      ok: false,
+      errors: [{ field: "templateId", message: "must be picked from the list" }],
+    };
+  }
+  const freelancer = await getFreelancerDetails(db);
+  const facts = textFactsFor(context, freelancer?.name ?? "");
+  const invoiceText = body.text ?? invoiceTextTemplate(facts);
+  const errors = invoiceTextIssues(invoiceText, facts);
+  if (errors.length > 0) return { ok: false, errors };
+  const templateId = await resolveTemplateId(db, {
+    picked: body.templateId ?? null,
+    clientId: context.project.clientId,
+  });
+  return { ok: true, choice: { templateId, invoiceText } };
 };
 
 /** One transaction: the invoices already there, or checked and saved new draft rows. */
@@ -84,11 +127,21 @@ const prepare = (deps: FlowDeps, milestoneId: string, raw: unknown): Promise<Pre
     if (!alreadyInvoiced(context, body)) {
       const planned = issueTargets(context, body, dates);
       if (!planned.ok) return planned;
+      const document = await documentChoice(db, context, body);
+      if (!document.ok) return document;
       const plan = planned.newPlan
         ? await insertPlan(db, { milestoneId, ...planned.newPlan })
         : context.plan;
       const count = plan?.count ?? 0;
-      await saveDrafts(db, context, planned.targets, dates.dueDate, plan?.id ?? null, count);
+      await saveDrafts(
+        db,
+        context,
+        planned.targets,
+        dates.dueDate,
+        plan?.id ?? null,
+        count,
+        document.choice,
+      );
       context.plan = plan;
       context.open = await listOpenInvoices(db, milestoneId);
     }
@@ -96,8 +149,8 @@ const prepare = (deps: FlowDeps, milestoneId: string, raw: unknown): Promise<Pre
     return { ok: true, context, records, issuedOn: dates.issuedOn };
   });
 
-/** The installment line, totals and other due dates; null for a plain invoice. */
-const textFor = (record: InvoiceRecord, context: MilestoneContext) => {
+/** The line item's description and the PayPal note (installment line, totals, other dates). */
+export const textFor = (record: InvoiceRecord, context: MilestoneContext) => {
   const { plan, open, milestone, project } = context;
   if (!record.installment || !plan) return { description: project.title, note: null };
   const others = plan.items
@@ -177,6 +230,16 @@ const sendThroughPaypal = async (
   return { ok: true, link: sent.payerViewUrl };
 };
 
+/** The PDF follows the sent invoice; if it fails, the download or the next email makes it. */
+const makePdf = async (deps: FlowDeps, invoiceId: string): Promise<void> => {
+  if (!deps.pdf) return;
+  try {
+    await deps.pdf(invoiceId);
+  } catch (error) {
+    logEvent("invoices.pdf_failed", { invoiceId, error: errorKind(error) });
+  }
+};
+
 export const readBack = async (deps: FlowDeps, ids: string[]): Promise<InvoiceView[]> =>
   deps.runAsUser(async (db) => {
     const views: InvoiceView[] = [];
@@ -209,6 +272,7 @@ export const issueMilestoneInvoice = async (
     if (!sent.ok) return sent;
     await deps.runAsUser((db) => markSent(db, record, sent.link));
     sentNow = true;
+    await makePdf(deps, record.id);
   }
   return {
     ok: true,
