@@ -6,22 +6,24 @@ Helps cross-border freelancers get paid on time. Freelancers take deposits, set 
 
 | File | Read it when |
 | --- | --- |
-| `docs/MVP-spec.md` | Before any feature. It is the product spec. If code and spec disagree, the spec wins; ask before changing it. |
+| `docs/MVP-spec.md` | Before any feature. It is the product spec. If code and spec disagree, the spec wins. You may fix wording or details in it (log them in `docs/DECISIONS.md`); scope changes go in `docs/NEEDS_YOU.md`. |
 | `docs/FEATURES.md` | At the start of every session. It is the build order with "done when" checks. Work top to bottom. |
 | `docs/DESIGN.md` | Before touching any screen or component in `apps/web`. |
 | `.claude/rules/*.md` | Loaded automatically for the folders they cover (web, n8n, prompts, db). |
 
 Phase 2 (Cal.com calendar, meeting notes) is **out of scope**. Do not build it unless I ask.
 
-## How to work
+## How to work (autonomous)
 
-1. Open `docs/FEATURES.md`, pick the first unchecked item, and tell me which one.
-2. Plan first: list the files you will touch and the tests you will write. Wait for my OK on anything that changes the data model, a PayPal call, or a security rule.
+1. At the start of a session, open `docs/FEATURES.md` and work on the first unchecked item. Say which one in one line, then start.
+2. Plan briefly (files to touch, tests to write), then build. Don't wait for approval.
 3. Write the tests first, then the code, then run `npm run check`.
-4. When all checks pass, tick the box in `docs/FEATURES.md` and suggest a commit message: `feat(<area>): <what>`.
-5. One feature per session or commit. Don't refactor unrelated code.
-6. If the spec is unclear or two rules conflict, stop and ask. Don't guess about money, legal text or security.
-7. Never claim something works without running it. Paste the failing output if you get stuck after 3 tries.
+4. When a choice comes up (data model, PayPal call, library, naming), pick the option you'd recommend, follow the spec and the security rules, and log it in `docs/DECISIONS.md` (date, question, choice, why). Then continue without asking.
+5. Only stop for things only I can do: values in `.env`, creating accounts or keys (PayPal sandbox, Telegram bot, Gmail OAuth), installing apps on my PC, or anything that would change the spec's scope. Add those to `docs/NEEDS_YOU.md` and keep working on whatever isn't blocked.
+6. When all checks pass, tick the box in `docs/FEATURES.md`, commit with `feat(<area>): <what>`, and move straight to the next unchecked item. One feature per commit. Don't refactor unrelated code.
+7. At the end of each milestone (M0, M1, ...), stop and give me a short summary: what was built, decisions logged, and anything in `docs/NEEDS_YOU.md`.
+8. Never claim something works without running it. If you're stuck after 3 tries, log it in `docs/NEEDS_YOU.md`, skip to the next unblocked item, and mention it in the milestone summary.
+9. Never guess about money, legal text or security: follow the spec and the security rules below exactly, and keep those rules unchanged.
 
 ## Stack and commands
 
@@ -84,4 +86,4 @@ If a command doesn't exist yet, create it in the root `package.json` as part of 
 - The "done when" checks for the feature in `docs/FEATURES.md` all pass
 - `npm run check` is green, with new tests for the new behaviour
 - No secrets, `console.log` debugging or TODOs left in changed files
-- The box is ticked in `docs/FEATURES.md`, and `docs/MVP-spec.md` is updated if behaviour changed (with my OK)
+- The box is ticked in `docs/FEATURES.md`, and `docs/MVP-spec.md` is updated if behaviour changed (logged in `docs/DECISIONS.md`)
