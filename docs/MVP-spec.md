@@ -46,6 +46,8 @@ Every timing rule is set by the freelancer. Settings are layered: account defaul
 | Pause or snooze | Stop reminders for a client or project | Off | Pause, or snooze until a date |
 | Currency | Invoice currency | USD | Any PayPal-supported currency |
 
+Pause and snooze are stops, so they combine instead of overriding: a pause on any layer pauses, and the latest snooze date wins. Delivery deadline, client time zone and currency are fields on the milestone, client and project, not layered settings.
+
 **Validation rules**
 
 - Tier boundaries must ascend, and intervals must be at least 1 day.
