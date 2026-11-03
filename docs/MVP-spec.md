@@ -46,6 +46,8 @@ Every timing rule is set by the freelancer. Settings are layered: account defaul
 | Pause or snooze | Stop reminders for a client or project | Off | Pause, or snooze until a date |
 | Currency | Invoice currency | USD | Any PayPal-supported currency |
 
+Days overdue are counted in the client's calendar days. Tier 1 starts at its boundary or after the grace period, whichever is later. The interval is also the minimum gap when moving up a tier, and a reminder carries the tier for the day it actually goes out. A courtesy note outside the send window moves to the next slot, and is dropped if that's after the due date. With specific reminder dates, each date is used once and max per tier doesn't apply.
+
 Pause and snooze are stops, so they combine instead of overriding: a pause on any layer pauses, and the latest snooze date wins. Delivery deadline, client time zone and currency are fields on the milestone, client and project, not layered settings.
 
 **Validation rules**

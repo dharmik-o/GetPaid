@@ -58,3 +58,15 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Shapes:** terms are `on_receipt`, `net` (7/14/30/45/60) or a specific `date`. Interval is `every N days` (1 to 90) or a list of dates. The send window is ISO weekdays (1 = Monday) plus `HH:MM` start and end in the client's zone. Late fee is basis points per month or flat `amountCents`. Dates are `YYYY-MM-DD`.
 - **Ranges the spec leaves open:** pre-due 1 to 30 days, interval up to 90 days, tier starts 1 to 365 days overdue.
 - **Strict parsing:** unknown or misspelled keys are rejected, and the error names the layer and field.
+
+### 2026-11-03: Next send time
+- **Luxon** (`luxon` in `apps/web`, `@types/luxon` dev): CLAUDE.md names it as the one date library. No dependencies, no install scripts; `npm audit` shows only the existing `minimatch` advisory.
+- **API:** `nextSend({ settings, dueDate, timeZone, history, now })` returns `scheduled` (tier and UTC `sendAt`), `paused` or `done`. `history` is the invoice's sent or skipped reminders; while one is still waiting for approval, the caller doesn't ask for the next. `computeDueDate(terms, issuedOn)` and `nextWindowSlot()` live here too.
+- **Due date and day counting:** the due date is a calendar date in the client's time zone, and "day n overdue" counts the client's calendar days. Interval days run from the local date of the last reminder; the next one goes out at the window start on that date (or right away if it's already inside the window).
+- **Courtesy note:** sent once, before any overdue reminder. If its day falls outside the window it moves to the next window slot, and it may land on the due date itself (still not overdue). If it can't land by the due date, it's dropped.
+- **Grace period:** Tier 1 starts on day `max(tier 1 boundary, grace + 1)`. Grace delays only the start; Tier 2 and Tier 3 keep their boundaries.
+- **Interval across tiers:** the interval is the minimum gap between any two overdue reminders, including when moving up a tier ("escalate after interval"), so a tier boundary can't cause two emails a day apart. The courtesy note doesn't count toward the gap.
+- **Tier labels:** a reminder carries the tier for the day it actually goes out (after window and snooze shifts), and never a lower tier than the last one sent. After Tier 3 has had its max reminders, the schedule is `done`.
+- **Specific dates:** each listed date is used once, in date order, from the first allowed overdue day. Dates already past are skipped. Max per tier doesn't apply, because the freelancer chose the dates.
+- **Snooze:** reminders resume at the start of the snooze date in the client's zone, with the tier for that day.
+- **DST:** a window start that doesn't exist on the change day (e.g. 02:30) moves to the first real time after it (Luxon's behaviour).
