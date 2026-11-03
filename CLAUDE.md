@@ -4,12 +4,12 @@ Helps cross-border freelancers get paid on time. Freelancers take deposits, set 
 
 ## Source of truth (read before you build)
 
-| File | Read it when |
-| --- | --- |
-| `docs/MVP-spec.md` | Before any feature. It is the product spec. If code and spec disagree, the spec wins. You may fix wording or details in it (log them in `docs/DECISIONS.md`); scope changes go in `docs/NEEDS_YOU.md`. |
-| `docs/FEATURES.md` | At the start of every session. It is the build order with "done when" checks. Work top to bottom. |
-| `docs/DESIGN.md` | Before touching any screen or component in `apps/web`. |
-| `.claude/rules/*.md` | Loaded automatically for the folders they cover (web, n8n, prompts, db). |
+| File                 | Read it when                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/MVP-spec.md`   | Before any feature. It is the product spec. If code and spec disagree, the spec wins. You may fix wording or details in it (log them in `docs/DECISIONS.md`); scope changes go in `docs/NEEDS_YOU.md`. |
+| `docs/FEATURES.md`   | At the start of every session. It is the build order with "done when" checks. Work top to bottom.                                                                                                      |
+| `docs/DESIGN.md`     | Before touching any screen or component in `apps/web`.                                                                                                                                                 |
+| `.claude/rules/*.md` | Loaded automatically for the folders they cover (web, n8n, prompts, db).                                                                                                                               |
 
 Phase 2 (Cal.com calendar, meeting notes) is **out of scope**. Do not build it unless I ask.
 
@@ -71,6 +71,7 @@ If a command doesn't exist yet, create it in the root `package.json` as part of 
 7. **Least access:** Gmail scopes are send plus read on invoice threads only. Database access goes through row-level security scoped to the user.
 8. **Sandbox only:** never call PayPal live endpoints or send real emails from tests or dev.
 9. **Dependencies:** run `npm audit` when adding packages. No packages with install scripts you can't explain.
+10. **Guardrails:** never try to get around a hook, deny rule or safety check, even indirectly. If one blocks you, stop that approach and log it in `docs/NEEDS_YOU.md`.
 
 ## Testing
 
