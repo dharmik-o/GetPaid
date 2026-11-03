@@ -81,7 +81,9 @@ export const createSecretBox = (key: Buffer): SecretBox => {
 };
 
 let defaultBox: SecretBox | undefined;
-const secretBox = (): SecretBox => (defaultBox ??= createSecretBox(loadServerEnv().ENCRYPTION_KEY));
+/** The box keyed with ENCRYPTION_KEY, for code that takes a SecretBox (tests pass their own). */
+export const secretBox = (): SecretBox =>
+  (defaultBox ??= createSecretBox(loadServerEnv().ENCRYPTION_KEY));
 
 /** Encrypts with ENCRYPTION_KEY. Store the result in an *_enc column. */
 export const encryptSecret = (plaintext: string, context: string): string =>

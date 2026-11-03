@@ -41,7 +41,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M4 Bring your own AI [Bring your own AI]
 
-- [ ] **AI settings screen:** provider presets, base URL, key (encrypted), model, optional per-task models.
+- [x] **AI settings screen:** provider presets, base URL, key (encrypted), model, optional per-task models.
 - [ ] **AI router** (n8n `07_ai_router`) via LiteLLM, with the fallback order local, then cloud (if allowed), then template.
 - [ ] **Test connection:** runs 4 sample tasks and shows pass or fail for each.
   - Done when: it works with a mock model in tests and with Claude plus Ollama by hand, and invalid JSON triggers one retry and then the template.

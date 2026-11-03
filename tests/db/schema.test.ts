@@ -321,3 +321,25 @@ describe("007: installments", () => {
     );
   });
 });
+
+describe("008: AI settings", () => {
+  it("accepts only http(s) base URLs for a model", async () => {
+    await expect(
+      inRollback(db(), () =>
+        db().query(
+          `INSERT INTO public.ai_providers (user_id, task, provider, base_url, model, fallback_order)
+           VALUES ($1, 'sort', 'custom', 'file:///etc/passwd', 'm1', 1)`,
+          [USER_A.userId],
+        ),
+      ),
+    ).rejects.toThrow(/ai_providers_base_url_http/);
+  });
+
+  it("marks models as cloud unless saved as local", async () => {
+    const { rows } = await db().query<{ is_local: boolean }>(
+      "SELECT is_local FROM public.ai_providers WHERE id = $1",
+      [USER_A.rows.ai_providers],
+    );
+    expect(rows[0]?.is_local).toBe(false);
+  });
+});
