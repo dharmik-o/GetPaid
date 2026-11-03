@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
+import { listMilestones } from "@/lib/milestones";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { describeSchedule } from "@/lib/schedule-preview";
 
-// One project: details and schedule. Milestones come with the next feature.
+// One project: details, schedule and the optional milestone plan (step 3).
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,14 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { project, clients } = await runAsCurrentUser(async (db) => ({
-    project: await getProject(db, id),
-    clients: await listClientChoices(db),
-  }));
+  const { project, clients, milestones } = await runAsCurrentUser(async (db) => {
+    const found = await getProject(db, id);
+    return {
+      project: found,
+      clients: await listClientChoices(db),
+      milestones: found ? await listMilestones(db, found) : [],
+    };
+  });
   if (!project) notFound();
 
   const schedule = { ...project.inherited, ...project.settings };
@@ -57,6 +63,24 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             })}
           </dd>
         </dl>
+      </section>
+
+      <section className="card" aria-labelledby="milestones">
+        <h2 id="milestones">Milestones (optional)</h2>
+        <MilestoneEditor
+          projectId={project.id}
+          totalCents={project.totalCents}
+          currency={project.currency}
+          initial={milestones.map((m) => ({
+            id: m.id,
+            name: m.name,
+            amountCents: m.amountCents,
+            percentBp: m.percentBp,
+            deadline: m.deadline,
+            paymentMode: m.paymentMode,
+            status: m.status,
+          }))}
+        />
       </section>
 
       <section className="card" aria-labelledby="edit">

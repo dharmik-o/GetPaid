@@ -8,8 +8,7 @@ const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.str
 export const withoutOverride = (
   value: SettingsOverride,
   key: keyof ScheduleSettings,
-): SettingsOverride =>
-  Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
+): SettingsOverride => Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
 
 /** Sets one setting on this layer; drops it when it equals what the layers above give. */
 export const setOverride = <K extends keyof ScheduleSettings>(

@@ -428,3 +428,58 @@ label.inline {
     grid-template-columns: 1fr;
   }
 }
+
+.milestone-table input,
+.milestone-table select {
+  font: inherit;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 100%;
+}
+
+.milestone-table td {
+  vertical-align: top;
+}
+
+.share {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.share input {
+  width: 7em;
+}
+
+.money-hint {
+  font-variant-numeric: tabular-nums;
+}
+
+.warning-text {
+  color: #8a5a00;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  margin-right: var(--space-2);
+}
+
+.status-button {
+  display: block;
+  margin-top: var(--space-1);
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-actions .link-button {
+  margin-right: var(--space-2);
+}
+
+.milestone-total {
+  margin: var(--space-3) 0;
+}
