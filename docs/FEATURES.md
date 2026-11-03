@@ -20,7 +20,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Done when: tests cover each layer overriding the one above.
 - [x] **Next send time:** pre-due, grace period, tier boundaries (1 / 8 / 22), interval, max per tier, send window in the client's time zone, pause and snooze.
   - Done when: tests cover each rule, a weekend, a DST change, and a client 12+ hours ahead of the freelancer.
-- [ ] **Validation:** ascending tiers, interval of at least 1 day, a warning (not an error) when the due date is before the deadline.
+- [x] **Validation:** ascending tiers, interval of at least 1 day, a warning (not an error) when the due date is before the deadline.
   - Done when: invalid settings are rejected with field-level messages.
 
 ## M2 Clients, projects and milestones [Milestones]

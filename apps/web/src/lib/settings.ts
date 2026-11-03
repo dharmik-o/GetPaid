@@ -5,9 +5,9 @@ import { z } from "zod";
 
 const isoDate = z.iso.date({ error: "must be a date like 2026-12-31" });
 
-const clockTime = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be a 24-hour time like 09:00");
+const CLOCK_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const clockTime = z.string().regex(CLOCK_TIME, "must be a 24-hour time like 09:00");
 
 const paymentTermsSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("on_receipt") }),
@@ -31,18 +31,51 @@ const intervalSchema = z.discriminatedUnion("kind", [
 
 const tierStart = z.int().min(1, "must be 1 day overdue or later").max(365, "must be 365 or fewer");
 
-const tierBoundariesSchema = z.strictObject({
-  tier1: tierStart,
-  tier2: tierStart,
-  tier3: tierStart,
-});
+/** Each tier must start later than the one before it. */
+const tierBoundariesSchema = z
+  .strictObject({ tier1: tierStart, tier2: tierStart, tier3: tierStart })
+  .superRefine(({ tier1, tier2, tier3 }, ctx) => {
+    if (tier2 <= tier1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["tier2"],
+        message: `must start after Tier 1 (day ${String(tier1)})`,
+      });
+    }
+    if (tier3 <= tier2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["tier3"],
+        message: `must start after Tier 2 (day ${String(tier2)})`,
+      });
+    }
+  });
 
 /** ISO weekdays: 1 = Monday ... 7 = Sunday, in the client's time zone. */
-const sendWindowSchema = z.strictObject({
-  days: z.array(z.int().min(1).max(7)).min(1, "needs at least one day"),
-  start: clockTime,
-  end: clockTime,
-});
+const sendWindowSchema = z
+  .strictObject({
+    days: z
+      .array(
+        z
+          .int()
+          .min(1, "must be 1 (Monday) to 7 (Sunday)")
+          .max(7, "must be 1 (Monday) to 7 (Sunday)"),
+      )
+      .min(1, "needs at least one day")
+      .refine((days) => new Set(days).size === days.length, "lists a day more than once"),
+    start: clockTime,
+    end: clockTime,
+  })
+  .superRefine(({ start, end }, ctx) => {
+    // Zero-padded HH:MM strings compare in time order. Windows can't wrap past midnight.
+    if (CLOCK_TIME.test(start) && CLOCK_TIME.test(end) && end <= start) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["end"],
+        message: `must be after the start time (${start})`,
+      });
+    }
+  });
 
 const lateFeeSchema = z.discriminatedUnion("kind", [
   z.strictObject({

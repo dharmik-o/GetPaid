@@ -70,3 +70,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Specific dates:** each listed date is used once, in date order, from the first allowed overdue day. Dates already past are skipped. Max per tier doesn't apply, because the freelancer chose the dates.
 - **Snooze:** reminders resume at the start of the snooze date in the client's zone, with the tier for that day.
 - **DST:** a window start that doesn't exist on the change day (e.g. 02:30) moves to the first real time after it (Luxon's behaviour).
+
+### 2026-11-03: Settings validation
+- **Two places:** rules about one setting's shape (tiers ascend, window end after start, no repeated days, ranges) live in the zod schema in `lib/settings.ts`, so `mergeSettings` also rejects bad saved values. Rules that need context live in `validateSettings(raw, context)` in `lib/settings-validation.ts`, which forms and API routes call.
+- **Field-level result:** `{ ok, settings | errors, warnings }`. Each issue is `{ field, message }`, with `field` a dot path such as `tierBoundaries.tier2` or `interval.dates.1`. Every invalid field is reported at once. Unknown keys are reported by name.
+- **Due date before deadline:** a warning on `paymentTerms`, never an error. It's checked when the due date is known: a specific date, or Net terms plus `issuedOn`. Inherited terms come from `context.parent`. Deposits will often warn, which is expected.
+- **Late fee needs a contract clause:** on project and milestone layers (`contractHasLateFee: false`), setting a late fee is an error. This follows the spec's "only if the contract has one". Account and client defaults may set one. Whether an inherited late fee is used for a project without a clause is gated when drafting (M5), alongside the Tier 3 legal gating.
+- **No extra rules:** grace longer than Tier 1 isn't an error; the schedule then starts at the tier for that day. The spec doesn't ask for that check.
