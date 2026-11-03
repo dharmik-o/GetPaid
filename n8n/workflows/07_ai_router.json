@@ -1,1 +1,45 @@
-{ "name": "AI router (sub-workflow): picks model per task, handles fallback", "nodes": [], "connections": {} }
+{
+  "name": "AI router (sub-workflow): picks model per task, handles fallback",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "7b2e1d40-0701-4c8a-9e1f-000000000701",
+      "name": "Called by a workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "notes": "Input: userId, task (sort / draft / tier3), schema (classification / draft), messages (system and user, client text quoted as data), and optionally template (the fixed answer to use if no model gives a valid one)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/ai/route",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ userId: $json.userId, task: $json.task, schema: $json.schema, messages: $json.messages, template: $json.template }) }}",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 300000
+        }
+      },
+      "id": "7b2e1d40-0702-4c8a-9e1f-000000000702",
+      "name": "Route in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "app-internal-api-token", "name": "App internal API token" }
+      },
+      "notes": "The app picks the model (local first, then the cloud fallback if the user added one, then the template), decrypts the user's key, checks the answer against the schema and retries once. Returns { ok, via, output, attempts }. Local dev URL; change it for a deployed app."
+    }
+  ],
+  "connections": {
+    "Called by a workflow": {
+      "main": [[{ "node": "Route in the app", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

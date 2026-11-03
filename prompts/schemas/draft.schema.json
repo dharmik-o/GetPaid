@@ -1,1 +1,22 @@
-{ "$comment": "Shape every drafted email must match", "type": "object" }
+{
+  "$comment": "Generated from apps/web/src/lib/ai-schemas.ts (draftSchema); tests/ai-schemas.test.ts keeps them identical.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    }
+  },
+  "required": [
+    "subject",
+    "body"
+  ],
+  "additionalProperties": false
+}

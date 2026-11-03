@@ -217,8 +217,8 @@ Each reminder runs through draft, approval and send. A PayPal payment ends the l
 Users pick any cloud or local model in Settings. Every model is reached through one OpenAI-compatible chat call, so the workflows never change when the model does.
 
 - **Local runners** (Ollama, LM Studio, llama.cpp, vLLM) already speak this format.
-- **Other providers** (Claude, Gemini, Bedrock) go through a LiteLLM gateway, which translates the call and can fall back to another provider.
-- **In n8n,** one "AI Router" sub-workflow uses an HTTP Request node. It reads the user's base URL, model and key from the database at runtime. n8n's built-in credentials are per instance, not per user, so they're only for testing.
+- **Cloud providers** with an OpenAI-compatible endpoint (Claude, OpenAI, Gemini, Groq, OpenRouter) are called directly. Providers without one (such as Bedrock) go through the local LiteLLM gateway, which translates the call (Custom URL).
+- **In n8n,** one "AI Router" sub-workflow calls the app with an HTTP Request node. The app reads the user's base URL, model and key (decrypted only there) from the database at runtime, applies the fallback order and checks the answer. n8n's built-in credentials are per instance, not per user, so they never hold model keys.
 
 **Settings screen**
 

@@ -42,7 +42,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 ## M4 Bring your own AI [Bring your own AI]
 
 - [x] **AI settings screen:** provider presets, base URL, key (encrypted), model, optional per-task models.
-- [ ] **AI router** (n8n `07_ai_router`) via LiteLLM, with the fallback order local, then cloud (if allowed), then template.
+- [x] **AI router** (n8n `07_ai_router`) via LiteLLM, with the fallback order local, then cloud (if allowed), then template.
+  - Note: the routing runs in the app (`lib/ai-router.ts`, tested with mock models); `07_ai_router` relays to it. Calls use the OpenAI-compatible format, direct to each provider's compatible endpoint; the LiteLLM gateway is used through Custom URL for providers without one (see `docs/DECISIONS.md`).
 - [ ] **Test connection:** runs 4 sample tasks and shows pass or fail for each.
   - Done when: it works with a mock model in tests and with Claude plus Ollama by hand, and invalid JSON triggers one retry and then the template.
 

@@ -2,7 +2,15 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PAYPAL_ENV_NAMES, parsePaypalEnv, parseServerEnv, SERVER_ENV_NAMES } from "@/lib/env";
+import {
+  INTERNAL_ENV_NAMES,
+  internalApiToken,
+  PAYPAL_ENV_NAMES,
+  parseInternalEnv,
+  parsePaypalEnv,
+  parseServerEnv,
+  SERVER_ENV_NAMES,
+} from "@/lib/env";
 
 const KEY_HEX = randomBytes(32).toString("hex");
 const DB_PASSWORD = "db-pass-not-for-logs";
@@ -99,8 +107,22 @@ describe("env names", () => {
   it("are all documented in .env.example", () => {
     const example = readFileSync(join(import.meta.dirname, "..", ".env.example"), "utf8");
     const documented = new Set([...example.matchAll(/^(\w+)=/gm)].map((match) => match[1]));
-    for (const name of [...SERVER_ENV_NAMES, ...PAYPAL_ENV_NAMES]) {
+    for (const name of [...SERVER_ENV_NAMES, ...PAYPAL_ENV_NAMES, ...INTERNAL_ENV_NAMES]) {
       expect(documented.has(name), `${name} missing from .env.example`).toBe(true);
     }
+  });
+});
+
+describe("internal API token", () => {
+  it("is required and at least 32 characters, and never echoed", () => {
+    const short = "too-short-token-value";
+    expect(() => parseInternalEnv({ INTERNAL_API_TOKEN: short })).toThrow(/at least 32/);
+    try {
+      parseInternalEnv({ INTERNAL_API_TOKEN: short });
+    } catch (error) {
+      expect(String(error)).not.toContain(short);
+    }
+    expect(internalApiToken({})).toBeUndefined();
+    expect(internalApiToken({ INTERNAL_API_TOKEN: "a".repeat(64) })).toBe("a".repeat(64));
   });
 });

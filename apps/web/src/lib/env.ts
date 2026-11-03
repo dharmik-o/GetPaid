@@ -87,3 +87,43 @@ export const parsePaypalEnv = (source: Record<string, string | undefined>): Payp
 let cachedPaypal: PaypalEnv | undefined;
 
 export const loadPaypalEnv = (): PaypalEnv => (cachedPaypal ??= parsePaypalEnv(process.env));
+
+// The token n8n sends to the app's internal routes (the AI router). Checked when such a route
+// is called, so the dashboard still starts without it.
+const internalEnvSchema = z.object({
+  INTERNAL_API_TOKEN: requiredText().min(
+    32,
+    "must be at least 32 characters (generate one with: openssl rand -hex 32)",
+  ),
+});
+
+export type InternalEnv = z.output<typeof internalEnvSchema>;
+
+export const INTERNAL_ENV_NAMES = Object.keys(internalEnvSchema.shape);
+
+/** Checks the internal API token. The error names the problem but never prints the value. */
+export const parseInternalEnv = (source: Record<string, string | undefined>): InternalEnv => {
+  const result = internalEnvSchema.safeParse(source);
+  if (!result.success) {
+    const lines = result.error.issues.map(
+      (issue) => `  - ${issue.path.join(".")} ${issue.message}`,
+    );
+    throw new Error(
+      [
+        "The internal API settings are not valid:",
+        ...lines,
+        "Add INTERNAL_API_TOKEN to your local env file and the same value to the n8n credential (see .env.example), then restart.",
+      ].join("\n"),
+    );
+  }
+  return result.data;
+};
+
+/** The internal API token, or undefined when it isn't set up (the route then answers 503). */
+export const internalApiToken = (source: Record<string, string | undefined> = process.env) => {
+  try {
+    return parseInternalEnv(source).INTERNAL_API_TOKEN;
+  } catch {
+    return undefined;
+  }
+};
