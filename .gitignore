@@ -1,0 +1,11 @@
+.env
+.env.local
+.env.production
+node_modules/
+.next/
+*.log
+CLAUDE.local.md
+.claude/settings.local.json
+playwright-report/
+test-results/
+coverage/

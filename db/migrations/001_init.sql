@@ -1,0 +1,1 @@
+-- All 11 tables: users, ai_providers, clients, projects, milestones, retainers, maintenance_tasks, invoices, reminders, messages, events

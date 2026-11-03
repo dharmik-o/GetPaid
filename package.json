@@ -1,0 +1,15 @@
+{
+  "name": "freelancer-payment-recovery",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace web",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p .",
+    "check": "npm run lint && npm run typecheck && npm test",
+    "db:migrate": "echo 'TODO in M0: apply db/migrations in order' && exit 1",
+    "db:seed": "echo 'TODO in M0: load db/seed.sql' && exit 1"
+  }
+}
