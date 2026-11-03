@@ -50,7 +50,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M5 Drafting [Escalation engine]
 
-- [ ] **Prompts** for courtesy, Tier 1, 2 and 3, and maintenance heads-up, each with schema-checked output.
+- [x] **Prompts** for courtesy, Tier 1, 2 and 3, and maintenance heads-up, each with schema-checked output.
 - [ ] **Drafter** (n8n `02_drafter`): builds context (client, amount, deliverable, days overdue, terms, pay link).
 - [ ] **Legal gating:** Tier 3 cites only the contract clause or `legal/statutes.json`; otherwise it's a "final notice" with a not-legal-advice note.
   - Done when: a test with a country missing from the table produces no legal citation.

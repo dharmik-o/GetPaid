@@ -195,3 +195,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Results:** pass or fail, the model that answered (local or cloud) and the time, or what failed with a hint ("HTTP 401: check the API key", "couldn't connect: check the base URL, and that the model is running"). Never the key, the prompts or the answers.
 - **Prompts:** these are connection checks, written in `lib/ai-test-tasks.ts` next to the checks that grade them. The production prompts in `prompts/*.md` come with M5 (drafting) and M7 (sorting). Client text is quoted in `<reply>` tags and called data, not instructions, as the prompt rules ask.
 - **Not ticked:** the done-when includes runs with Claude and Ollama by hand, which need your key and a model on your PC (`docs/NEEDS_YOU.md`).
+
+## M5 Drafting
+
+### 2026-11-03: Prompts
+- **Source and copy:** `prompts/*.md` hold the prompt text (title line, then the system prompt). The app can't count on reading files outside `apps/web` at run time, so `npm run ai:prompts` (new) writes them into `lib/prompt-text.ts`, and `tests/prompts.test.ts` fails if the two drift (same pattern as the schemas).
+- **One output schema:** courtesy, Tier 1, 2, 3 and the maintenance heads-up all answer `draft` (`subject`, `body`); no schema change.
+- **Facts, not free text:** each prompt gets the facts as JSON between `<facts>` tags, every value already formatted from the database (money by `formatMoney`, dates as "31 Oct 2026"). `<` in a fact is JSON-escaped so a client name can't close the tag. Only Tier 3 ever sees a `citation`.
+- **Checks beyond the shape (`lib/draft-checks.ts`):** a reminder must carry the pay link exactly and no other link; a maintenance heads-up has no link; any money amount (with a currency code or symbol) must appear in the facts (so "$1,500" for "USD 1,500.00" is fine, an invented fee is not); the subject has no line break. They run inside the schema the router checks (`checkedDraftSchema`), so a failing draft is retried once and then replaced by the fixed template, like invalid JSON.
+- **Fixed templates (`lib/draft-templates.ts`):** one per kind, built only from the facts, and passing the same checks. With a template always available, a reminder never waits on the model.
+- **Maintenance heads-up:** prompt, template and checks now; storing and approving it comes with M8, because `reminders` are tied to invoices.

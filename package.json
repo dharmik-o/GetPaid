@@ -19,7 +19,8 @@
     "db:dev-auth": "tsx --env-file-if-exists=.env scripts/db.ts dev-auth",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db.ts migrate",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db.ts seed",
-    "ai:schemas": "tsx scripts/generate-ai-schemas.ts"
+    "ai:schemas": "tsx scripts/generate-ai-schemas.ts",
+    "ai:prompts": "tsx scripts/generate-prompt-text.ts && prettier --write apps/web/src/lib/prompt-text.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.14",
