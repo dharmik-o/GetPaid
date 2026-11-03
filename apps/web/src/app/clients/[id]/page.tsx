@@ -1,1 +1,70 @@
-// One client: history timeline (messages, replies, payments, evidence)
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ClientForm } from "@/components/ClientForm";
+import { DeleteClientButton } from "@/components/DeleteClientButton";
+import { getClient } from "@/lib/clients";
+import { allTimeZones, COUNTRIES } from "@/lib/countries";
+import { isUuid } from "@/lib/db";
+import { formatMoney } from "@/lib/format";
+import { runAsCurrentUser } from "@/lib/request-user";
+
+// One client: details and totals. The history timeline (messages, replies, payments) comes in M10.
+
+export const dynamic = "force-dynamic";
+
+const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+  if (!isUuid(id)) notFound();
+  const client = await runAsCurrentUser((db) => getClient(db, id));
+  if (!client) notFound();
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>{client.name}</h1>
+        <Link href="/clients">Back to clients</Link>
+      </div>
+
+      <section className="card" aria-labelledby="summary">
+        <h2 id="summary">Summary</h2>
+        <dl className="details">
+          <dt>Billing email</dt>
+          <dd>{client.email}</dd>
+          <dt>Country</dt>
+          <dd>{client.countryName}</dd>
+          <dt>Time zone</dt>
+          <dd>{client.timeZone}</dd>
+          <dt>Open balance</dt>
+          <dd className="money" style={{ textAlign: "left" }}>
+            {client.openBalances.length === 0
+              ? "Nothing owed"
+              : client.openBalances.map((b) => formatMoney(b.cents, b.currency)).join(", ")}
+          </dd>
+        </dl>
+      </section>
+
+      <section className="card" aria-labelledby="edit">
+        <h2 id="edit">Edit details</h2>
+        <ClientForm
+          countries={[...COUNTRIES]}
+          allTimeZones={allTimeZones()}
+          initial={{
+            id: client.id,
+            name: client.name,
+            email: client.email,
+            country: client.country,
+            timeZone: client.timeZone,
+          }}
+        />
+      </section>
+
+      <section className="card" aria-labelledby="danger">
+        <h2 id="danger">Delete</h2>
+        <p className="muted">Deletes the client with all their projects, invoices and messages.</p>
+        <DeleteClientButton id={client.id} name={client.name} />
+      </section>
+    </div>
+  );
+};
+
+export default ClientPage;

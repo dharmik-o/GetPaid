@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { toFieldIssues, type FieldIssue } from "./field-issues";
 import { computeDueDate } from "./schedule";
 import {
   DEFAULT_SETTINGS,
@@ -8,8 +8,7 @@ import {
   type SettingsOverride,
 } from "./settings";
 
-/** One problem, tied to the form field it belongs to (a dot path, e.g. `tierBoundaries.tier2`). */
-export type FieldIssue = { field: string; message: string };
+export type { FieldIssue };
 
 export type SettingsContext = {
   /** The merged settings of the layers above, for settings this layer inherits. */
@@ -25,16 +24,6 @@ export type SettingsContext = {
 export type SettingsValidation =
   | { ok: true; settings: SettingsOverride; warnings: FieldIssue[] }
   | { ok: false; errors: FieldIssue[]; warnings: FieldIssue[] };
-
-const toFieldIssues = (issue: z.core.$ZodIssue): FieldIssue[] => {
-  if (issue.code === "unrecognized_keys") {
-    return issue.keys.map((key) => ({
-      field: [...issue.path, key].join("."),
-      message: "isn't a known setting",
-    }));
-  }
-  return [{ field: issue.path.join(".") || "settings", message: issue.message }];
-};
 
 const lateFeeIssues = (settings: SettingsOverride, context: SettingsContext): FieldIssue[] =>
   context.contractHasLateFee === false && settings.lateFee
@@ -84,7 +73,7 @@ export const validateSettings = (
   const warnings = deadlineWarnings(raw, context);
   const parsed = settingsOverrideSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, errors: parsed.error.issues.flatMap(toFieldIssues), warnings };
+    return { ok: false, errors: toFieldIssues(parsed.error), warnings };
   }
   const errors = lateFeeIssues(parsed.data, context);
   return errors.length > 0

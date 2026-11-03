@@ -46,7 +46,8 @@ const main = async (): Promise<void> => {
       "DATABASE_URL is not set. Add it to your local env file (see .env.example), then run the command again.",
     );
   }
-  if (command === "dev-auth") assertLocalDatabase(connectionString);
+  // The auth stub and the fake seed data (which writes auth.users) are for local Postgres only.
+  if (command === "dev-auth" || command === "seed") assertLocalDatabase(connectionString);
   const client = new pg.Client({ connectionString });
   await client.connect();
   try {
