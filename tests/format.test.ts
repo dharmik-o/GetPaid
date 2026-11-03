@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDay, formatDaysAgo, formatMoney } from "@/lib/format";
+import { formatDateTime, formatDay, formatDaysAgo, formatFullDay, formatMoney } from "@/lib/format";
 
 /** Intl puts a no-break space between the code and the amount. */
 const plain = (text: string): string => text.replace(/\s/gu, " ");
@@ -53,6 +53,11 @@ describe("formatDay and formatDateTime", () => {
   it("shows a calendar date as '18 Nov', whatever the machine's zone", () => {
     expect(formatDay("2026-11-18")).toBe("18 Nov");
     expect(formatDay("2027-01-02")).toBe("2 Jan");
+  });
+
+  it("shows a calendar date with its year for documents, whatever the machine's zone", () => {
+    expect(formatFullDay("2026-11-03")).toBe("3 Nov 2026");
+    expect(formatFullDay("2027-01-02")).toBe("2 Jan 2027");
   });
 
   it("shows an instant in the given zone", () => {

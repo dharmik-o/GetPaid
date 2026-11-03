@@ -73,6 +73,12 @@ export const computeDueDate = (terms: PaymentTerms, issuedOn: string): string =>
   }
 };
 
+/** Today's calendar date (YYYY-MM-DD) in the client's time zone. */
+export const todayIn = (now: Date, timeZone: string): string => {
+  assertTimeZone(timeZone);
+  return localDateOf(now, timeZone);
+};
+
 /** The dates on a new invoice: issued today in the client's zone, due per the payment terms. */
 export const invoiceDates = (
   terms: PaymentTerms,

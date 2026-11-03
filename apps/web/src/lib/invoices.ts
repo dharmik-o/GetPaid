@@ -16,6 +16,9 @@ export const INVOICE_STATUSES = [
 
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
+/** Which installment an invoice is ("2 of 3"); null for a plain invoice. */
+export type InstallmentRef = { number: number; count: number };
+
 /** What the dashboard and API show. No PayPal ids or request ids. */
 export type InvoiceView = {
   id: string;
@@ -24,11 +27,11 @@ export type InvoiceView = {
   status: InvoiceStatus;
   amountCents: number;
   amountPaidCents: number;
-  minimumDueCents: number | null;
   currency: string;
   dueDate: string;
   /** The PayPal page where the client pays; set once the invoice is sent. */
   link: string | null;
+  installment: InstallmentRef | null;
 };
 
 /** The row as the invoice flow needs it, including PayPal ids. Server-only. */
@@ -36,6 +39,7 @@ export type InvoiceRecord = InvoiceView & {
   paypalInvoiceId: string | null;
   paypalRequestId: string;
   milestoneStatusBefore: string | null;
+  installmentPlanId: string | null;
 };
 
 type InvoiceRow = {
@@ -45,19 +49,22 @@ type InvoiceRow = {
   status: InvoiceStatus;
   amount_cents: unknown;
   amount_paid_cents: unknown;
-  minimum_due_cents: unknown;
   currency: string;
   due_date: string;
   link: string | null;
   paypal_invoice_id: string | null;
   paypal_request_id: string;
   milestone_status_before: string | null;
+  installment_number: number | null;
+  installment_count: number | null;
+  installment_plan_id: string | null;
 };
 
 const SELECT_INVOICES = `
   SELECT i.id::text, i.milestone_id::text, i.invoice_number, i.status, i.amount_cents::text,
-    i.amount_paid_cents::text, i.minimum_due_cents::text, i.currency, i.due_date::text, i.link,
-    i.paypal_invoice_id, i.paypal_request_id::text, i.milestone_status_before
+    i.amount_paid_cents::text, i.currency, i.due_date::text, i.link,
+    i.paypal_invoice_id, i.paypal_request_id::text, i.milestone_status_before,
+    i.installment_number, i.installment_count, i.installment_plan_id::text
   FROM public.invoices i`;
 
 const toRecord = (row: InvoiceRow): InvoiceRecord => ({
@@ -67,13 +74,17 @@ const toRecord = (row: InvoiceRow): InvoiceRecord => ({
   status: row.status,
   amountCents: toCents(row.amount_cents),
   amountPaidCents: toCents(row.amount_paid_cents),
-  minimumDueCents: row.minimum_due_cents === null ? null : toCents(row.minimum_due_cents),
   currency: row.currency,
   dueDate: row.due_date,
   link: row.link,
+  installment:
+    row.installment_number === null || row.installment_count === null
+      ? null
+      : { number: row.installment_number, count: row.installment_count },
   paypalInvoiceId: row.paypal_invoice_id,
   paypalRequestId: row.paypal_request_id,
   milestoneStatusBefore: row.milestone_status_before,
+  installmentPlanId: row.installment_plan_id,
 });
 
 export const toView = (record: InvoiceRecord): InvoiceView => ({
@@ -83,10 +94,10 @@ export const toView = (record: InvoiceRecord): InvoiceView => ({
   status: record.status,
   amountCents: record.amountCents,
   amountPaidCents: record.amountPaidCents,
-  minimumDueCents: record.minimumDueCents,
   currency: record.currency,
   dueDate: record.dueDate,
   link: record.link,
+  installment: record.installment,
 });
 
 export const getInvoiceRecord = async (db: Db, id: string): Promise<InvoiceRecord | undefined> => {
@@ -94,28 +105,47 @@ export const getInvoiceRecord = async (db: Db, id: string): Promise<InvoiceRecor
   return rows[0] ? toRecord(rows[0]) : undefined;
 };
 
-/** The milestone's invoice that isn't cancelled; there is at most one. */
+/** The milestone's open (not cancelled) invoices, plain or installments, in installment order. */
+export const listOpenInvoices = async (db: Db, milestoneId: string): Promise<InvoiceRecord[]> => {
+  const { rows } = await db.query<InvoiceRow>(
+    `${SELECT_INVOICES} WHERE i.milestone_id = $1 AND i.status <> 'cancelled'
+     ORDER BY coalesce(i.installment_number, 0)`,
+    [milestoneId],
+  );
+  return rows.map(toRecord);
+};
+
+/** The open invoice for one installment number (null = the plain invoice); at most one. */
 export const findOpenInvoice = async (
   db: Db,
   milestoneId: string,
-): Promise<InvoiceRecord | undefined> => {
-  const { rows } = await db.query<InvoiceRow>(
-    `${SELECT_INVOICES} WHERE i.milestone_id = $1 AND i.status <> 'cancelled'`,
-    [milestoneId],
+  installmentNumber: number | null,
+): Promise<InvoiceRecord | undefined> =>
+  (await listOpenInvoices(db, milestoneId)).find(
+    (record) => (record.installment?.number ?? null) === installmentNumber,
   );
-  return rows[0] ? toRecord(rows[0]) : undefined;
-};
 
-/** Each milestone's current invoice (the open one, else the latest cancelled one). */
+/**
+ * Each milestone's current invoices: the open ones (one, or one per installment), else the
+ * latest cancelled one, so the dashboard can say it was cancelled.
+ */
 export const listInvoicesForProject = async (db: Db, projectId: string): Promise<InvoiceView[]> => {
   const { rows } = await db.query<InvoiceRow>(
-    `${SELECT_INVOICES.replace("SELECT", "SELECT DISTINCT ON (i.milestone_id)")}
+    `${SELECT_INVOICES}
      JOIN public.milestones m ON m.id = i.milestone_id
      WHERE m.project_id = $1
-     ORDER BY i.milestone_id, i.status = 'cancelled', i.created_at DESC`,
+     ORDER BY i.milestone_id, coalesce(i.installment_number, 0), i.created_at DESC`,
     [projectId],
   );
-  return rows.map((row) => toView(toRecord(row)));
+  const views = rows.map((row) => toView(toRecord(row)));
+  const hasOpen = new Set(views.filter((v) => v.status !== "cancelled").map((v) => v.milestoneId));
+  const shownCancelled = new Set<string>();
+  return views.filter((view) => {
+    if (view.status !== "cancelled") return true;
+    if (hasOpen.has(view.milestoneId) || shownCancelled.has(view.milestoneId)) return false;
+    shownCancelled.add(view.milestoneId);
+    return true;
+  });
 };
 
 export type NewInvoice = {
@@ -123,30 +153,34 @@ export type NewInvoice = {
   amountCents: number;
   currency: string;
   dueDate: string;
-  minimumDueCents: number | null;
-  milestoneStatusBefore: string;
+  /** The milestone's status before its first invoice; null once it's already invoiced. */
+  milestoneStatusBefore: string | null;
+  installment: (InstallmentRef & { planId: string }) | null;
 };
 
 /**
  * Saves the draft row, with its request id and invoice number, before PayPal is called. If two
- * requests race, the one-open-invoice-per-milestone index keeps one and both get it back.
+ * requests race, the one-open-invoice-per-installment index keeps one and both get it back.
  */
 export const insertDraftInvoice = async (db: Db, invoice: NewInvoice): Promise<InvoiceRecord> => {
   await db.query(
     `INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency, due_date,
-       minimum_due_cents, milestone_status_before)
-     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6)
-     ON CONFLICT (milestone_id) WHERE status <> 'cancelled' DO NOTHING`,
+       milestone_status_before, installment_number, installment_count, installment_plan_id)
+     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (milestone_id, (coalesce(installment_number, 0))) WHERE status <> 'cancelled'
+     DO NOTHING`,
     [
       invoice.milestoneId,
       invoice.amountCents,
       invoice.currency,
       invoice.dueDate,
-      invoice.minimumDueCents,
       invoice.milestoneStatusBefore,
+      invoice.installment?.number ?? null,
+      invoice.installment?.count ?? null,
+      invoice.installment?.planId ?? null,
     ],
   );
-  const saved = await findOpenInvoice(db, invoice.milestoneId);
+  const saved = await findOpenInvoice(db, invoice.milestoneId, invoice.installment?.number ?? null);
   if (!saved) throw new Error("The new invoice could not be read back after saving.");
   return saved;
 };
@@ -191,22 +225,31 @@ export const markSent = async (db: Db, record: InvoiceRecord, link: string): Pro
     invoiceNumber: record.invoiceNumber,
     amountCents: record.amountCents,
     currency: record.currency,
+    installment: record.installment,
   });
 };
 
 /**
- * Cancelled: the milestone goes back to where it was before invoicing, and reminders still
- * waiting for approval are skipped, so nothing about this invoice can be sent.
+ * Cancelled: once the milestone has no open invoice left, it goes back to `restoreTo` (its
+ * status before invoicing). Reminders still waiting for approval are skipped, so nothing about
+ * this invoice can be sent.
  */
-export const markCancelled = async (db: Db, record: InvoiceRecord): Promise<void> => {
+export const markCancelled = async (
+  db: Db,
+  record: InvoiceRecord,
+  restoreTo: string,
+): Promise<void> => {
   const updated = await db.query(
     "UPDATE public.invoices SET status = 'cancelled' WHERE id = $1 AND status IN ('draft', 'sent')",
     [record.id],
   );
   if (updated.rowCount === 0) return;
   await db.query(
-    `UPDATE public.milestones SET status = $2 WHERE id = $1 AND status IN ('invoiced', 'overdue')`,
-    [record.milestoneId, record.milestoneStatusBefore ?? "accepted"],
+    `UPDATE public.milestones SET status = $2
+     WHERE id = $1 AND status IN ('invoiced', 'overdue')
+       AND NOT EXISTS (SELECT 1 FROM public.invoices i
+                       WHERE i.milestone_id = $1 AND i.status <> 'cancelled')`,
+    [record.milestoneId, restoreTo],
   );
   await db.query(
     `UPDATE public.reminders SET approval_status = 'skipped'

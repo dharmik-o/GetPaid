@@ -15,10 +15,10 @@ const draft = (overrides: Partial<InvoiceDraft> = {}): InvoiceDraft => ({
   invoiceNumber: `TEST-${randomUUID().slice(0, 18)}`,
   currency: "USD",
   amountCents: 90000,
-  partialPayment: null,
   dueDate: null,
   itemName: "Design (sandbox test)",
   itemDescription: "Website redesign",
+  note: null,
   recipient: { email: "sandbox-client@example.com", name: "Sandbox Test Client" },
   ...overrides,
 });
@@ -68,14 +68,27 @@ describe("PayPal sandbox: invoices", () => {
     expect((await paypal.getInvoice(id)).amountCents).toBe(150000);
   });
 
-  // Needs a sandbox business account in a country where PayPal offers partial payments
-  // (see docs/NEEDS_YOU.md). Deposits and installments depend on it.
-  it("creates a deposit with partial payment and a minimum amount due", async () => {
+  // Installments are plain invoices with a note: no PayPal partial payments, so they work in
+  // every country (this sandbox account's country refuses partial payments).
+  it("creates and sends an installment invoice with its note", async () => {
     const { id } = await paypal.createInvoice(
-      draft({ dueDate: inTwoWeeks(), partialPayment: { minimumDueCents: 30000 } }),
+      draft({
+        amountCents: 75000,
+        dueDate: inTwoWeeks(),
+        itemDescription: "Installment 1 of 2 for Website redesign: Build",
+        note: [
+          "Installment 1 of 2 for Website redesign: Build",
+          "Milestone total USD 1,500.00 · Paid so far USD 0.00 · This installment USD 750.00 · Remaining after this USD 750.00",
+          "Installment 2 of 2: due 15 Dec 2026",
+        ].join("\n"),
+      }),
     );
     leftovers.push(id);
-    expect((await paypal.getInvoice(id)).status).toBe("DRAFT");
+    await paypal.sendInvoice(id);
+    const sent = await paypal.getInvoice(id);
+    expect(["SENT", "UNPAID"]).toContain(sent.status);
+    expect(sent.amountCents).toBe(75000);
+    await paypal.cancelInvoice(id);
   });
 });
 

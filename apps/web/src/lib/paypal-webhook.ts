@@ -85,6 +85,7 @@ type LocalInvoice = {
   status: InvoiceStatus;
   amount_paid_cents: string;
   milestone_status_before: string | null;
+  installment_plan_id: string | null;
 };
 
 const findInvoice = async (
@@ -96,7 +97,7 @@ const findInvoice = async (
   const column = target.by === "paypal_invoice_id" ? "paypal_invoice_id" : "invoice_number";
   const { rows } = await db.query<LocalInvoice>(
     `SELECT id::text, user_id::text, milestone_id::text, paypal_invoice_id, status,
-       amount_paid_cents::text, milestone_status_before
+       amount_paid_cents::text, milestone_status_before, installment_plan_id::text
      FROM public.invoices WHERE ${column} = $1${lock ? " FOR UPDATE" : ""}`,
     [target.value],
   );
@@ -119,11 +120,48 @@ export const syncedStatus = (current: InvoiceStatus, paypalStatus: string): Invo
   return current === "disputed" && next !== "refunded" ? "disputed" : next;
 };
 
-/** Milestone status that follows the invoice's; undefined leaves the milestone as it is. */
+/** Milestone status that follows a plain invoice's; undefined leaves the milestone as it is. */
 const milestoneStatusFor = (status: InvoiceStatus, before: string | null): string | undefined => {
   if (status === "paid" || status === "partially_paid" || status === "disputed") return status;
   if (status === "cancelled") return before ?? "accepted";
   return undefined;
+};
+
+/**
+ * Milestone status after an installment changes: Paid once every installment of the plan is
+ * invoiced and paid (the plan is then completed), Partially paid while some are. A cancelled
+ * installment leaves the milestone alone while it has other open invoices.
+ */
+const installmentMilestoneStatus = async (
+  db: Db,
+  invoice: LocalInvoice,
+  planId: string,
+  status: InvoiceStatus,
+): Promise<string | undefined> => {
+  if (status === "disputed") return status;
+  const { rows } = await db.query<{ count: number; open: number; paid: number }>(
+    `SELECT p.count,
+       (SELECT count(*)::int FROM public.invoices i
+        WHERE i.installment_plan_id = p.id AND i.status <> 'cancelled') AS open,
+       (SELECT count(*)::int FROM public.invoices i
+        WHERE i.installment_plan_id = p.id AND i.status = 'paid') AS paid
+     FROM public.installment_plans p WHERE p.id = $1`,
+    [planId],
+  );
+  const plan = rows[0];
+  if (!plan) return undefined;
+  if (status === "cancelled") {
+    return plan.open === 0 ? (invoice.milestone_status_before ?? "accepted") : undefined;
+  }
+  if (status !== "paid" && status !== "partially_paid") return undefined;
+  if (plan.paid === plan.count) {
+    await db.query(
+      "UPDATE public.installment_plans SET status = 'completed' WHERE id = $1 AND status = 'active'",
+      [planId],
+    );
+    return "paid";
+  }
+  return "partially_paid";
 };
 
 type Change = { status: InvoiceStatus; amountPaidCents: number };
@@ -160,7 +198,9 @@ const applyChange = async (
     change.status,
     change.amountPaidCents,
   ]);
-  const milestoneStatus = milestoneStatusFor(change.status, invoice.milestone_status_before);
+  const milestoneStatus = invoice.installment_plan_id
+    ? await installmentMilestoneStatus(db, invoice, invoice.installment_plan_id, change.status)
+    : milestoneStatusFor(change.status, invoice.milestone_status_before);
   if (invoice.milestone_id && milestoneStatus) {
     // Cancelling restores the pre-invoice status only from an invoice status.
     const from = change.status === "cancelled" ? "AND status IN ('invoiced', 'overdue')" : "";
@@ -169,8 +209,9 @@ const applyChange = async (
       milestoneStatus,
     ]);
   }
-  // Paid, refunded, cancelled or disputed: nothing more to send. A partial payment changes the
-  // balance, so drafts quoting the old amount are stopped too; the schedule makes new ones.
+  // Paid, refunded, cancelled or disputed: nothing more to send for this invoice. Any other
+  // payment change alters the balance, so drafts quoting the old amount are stopped too; the
+  // schedule makes new ones. Other installments keep their own reminders.
   await db.query(
     `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
      WHERE invoice_id = $1 AND sent_at IS NULL AND approval_status IN ('waiting', 'approved')`,

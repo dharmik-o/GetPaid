@@ -307,3 +307,58 @@ describe("events that aren't ours", () => {
     expect((await invoiceRow()).status).toBe("sent");
   });
 });
+
+describe("installments", () => {
+  const PLAN = USER_A.rows.installment_plans;
+
+  /** Replaces the plain invoice with installments 1 (USD 300) and 2 (USD 600) of a plan. */
+  const installments = async () => {
+    const first = fake.store({
+      detail: { currency_code: "USD", invoice_number: "FPR-000901" },
+      items: [{ unit_amount: { currency_code: "USD", value: "300.00" } }],
+    });
+    const second = fake.store({
+      detail: { currency_code: "USD", invoice_number: "FPR-000902" },
+      items: [{ unit_amount: { currency_code: "USD", value: "600.00" } }],
+    });
+    fake.setStatus(first.id, "UNPAID");
+    fake.setStatus(second.id, "UNPAID");
+    await handle.db.query(`
+      DELETE FROM public.invoices WHERE milestone_id = '${MILESTONE}';
+      UPDATE public.installment_plans SET status = 'active' WHERE id = '${PLAN}';
+      INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency, due_date, status,
+          paypal_invoice_id, invoice_number, milestone_status_before,
+          installment_number, installment_count, installment_plan_id)
+        VALUES
+          ('${USER_A.userId}', '${MILESTONE}', 30000, 'USD', '2026-11-17', 'sent',
+            '${first.id}', 'FPR-000901', 'planned', 1, 2, '${PLAN}'),
+          ('${USER_A.userId}', '${MILESTONE}', 60000, 'USD', '2026-12-15', 'sent',
+            '${second.id}', 'FPR-000902', NULL, 2, 2, '${PLAN}');
+    `);
+    return { first: first.id, second: second.id };
+  };
+
+  const planStatus = async () =>
+    (await one<{ status: string }>("SELECT status FROM public.installment_plans WHERE id = $1", [PLAN]))
+      .status;
+
+  it("one installment paid: Partially paid; every one paid: Paid, and the plan is completed", async () => {
+    const { first, second } = await installments();
+    fake.pay(first, "300.00", "PAID");
+    expect((await deliver(eventJson("INVOICING.INVOICE.PAID", { id: first }))).status).toBe(200);
+    expect(await milestoneStatus()).toBe("partially_paid");
+    expect(await planStatus()).toBe("active");
+
+    fake.pay(second, "600.00", "PAID");
+    expect((await deliver(eventJson("INVOICING.INVOICE.PAID", { id: second }))).status).toBe(200);
+    expect(await milestoneStatus()).toBe("paid");
+    expect(await planStatus()).toBe("completed");
+  });
+
+  it("a cancelled installment leaves the milestone alone while another is still open", async () => {
+    const { second } = await installments();
+    fake.setStatus(second, "CANCELLED");
+    await deliver(eventJson("INVOICING.INVOICE.CANCELLED", { id: second }));
+    expect(await milestoneStatus()).toBe("invoiced");
+  });
+});

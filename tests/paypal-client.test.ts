@@ -21,24 +21,30 @@ const DRAFT: InvoiceDraft = {
   invoiceNumber: "FPR-000042",
   currency: "USD",
   amountCents: 90000,
-  partialPayment: { minimumDueCents: 30000 },
   dueDate: "2026-12-08",
   itemName: "Design",
-  itemDescription: "Website redesign",
+  itemDescription: "Installment 1 of 2 for Website redesign: Design",
+  note: "Installment 1 of 2 for Website redesign: Design\nInstallment 2 of 2: due 15 Dec 2026",
   recipient: { email: "client-a@example.test", name: "Client A" },
 };
 
-beforeAll(() => { server.listen({ onUnhandledFrame: "error" }); });
+beforeAll(() => {
+  server.listen({ onUnhandledFrame: "error" });
+});
 beforeEach(() => {
   fake = createFakePaypal();
   server.resetHandlers(...fake.handlers);
   client = createPaypalClient({ clientId: "client-id", clientSecret: SECRET });
 });
-afterEach(() => { server.resetHandlers(); });
-afterAll(() => { server.close(); });
+afterEach(() => {
+  server.resetHandlers();
+});
+afterAll(() => {
+  server.close();
+});
 
 describe("createInvoice", () => {
-  it("creates a draft with partial payment on and the deposit's minimum due", async () => {
+  it("creates a draft with the installment note and no PayPal partial payments", async () => {
     const { id } = await client.createInvoice(DRAFT);
     const body = fake.invoices.get(id)?.body;
     expect(body).toEqual({
@@ -46,6 +52,7 @@ describe("createInvoice", () => {
         currency_code: "USD",
         invoice_number: "FPR-000042",
         payment_term: { due_date: "2026-12-08" },
+        note: DRAFT.note,
       },
       primary_recipients: [
         { billing_info: { email_address: "client-a@example.test", business_name: "Client A" } },
@@ -53,45 +60,32 @@ describe("createInvoice", () => {
       items: [
         {
           name: "Design",
-          description: "Website redesign",
+          description: "Installment 1 of 2 for Website redesign: Design",
           quantity: "1",
           unit_amount: { currency_code: "USD", value: "900.00" },
         },
       ],
-      configuration: {
-        allow_tip: false,
-        partial_payment: {
-          allow_partial_payment: true,
-          minimum_amount_due: { currency_code: "USD", value: "300.00" },
-        },
-      },
+      configuration: { allow_tip: false },
     });
   });
 
-  it("allows any partial payment when there is no minimum, and uses due-on-receipt terms", async () => {
-    const { id } = await client.createInvoice({
-      ...DRAFT,
-      partialPayment: { minimumDueCents: null },
-      dueDate: null,
-    });
-    const body = fake.invoices.get(id)?.body as {
-      detail: unknown;
-      configuration: unknown;
-    };
-    expect(body.detail).toEqual({
+  it("uses due-on-receipt terms and leaves the note out when there is none", async () => {
+    const { id } = await client.createInvoice({ ...DRAFT, dueDate: null, note: null });
+    expect(fake.invoices.get(id)?.body.detail).toEqual({
       currency_code: "USD",
       invoice_number: "FPR-000042",
       payment_term: { term_type: "DUE_ON_RECEIPT" },
     });
-    expect(body.configuration).toEqual({
-      allow_tip: false,
-      partial_payment: { allow_partial_payment: true },
-    });
   });
 
-  it("leaves partial payments off only when asked", async () => {
-    const { id } = await client.createInvoice({ ...DRAFT, partialPayment: null });
-    expect(fake.invoices.get(id)?.body.configuration).toEqual({ allow_tip: false });
+  it("never sends partial_payment, allow_partial_payment or minimum_amount_due", async () => {
+    const { id } = await client.createInvoice(DRAFT);
+    await client.sendInvoice(id);
+    await client.cancelInvoice(id);
+    expect(fake.calls.length).toBeGreaterThan(0);
+    for (const call of fake.calls) {
+      expect(call.body).not.toMatch(/partial_payment|allow_partial_payment|minimum_amount_due/);
+    }
   });
 
   it("sends the PayPal-Request-Id on create", async () => {

@@ -5,10 +5,12 @@ import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
+import { listActivePlansForProject } from "@/lib/installment-plans";
 import { listInvoicesForProject } from "@/lib/invoices";
 import { listMilestones } from "@/lib/milestones";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { runAsCurrentUser } from "@/lib/request-user";
+import { todayIn } from "@/lib/schedule";
 import { describeSchedule } from "@/lib/schedule-preview";
 
 // One project: details, schedule, the optional milestone plan (step 3) and its invoices.
@@ -25,13 +27,14 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { project, clients, milestones, invoices } = await runAsCurrentUser(async (db) => {
+  const { project, clients, milestones, invoices, plans } = await runAsCurrentUser(async (db) => {
     const found = await getProject(db, id);
     return {
       project: found,
       clients: await listClientChoices(db),
       milestones: found ? await listMilestones(db, found) : [],
       invoices: found ? await listInvoicesForProject(db, found.id) : [],
+      plans: found ? await listActivePlansForProject(db, found.id) : [],
     };
   });
   if (!project) notFound();
@@ -90,25 +93,28 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         <h2 id="invoices">Invoices</h2>
         <InvoicePanel
           currency={project.currency}
+          today={todayIn(new Date(), project.clientTimeZone)}
           rows={milestones.map((m) => {
-            const invoice = invoices.find((i) => i.milestoneId === m.id);
+            const plan = plans.find((p) => p.milestoneId === m.id);
             return {
               milestoneId: m.id,
               name: m.name,
               cents: m.cents,
               paymentMode: m.paymentMode,
               status: m.status,
-              invoice: invoice
-                ? {
-                    id: invoice.id,
-                    invoiceNumber: invoice.invoiceNumber,
-                    status: invoice.status,
-                    amountPaidCents: invoice.amountPaidCents,
-                    minimumDueCents: invoice.minimumDueCents,
-                    dueDate: invoice.dueDate,
-                    link: invoice.link,
-                  }
-                : null,
+              invoices: invoices
+                .filter((i) => i.milestoneId === m.id)
+                .map((i) => ({
+                  id: i.id,
+                  invoiceNumber: i.invoiceNumber,
+                  status: i.status,
+                  amountCents: i.amountCents,
+                  amountPaidCents: i.amountPaidCents,
+                  dueDate: i.dueDate,
+                  link: i.link,
+                  installment: i.installment,
+                })),
+              plan: plan ? { createdFrom: plan.createdFrom, items: plan.items } : null,
             };
           })}
         />

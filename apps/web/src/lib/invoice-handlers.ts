@@ -1,10 +1,12 @@
 import type { UserDbRunner } from "./db";
 import { fieldErrors, jsonResponse, notFound, readJson, serverError } from "./http";
-import { cancelInvoice, issueMilestoneInvoice, type InvoiceResult } from "./invoice-flow";
+import { cancelInvoice } from "./invoice-cancel";
+import { issueMilestoneInvoice, type InvoiceResult } from "./invoice-flow";
 import { logEvent } from "./log";
 import { PaypalError, type PaypalClient } from "./paypal";
 
 // Server-only: POST /api/milestones/[id]/invoice and POST /api/invoices/[id]/cancel.
+// Both answer { invoices }: one plain invoice, or the installments the request covered.
 // The database runner, PayPal client and clock are injected so tests can mock all three.
 
 type Deps = { runAsUser: UserDbRunner; paypal: () => PaypalClient; now: () => Date };
@@ -14,7 +16,7 @@ const PAYPAL_NOT_SET_UP =
   "PayPal isn't set up yet. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET from your PayPal sandbox app to your local env file (see .env.example), then restart.";
 
 const respond = (result: InvoiceResult, what: string): Response => {
-  if (result.ok) return jsonResponse({ invoice: result.invoice }, result.sentNow ? 201 : 200);
+  if (result.ok) return jsonResponse({ invoices: result.invoices }, result.sentNow ? 201 : 200);
   if ("notFound" in result) return notFound(what);
   if ("conflict" in result) return jsonResponse({ error: result.conflict }, 409);
   return fieldErrors(result.errors);
@@ -53,7 +55,9 @@ export const invoiceHandlers = (deps: Deps) => {
     }
     try {
       const result = await work(flow);
-      if (result.ok && result.sentNow) logEvent(event, { invoiceId: result.invoice.id });
+      if (result.ok && result.sentNow) {
+        logEvent(event, { invoiceIds: result.invoices.map((invoice) => invoice.id).join(",") });
+      }
       return respond(result, what);
     } catch (error) {
       return failure(`${event}_failed`, error);

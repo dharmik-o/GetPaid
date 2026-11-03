@@ -59,3 +59,12 @@ export const formatDateTime = (instant: Date, timeZone: string): string =>
     hourCycle: "h23",
     timeZone,
   }).format(instant);
+
+/** "18 Nov 2026" for a calendar date (`YYYY-MM-DD`), with no time zone shift. For documents. */
+export const formatFullDay = (isoDate: string): string =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate}T00:00:00Z`));

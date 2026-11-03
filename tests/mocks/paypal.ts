@@ -18,7 +18,8 @@ export type FakeInvoice = {
   refundedValue: string | null;
 };
 
-type Call = { method: string; path: string; requestId: string | null };
+/** One request the app made, with its body text (empty when there is none). */
+type Call = { method: string; path: string; requestId: string | null; body: string };
 
 /** One call to verify-webhook-signature, with its raw request text. */
 type Verification = { text: string; body: Record<string, unknown> };
@@ -62,23 +63,24 @@ export const createFakePaypal = () => {
   let tokensIssued = 0;
   let nextId = 1;
 
-  const record = (request: Request) => {
+  const record = async (request: Request) => {
     calls.push({
       method: request.method,
       path: new URL(request.url).pathname,
       requestId: request.headers.get("paypal-request-id"),
+      body: await request.clone().text(),
     });
   };
 
   const authorized = (request: Request) =>
     request.headers.get("authorization") === `Bearer ${FAKE_TOKEN}`;
 
-  const withInvoice = (
+  const withInvoice = async (
     request: Request,
     id: string | readonly string[] | undefined,
     act: (invoice: FakeInvoice) => Response | Promise<Response>,
   ) => {
-    record(request);
+    await record(request);
     if (!authorized(request)) return new HttpResponse(null, { status: 401 });
     const invoice = invoices.get(String(id));
     if (!invoice) {
@@ -104,8 +106,8 @@ export const createFakePaypal = () => {
   };
 
   const handlers: HttpHandler[] = [
-    http.post(`${PAYPAL_SANDBOX_BASE}/v1/oauth2/token`, ({ request }) => {
-      record(request);
+    http.post(`${PAYPAL_SANDBOX_BASE}/v1/oauth2/token`, async ({ request }) => {
+      await record(request);
       tokensIssued += 1;
       return HttpResponse.json({
         access_token: FAKE_TOKEN,
@@ -115,7 +117,7 @@ export const createFakePaypal = () => {
     }),
 
     http.post(base, async ({ request }) => {
-      record(request);
+      await record(request);
       if (!authorized(request)) return new HttpResponse(null, { status: 401 });
       const body = (await request.json()) as Record<string, unknown>;
       const number = invoiceNumberOf(body);
@@ -126,7 +128,7 @@ export const createFakePaypal = () => {
     }),
 
     http.post(`${PAYPAL_SANDBOX_BASE}/v2/invoicing/search-invoices`, async ({ request }) => {
-      record(request);
+      await record(request);
       if (!authorized(request)) return new HttpResponse(null, { status: 401 });
       const { invoice_number: number } = (await request.json()) as { invoice_number?: string };
       // Like PayPal's search, a partial number matches too; the client must filter exactly.
@@ -163,7 +165,7 @@ export const createFakePaypal = () => {
     http.post(
       `${PAYPAL_SANDBOX_BASE}/v1/notifications/verify-webhook-signature`,
       async ({ request }) => {
-        record(request);
+        await record(request);
         if (!authorized(request)) return new HttpResponse(null, { status: 401 });
         const text = await request.text();
         const body = JSON.parse(text) as Record<string, unknown>;

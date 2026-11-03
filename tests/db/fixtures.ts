@@ -1,4 +1,7 @@
-/** The 11 MVP tables (docs/MVP-spec.md, Data model), in foreign-key order. */
+/**
+ * The MVP tables built so far (docs/MVP-spec.md, Data model): the first 11 in foreign-key order,
+ * then later additions at the end so earlier fixture ids stay the same.
+ */
 export const OWNED_TABLES = [
   "users",
   "ai_providers",
@@ -11,6 +14,7 @@ export const OWNED_TABLES = [
   "reminders",
   "messages",
   "events",
+  "installment_plans",
 ] as const;
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
@@ -62,4 +66,7 @@ export const seedOwnerSql = ({ label, userId: u, rows: r }: Owner): string => `
     VALUES ('${r.messages}', '${u}', '${r.invoices}', 'out', 'Friendly reminder', 'thread-${label}');
   INSERT INTO public.events (id, user_id, entity, entity_id, type)
     VALUES ('${r.events}', '${u}', 'invoice', '${r.invoices}', 'invoice.created');
+  INSERT INTO public.installment_plans (id, user_id, milestone_id, count, total_cents, currency, items, created_from)
+    VALUES ('${r.installment_plans}', '${u}', '${r.milestones}', 2, 90000, 'USD',
+      '[{"amountCents": 30000, "dueDate": null}, {"amountCents": 60000, "dueDate": null}]', 'deposit');
 `;

@@ -38,7 +38,7 @@ describe("001_init and 002_indexes", () => {
     expect(await migrate(db(), MIGRATIONS_DIR)).toEqual([]);
   });
 
-  it("creates exactly the 11 tables from the data model", async () => {
+  it("creates exactly the tables from the data model built so far", async () => {
     const { rows } = await db().query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations'`,
@@ -185,7 +185,7 @@ describe("constraints", () => {
   it("allows one open invoice per milestone, and a new one after cancelling", async () => {
     const insert = `INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency) VALUES ($1, $2, 90000, 'USD')`;
     const params = [USER_A.userId, USER_A.rows.milestones];
-    await rejects(insert, params, /invoices_one_open_per_milestone/);
+    await rejects(insert, params, /invoices_one_open_per_installment/);
     const { rowCount } = await inRollback(db(), async () => {
       await db().query("UPDATE public.invoices SET status = 'cancelled' WHERE id = $1", [
         USER_A.rows.invoices,
@@ -233,15 +233,91 @@ describe("004 and 005: invoice numbers", () => {
     });
   });
 
-  it("can't let a deposit's minimum exceed the invoice amount", async () => {
+});
+
+// Installments replace PayPal partial payments: one invoice per installment, numbered within
+// a plan of 2 to 12, and at most one open invoice per installment number.
+describe("007: installments", () => {
+  const rejects = (sql: string, params: readonly unknown[], pattern: RegExp) =>
+    expect(inRollback(db(), () => db().query(sql, params))).rejects.toThrow(pattern);
+
+  const installment = (number: number | null, count: number | null, plan: string | null) =>
+    db().query(
+      `INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency,
+         installment_number, installment_count, installment_plan_id)
+       VALUES ($1, $2, 30000, 'USD', $3, $4, $5)`,
+      [USER_A.userId, USER_A.rows.milestones, number, count, plan],
+    );
+
+  const cancelPlainInvoice = () =>
+    db().query("UPDATE public.invoices SET status = 'cancelled' WHERE id = $1", [
+      USER_A.rows.invoices,
+    ]);
+
+  it("has no PayPal minimum amount due any more", async () => {
+    expect(await columnsWhere("column_name = 'minimum_due_cents'")).toEqual([]);
+  });
+
+  it("allows installments 1 and 2 of a plan side by side", async () => {
+    const plan = USER_A.rows.installment_plans;
+    const inserted = await inRollback(db(), async () => {
+      await cancelPlainInvoice();
+      await installment(1, 2, plan);
+      return installment(2, 2, plan);
+    });
+    expect(inserted.rowCount).toBe(1);
+  });
+
+  it("refuses a second open invoice for the same installment", async () => {
+    const plan = USER_A.rows.installment_plans;
     await expect(
-      inRollback(db(), () =>
-        db().query(
-          `INSERT INTO public.invoices (user_id, retainer_id, amount_cents, minimum_due_cents, currency)
-           VALUES ($1, $2, 100, 101, 'USD')`,
-          [USER_A.userId, USER_A.rows.retainers],
-        ),
-      ),
-    ).rejects.toThrow(/invoices_minimum_within_amount/);
+      inRollback(db(), async () => {
+        await cancelPlainInvoice();
+        await installment(1, 2, plan);
+        return installment(1, 2, plan);
+      }),
+    ).rejects.toThrow(/invoices_one_open_per_installment/);
+  });
+
+  it("refuses an installment number above its count", async () => {
+    await expect(
+      inRollback(db(), () => installment(3, 2, USER_A.rows.installment_plans)),
+    ).rejects.toThrow(/invoices_installment_within_count/);
+  });
+
+  it("refuses installment fields that are only partly set", async () => {
+    await expect(inRollback(db(), () => installment(1, 2, null))).rejects.toThrow(
+      /invoices_installment_all_or_none/,
+    );
+  });
+
+  it.each([
+    ["1 installment", 1, '[{"amountCents": 90000, "dueDate": null}]'],
+    ["13 installments", 13, JSON.stringify(Array(13).fill({ amountCents: 1, dueDate: null }))],
+  ])("refuses a plan of %s", async (_label, count, items) => {
+    await rejects(
+      `INSERT INTO public.installment_plans (user_id, milestone_id, count, total_cents, currency, items, created_from)
+       VALUES ($1, $2, $3, 90000, 'USD', $4, 'setup')`,
+      [USER_A.userId, USER_A.rows.milestones, count, items],
+      /installment_plans_count_check/,
+    );
+  });
+
+  it("refuses a plan whose items don't match its count", async () => {
+    await rejects(
+      `INSERT INTO public.installment_plans (user_id, milestone_id, count, total_cents, currency, items, created_from)
+       VALUES ($1, $2, 3, 90000, 'USD', '[{"amountCents": 1, "dueDate": null}]', 'setup')`,
+      [USER_A.userId, USER_A.rows.milestones],
+      /installment_plans_items_match_count/,
+    );
+  });
+
+  it("allows one active plan per milestone", async () => {
+    await rejects(
+      `INSERT INTO public.installment_plans (user_id, milestone_id, count, total_cents, currency, items, created_from)
+       VALUES ($1, $2, 2, 90000, 'USD', '[{"amountCents": 1, "dueDate": null}, {"amountCents": 2, "dueDate": null}]', 'setup')`,
+      [USER_A.userId, USER_A.rows.milestones],
+      /installment_plans_one_active_per_milestone/,
+    );
   });
 });

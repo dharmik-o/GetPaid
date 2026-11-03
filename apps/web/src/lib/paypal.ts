@@ -121,16 +121,12 @@ export type InvoiceDraft = {
   invoiceNumber: string;
   currency: string;
   amountCents: number;
-  /**
-   * Partial payments on, with an optional minimum first payment (deposits); null turns them off.
-   * The invoice flow always turns them on (spec); only the sandbox tests turn them off, because
-   * PayPal offers partial payments only to business accounts in some countries.
-   */
-  partialPayment: { minimumDueCents: number | null } | null;
   /** A calendar date (YYYY-MM-DD), or null for due on receipt. */
   dueDate: string | null;
   itemName: string;
   itemDescription: string;
+  /** Shown on the invoice: the installment line, totals and other due dates. Null for none. */
+  note: string | null;
   recipient: { email: string; name: string };
 };
 
@@ -178,19 +174,16 @@ const DUPLICATE_NUMBER = "DUPLICATE_INVOICE_NUMBER";
 
 const tokenSchema = z.object({ access_token: z.string().min(1), expires_in: z.number() });
 
-const partialPaymentConfig = ({ partialPayment, currency }: InvoiceDraft) => {
-  const minimum = partialPayment?.minimumDueCents ?? null;
-  return {
-    allow_partial_payment: true,
-    ...(minimum === null ? {} : { minimum_amount_due: paypalMoney(minimum, currency) }),
-  };
-};
-
+/**
+ * Never PayPal partial payments: they aren't offered in every country. A client who pays in
+ * parts gets installments, which are separate invoices.
+ */
 const invoiceBody = (draft: InvoiceDraft) => ({
   detail: {
     currency_code: draft.currency,
     invoice_number: draft.invoiceNumber,
     payment_term: draft.dueDate ? { due_date: draft.dueDate } : { term_type: "DUE_ON_RECEIPT" },
+    ...(draft.note ? { note: draft.note } : {}),
   },
   primary_recipients: [
     {
@@ -205,10 +198,7 @@ const invoiceBody = (draft: InvoiceDraft) => ({
       unit_amount: paypalMoney(draft.amountCents, draft.currency),
     },
   ],
-  configuration: {
-    allow_tip: false,
-    ...(draft.partialPayment ? { partial_payment: partialPaymentConfig(draft) } : {}),
-  },
+  configuration: { allow_tip: false },
 });
 
 /** Neither PayPal nor the client gets an email from PayPal: reminders go out only after approval. */
