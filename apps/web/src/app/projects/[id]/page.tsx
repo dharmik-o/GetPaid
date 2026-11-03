@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InvoicePanel } from "@/components/InvoicePanel";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
+import { listInvoicesForProject } from "@/lib/invoices";
 import { listMilestones } from "@/lib/milestones";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { describeSchedule } from "@/lib/schedule-preview";
 
-// One project: details, schedule and the optional milestone plan (step 3).
+// One project: details, schedule, the optional milestone plan (step 3) and its invoices.
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +25,13 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { project, clients, milestones } = await runAsCurrentUser(async (db) => {
+  const { project, clients, milestones, invoices } = await runAsCurrentUser(async (db) => {
     const found = await getProject(db, id);
     return {
       project: found,
       clients: await listClientChoices(db),
       milestones: found ? await listMilestones(db, found) : [],
+      invoices: found ? await listInvoicesForProject(db, found.id) : [],
     };
   });
   if (!project) notFound();
@@ -80,6 +83,34 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             paymentMode: m.paymentMode,
             status: m.status,
           }))}
+        />
+      </section>
+
+      <section className="card" aria-labelledby="invoices">
+        <h2 id="invoices">Invoices</h2>
+        <InvoicePanel
+          currency={project.currency}
+          rows={milestones.map((m) => {
+            const invoice = invoices.find((i) => i.milestoneId === m.id);
+            return {
+              milestoneId: m.id,
+              name: m.name,
+              cents: m.cents,
+              paymentMode: m.paymentMode,
+              status: m.status,
+              invoice: invoice
+                ? {
+                    id: invoice.id,
+                    invoiceNumber: invoice.invoiceNumber,
+                    status: invoice.status,
+                    amountPaidCents: invoice.amountPaidCents,
+                    minimumDueCents: invoice.minimumDueCents,
+                    dueDate: invoice.dueDate,
+                    link: invoice.link,
+                  }
+                : null,
+            };
+          })}
         />
       </section>
 

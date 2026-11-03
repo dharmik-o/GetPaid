@@ -52,3 +52,38 @@ let cached: ServerEnv | undefined;
 
 /** The checked server env from process.env, parsed once. Throws on the first call if invalid. */
 export const loadServerEnv = (): ServerEnv => (cached ??= parseServerEnv(process.env));
+
+// PayPal sandbox credentials. Checked when PayPal is first used (and by `npm run env:check`),
+// so the dashboard still starts for work that doesn't touch PayPal.
+const paypalEnvSchema = z.object({
+  PAYPAL_CLIENT_ID: requiredText(),
+  PAYPAL_CLIENT_SECRET: requiredText(),
+  /** Needed only to verify webhooks; the webhook handler checks it itself. */
+  PAYPAL_WEBHOOK_ID: z.string().trim().min(1).optional(),
+});
+
+export type PaypalEnv = z.output<typeof paypalEnvSchema>;
+
+export const PAYPAL_ENV_NAMES = Object.keys(paypalEnvSchema.shape);
+
+/** Checks the PayPal sandbox variables. The error names each problem but never prints a value. */
+export const parsePaypalEnv = (source: Record<string, string | undefined>): PaypalEnv => {
+  const result = paypalEnvSchema.safeParse(source);
+  if (!result.success) {
+    const lines = result.error.issues.map(
+      (issue) => `  - ${issue.path.join(".")} ${issue.message}`,
+    );
+    throw new Error(
+      [
+        "The PayPal sandbox settings are not valid:",
+        ...lines,
+        "Add your PayPal sandbox app's credentials to your local env file (see .env.example), then restart.",
+      ].join("\n"),
+    );
+  }
+  return result.data;
+};
+
+let cachedPaypal: PaypalEnv | undefined;
+
+export const loadPaypalEnv = (): PaypalEnv => (cachedPaypal ??= parsePaypalEnv(process.env));

@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { parseServerEnv, SERVER_ENV_NAMES } from "@/lib/env";
+import { PAYPAL_ENV_NAMES, parsePaypalEnv, parseServerEnv, SERVER_ENV_NAMES } from "@/lib/env";
 
 const KEY_HEX = randomBytes(32).toString("hex");
 const DB_PASSWORD = "db-pass-not-for-logs";
@@ -66,11 +66,40 @@ describe("parseServerEnv", () => {
   });
 });
 
-describe("SERVER_ENV_NAMES", () => {
+describe("parsePaypalEnv", () => {
+  const SECRET = "sandbox-secret-not-for-logs";
+  const PAYPAL = { PAYPAL_CLIENT_ID: "sandbox-client-id", PAYPAL_CLIENT_SECRET: SECRET };
+
+  it("returns the sandbox credentials", () => {
+    expect(parsePaypalEnv(PAYPAL)).toEqual({
+      PAYPAL_CLIENT_ID: "sandbox-client-id",
+      PAYPAL_CLIENT_SECRET: SECRET,
+    });
+  });
+
+  it("keeps the webhook id when it's set", () => {
+    expect(parsePaypalEnv({ ...PAYPAL, PAYPAL_WEBHOOK_ID: "WH-1" }).PAYPAL_WEBHOOK_ID).toBe("WH-1");
+  });
+
+  it("names every missing variable and where to add it, without echoing values", () => {
+    let message = "";
+    try {
+      parsePaypalEnv({ PAYPAL_CLIENT_SECRET: SECRET, PAYPAL_CLIENT_ID: " " });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toMatch(/PAYPAL_CLIENT_ID.*missing/);
+    expect(message).toContain("sandbox");
+    expect(message).toContain(".env.example");
+    expect(message).not.toContain(SECRET);
+  });
+});
+
+describe("env names", () => {
   it("are all documented in .env.example", () => {
     const example = readFileSync(join(import.meta.dirname, "..", ".env.example"), "utf8");
     const documented = new Set([...example.matchAll(/^(\w+)=/gm)].map((match) => match[1]));
-    for (const name of SERVER_ENV_NAMES) {
+    for (const name of [...SERVER_ENV_NAMES, ...PAYPAL_ENV_NAMES]) {
       expect(documented.has(name), `${name} missing from .env.example`).toBe(true);
     }
   });

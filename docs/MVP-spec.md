@@ -228,7 +228,7 @@ Each invoice or milestone gets one PayPal invoice, and the same link appears in 
 | Cancel an invoice | `POST /v2/invoicing/invoices/{id}/cancel` | When a milestone is dropped |
 | Payment status | Webhooks | `INVOICING.INVOICE.PAID`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED` |
 | Trust the webhook | `POST /v1/notifications/verify-webhook-signature` | Reject anything unverified |
-| No duplicates on retry | `PayPal-Request-Id` header | On every create call |
+| No duplicates on retry | `PayPal-Request-Id` header, plus a unique invoice number | Header on every create call. Invoicing v2 ignores it, so each invoice also gets a unique number; PayPal refuses a repeat, and a retry reuses the existing invoice |
 
 **Retainers (auto-pay):** `POST /v1/catalogs/products` and `POST /v1/billing/plans` define the fee and interval. `POST /v1/billing/subscriptions` returns an approval link for the client. The app listens for `PAYMENT.SALE.COMPLETED`, `BILLING.SUBSCRIPTION.PAYMENT.FAILED`, `BILLING.SUBSCRIPTION.SUSPENDED` and `BILLING.SUBSCRIPTION.CANCELLED`. Retainers billed by invoice use the invoice flow above.
 

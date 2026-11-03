@@ -203,3 +203,45 @@ describe("constraints", () => {
     expect(rows[0]?.request_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
+
+// Invoice numbers are what stop duplicate PayPal invoices (PayPal refuses a repeated number),
+// so they must stay unique however large the sequence gets.
+describe("004 and 005: invoice numbers", () => {
+  const newNumber = async (): Promise<string> => {
+    const { rows } = await db().query<{ invoice_number: string }>(
+      `INSERT INTO public.invoices (user_id, retainer_id, amount_cents, currency)
+       VALUES ($1, $2, 100, 'USD') RETURNING invoice_number`,
+      [USER_A.userId, USER_A.rows.retainers],
+    );
+    return rows[0]?.invoice_number ?? "";
+  };
+
+  it("are FPR- and at least six digits", async () => {
+    await inRollback(db(), async () => {
+      await db().query("SELECT setval('public.invoice_number_seq', 41)");
+      expect(await newNumber()).toBe("FPR-000042");
+    });
+  });
+
+  it("keep every digit past 999999, so they never repeat", async () => {
+    await inRollback(db(), async () => {
+      await db().query("SELECT setval('public.invoice_number_seq', 999999)");
+      expect(await newNumber()).toBe("FPR-1000000");
+      expect(await newNumber()).toBe("FPR-1000001");
+      await db().query("SELECT setval('public.invoice_number_seq', 1234567889)");
+      expect(await newNumber()).toBe("FPR-1234567890");
+    });
+  });
+
+  it("can't let a deposit's minimum exceed the invoice amount", async () => {
+    await expect(
+      inRollback(db(), () =>
+        db().query(
+          `INSERT INTO public.invoices (user_id, retainer_id, amount_cents, minimum_due_cents, currency)
+           VALUES ($1, $2, 100, 101, 'USD')`,
+          [USER_A.userId, USER_A.rows.retainers],
+        ),
+      ),
+    ).rejects.toThrow(/invoices_minimum_within_amount/);
+  });
+});

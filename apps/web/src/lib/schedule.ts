@@ -73,6 +73,17 @@ export const computeDueDate = (terms: PaymentTerms, issuedOn: string): string =>
   }
 };
 
+/** The dates on a new invoice: issued today in the client's zone, due per the payment terms. */
+export const invoiceDates = (
+  terms: PaymentTerms,
+  now: Date,
+  timeZone: string,
+): { issuedOn: string; dueDate: string } => {
+  assertTimeZone(timeZone);
+  const issuedOn = localDateOf(now, timeZone);
+  return { issuedOn, dueDate: computeDueDate(terms, issuedOn) };
+};
+
 /** The first instant at or after `from` that is inside the send window, in the client's zone. */
 export const nextWindowSlot = (from: Date, window: SendWindow, timeZone: string): Date => {
   assertTimeZone(timeZone);

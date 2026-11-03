@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergeSettings, type ReminderInterval, type SettingsOverride } from "@/lib/settings";
 import {
   computeDueDate,
+  invoiceDates,
   nextSend,
   nextWindowSlot,
   type NextSendInput,
@@ -46,6 +47,42 @@ describe("computeDueDate", () => {
 
   it("uses the specific date as is", () => {
     expect(computeDueDate({ kind: "date", date: "2026-12-01" }, "2026-11-03")).toBe("2026-12-01");
+  });
+});
+
+describe("invoiceDates", () => {
+  it("issues on today's date in the client's zone and applies the terms", () => {
+    // 03:00 UTC on 4 Nov is still 3 Nov in New York, and already 4 Nov in Tokyo.
+    const now = new Date("2026-11-04T03:00:00Z");
+    expect(invoiceDates({ kind: "net", days: 14 }, now, "America/New_York")).toEqual({
+      issuedOn: "2026-11-03",
+      dueDate: "2026-11-17",
+    });
+    expect(invoiceDates({ kind: "net", days: 14 }, now, "Asia/Tokyo")).toEqual({
+      issuedOn: "2026-11-04",
+      dueDate: "2026-11-18",
+    });
+  });
+
+  it("is due on the issue date for due on receipt", () => {
+    const now = new Date("2026-11-03T15:00:00Z");
+    expect(invoiceDates({ kind: "on_receipt" }, now, "America/New_York").dueDate).toBe(
+      "2026-11-03",
+    );
+  });
+
+  it("keeps a fixed date, even one in the past (the caller decides what to do)", () => {
+    const now = new Date("2026-11-03T15:00:00Z");
+    expect(invoiceDates({ kind: "date", date: "2026-11-01" }, now, "UTC")).toEqual({
+      issuedOn: "2026-11-03",
+      dueDate: "2026-11-01",
+    });
+  });
+
+  it("rejects an unknown time zone", () => {
+    expect(() => invoiceDates({ kind: "on_receipt" }, new Date(), "Mars/Base")).toThrow(
+      /Unknown time zone/,
+    );
   });
 });
 
