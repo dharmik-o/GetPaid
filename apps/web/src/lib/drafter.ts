@@ -6,6 +6,7 @@ import { checkedDraftSchema } from "./draft-checks";
 import type { ReminderFacts } from "./draft-facts";
 import { draftMessages } from "./draft-prompts";
 import { draftTemplate } from "./draft-templates";
+import { pickCitation, type Law } from "./legal";
 import { formatFullDay, formatMoney, formatPaymentTerms } from "./format";
 import { logEvent } from "./log";
 import { loadReminderContext, type ReminderContext } from "./reminder-context";
@@ -29,6 +30,8 @@ export type DrafterDeps = {
   runAsUser: (userId: string) => UserDbRunner;
   box: () => SecretBox;
   now: () => Date;
+  /** legal/statutes.json, checked. */
+  laws: readonly Law[];
 };
 
 const PAYABLE = new Set(["sent", "partially_paid"]);
@@ -45,6 +48,7 @@ export const reminderFacts = (
   ctx: ReminderContext,
   now: Date,
   payLink: string,
+  laws: readonly Law[],
 ): ReminderFacts | undefined => {
   const { invoice, milestone, project } = ctx;
   if (!milestone || !project) return undefined;
@@ -64,7 +68,10 @@ export const reminderFacts = (
       ? `Installment ${String(invoice.installment.number)} of ${String(invoice.installment.count)}`
       : null,
     payLink,
-    citation: null,
+    citation:
+      ctx.tier === "tier3"
+        ? pickCitation({ lateFeeClause: project.lateFeeClause, country: ctx.client.country, laws })
+        : null,
   };
 };
 
@@ -84,7 +91,7 @@ const prepare = (
     const reason = notPayable(ctx);
     if (reason) return { status: "not_payable", reason };
     if (!ctx.invoice.link) return { status: "not_payable", reason: "the invoice has no pay link" };
-    const facts = reminderFacts(ctx, now, ctx.invoice.link);
+    const facts = reminderFacts(ctx, now, ctx.invoice.link, deps.laws);
     if (!facts) return { status: "unsupported", reason: "retainer reminders are drafted from M8" };
     const task = ctx.tier === "tier3" ? "tier3" : "draft";
     return { kind: ctx.tier, facts, connections: await loadAiConnections(db, task, deps.box()) };
@@ -129,7 +136,7 @@ export const draftReminder = async (
   // The model call runs outside any transaction: it can take a minute on a local model.
   const result = await routeTask(prepared.connections, {
     messages: draftMessages(request),
-    schema: checkedDraftSchema(request),
+    schema: checkedDraftSchema(request, deps.laws),
     template: draftTemplate(request),
   });
   if (!result.ok) {

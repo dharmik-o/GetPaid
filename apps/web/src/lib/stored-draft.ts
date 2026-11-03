@@ -20,6 +20,3 @@ export const storedDraftSchema = z.strictObject({
 });
 
 export type StoredDraft = z.infer<typeof storedDraftSchema>;
-
-export const NOT_LEGAL_ADVICE =
-  "Not legal advice. This notice cites only your contract's clause or a law from the app's checked list; check with a lawyer before relying on it.";

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { draftSchema, type Draft } from "./ai-schemas";
 import type { DraftRequest } from "./draft-facts";
+import { legalProblem, type Law } from "./legal";
 
 // Checks on a drafted email beyond its JSON shape. A draft that fails them is treated like
 // one that fails the schema: the router retries once, then uses the fixed template, and a
@@ -51,7 +52,11 @@ const factTexts = (request: DraftRequest): string[] =>
   });
 
 /** Problems with a schema-valid draft, in words the log and tests can show. Empty = fine. */
-export const draftProblems = (draft: Draft, request: DraftRequest): string[] => {
+export const draftProblems = (
+  draft: Draft,
+  request: DraftRequest,
+  laws: readonly Law[] = [],
+): string[] => {
   const problems: string[] = [];
   const text = `${draft.subject}\n${draft.body}`;
   if (/[\r\n]/.test(draft.subject)) problems.push("the subject has a line break");
@@ -67,11 +72,23 @@ export const draftProblems = (draft: Draft, request: DraftRequest): string[] => 
   const allowed = new Set(factTexts(request).flatMap(amountsIn));
   const invented = amountsIn(text).filter((key) => !allowed.has(key));
   if (invented.length > 0) problems.push("it mentions an amount that isn't in the facts");
+  // Legal gating: only Tier 3 may cite, and only what it was given.
+  const legal = legalProblem(text, {
+    citation: request.kind === "tier3" ? request.facts.citation : null,
+    contractTerms: request.kind === "maintenance" ? null : request.facts.contractTerms,
+    laws,
+  });
+  if (legal) problems.push(legal);
   return problems;
 };
 
 /** The draft schema plus these checks, for the router: a failure counts as an invalid answer. */
-export const checkedDraftSchema = (request: DraftRequest): z.ZodType<Draft> =>
+export const checkedDraftSchema = (
+  request: DraftRequest,
+  laws: readonly Law[] = [],
+): z.ZodType<Draft> =>
   draftSchema.superRefine((draft, ctx) => {
-    for (const message of draftProblems(draft, request)) ctx.addIssue({ code: "custom", message });
+    for (const message of draftProblems(draft, request, laws)) {
+      ctx.addIssue({ code: "custom", message });
+    }
   });

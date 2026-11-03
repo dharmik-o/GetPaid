@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/format";
 import { storedDraftSchema } from "@/lib/stored-draft";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
+import { TEST_LAWS } from "../fixtures/statutes";
 
 // The n8n-facing drafter: real migrations and RLS (PGlite), the model mocked by msw.
 
@@ -32,6 +33,7 @@ const handler = (token: string | null = TOKEN) =>
     runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
     box: () => box,
     now: () => NOW,
+    laws: TEST_LAWS,
     token: () => token ?? undefined,
   });
 
@@ -181,6 +183,7 @@ describe("POST /api/internal/drafts", () => {
       runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
       box: () => box,
       now: () => new Date("2026-12-22T04:30:00Z"),
+      laws: [],
       token: () => TOKEN,
     });
     await early.post(
@@ -259,5 +262,96 @@ describe("POST /api/internal/drafts", () => {
     await call();
     expect(seen[0]?.model).toBe("llama3.3:70b");
     expect(await stored()).toMatchObject({ kind: "tier3", notLegalAdvice: true });
+  });
+});
+
+describe("Tier 3 legal gating in the drafter", () => {
+  const { clients: CLIENT, projects: PROJECT } = USER_A.rows;
+  const setClientCountry = (country: string) =>
+    handle.db.query(`UPDATE public.clients SET country = '${country}' WHERE id = '${CLIENT}'`);
+  const setClause = (clause: string | null) =>
+    handle.db.query("UPDATE public.projects SET late_fee_clause = $2 WHERE id = $1", [
+      PROJECT,
+      clause,
+    ]);
+  const notice = (extra: string) => ({
+    subject: "Final notice: invoice",
+    body: `${usd(90000)} is overdue. ${extra}
+${PAY_LINK}`,
+  });
+
+  beforeEach(async () => {
+    await setReminder("tier = 'tier3'");
+    await setClientCountry("US");
+    await setClause(null);
+  });
+
+  afterAll(async () => {
+    await setClientCountry("US");
+    await setClause(null);
+  });
+
+  it("a country missing from the table gets no legal citation, even if the model adds one", async () => {
+    await setClientCountry("JP");
+    const seen = model([notice("Under the Test Late Payment Act 2000, interest applies.")]);
+    await call();
+    expect(seen[0]?.facts.citation).toBeNull();
+    expect(seen).toHaveLength(2);
+    const draft = await stored();
+    expect(draft).toMatchObject({
+      via: "template",
+      citation: null,
+      lawId: null,
+      notLegalAdvice: true,
+    });
+    expect(draft?.body).not.toMatch(/Act |law|interest|statut/i);
+    expect(draft?.subject).toMatch(/^Final notice:/);
+  });
+
+  it("a law with a condition the app can't check is never cited (US city law)", async () => {
+    const seen = model([notice("Please pay.")]);
+    await call();
+    expect(seen[0]?.facts.citation).toBeNull();
+    expect(await stored()).toMatchObject({ via: "model", citation: null });
+  });
+
+  it("cites the table's law for the client's country, in the table's words", async () => {
+    await setClientCountry("GB");
+    const law = TEST_LAWS[0];
+    const seen = model([notice(law?.citation ?? "")]);
+    await call();
+    expect(seen[0]?.facts.citation).toEqual({
+      kind: "statute",
+      lawId: law?.id,
+      text: law?.citation,
+    });
+    expect(await stored()).toMatchObject({
+      via: "model",
+      citation: "statute",
+      lawId: "test-gb-late-payment",
+    });
+  });
+
+  it("prefers the contract's own late-fee clause", async () => {
+    await setClientCountry("GB");
+    await setClause("Late invoices incur 1.5% interest per month.");
+    const text = `Our contract's late-payment clause says: "Late invoices incur 1.5% interest per month."`;
+    const seen = model([notice(text)]);
+    await call();
+    expect(seen[0]?.facts.citation).toEqual({ kind: "contract", text });
+    expect(await stored()).toMatchObject({ via: "model", citation: "contract", lawId: null });
+  });
+
+  it("a Tier 2 draft can't cite a law, even for a country in the table", async () => {
+    await setReminder("tier = 'tier2'");
+    await setClientCountry("GB");
+    const seen = model([notice(TEST_LAWS[0]?.citation ?? "")]);
+    await call();
+    expect(seen[0]?.facts).not.toHaveProperty("citation");
+    expect(await stored()).toMatchObject({
+      via: "template",
+      citation: null,
+      notLegalAdvice: false,
+    });
   });
 });
