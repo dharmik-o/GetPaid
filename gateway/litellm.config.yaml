@@ -1,1 +1,12 @@
-# LiteLLM: maps model names to Claude, OpenAI, Gemini, Ollama, etc.
+# LiteLLM: one OpenAI-compatible endpoint in front of any cloud or local model.
+# Real provider entries (Claude, OpenAI, Gemini, Ollama, ...) are added with the AI router in M4.
+
+model_list:
+  # Offline model for smoke tests: always answers with this fixed JSON, no provider call.
+  - model_name: mock
+    litellm_params:
+      model: openai/mock
+      mock_response: '{"ok": true}'
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
