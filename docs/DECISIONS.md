@@ -37,6 +37,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **`docs/MVP-spec.md` is in `.prettierignore`:** the format hook was realigning every table in the exported spec.
 
 ### 2026-11-03: Secrets helper
+
 - **Cipher:** AES-256-GCM (Node's built-in `crypto`), with a fresh 12-byte IV for every value. Stored as text, `v1:<iv>:<tag>:<ciphertext>` in base64url, for the `*_enc` columns. The `v1` prefix leaves room for key rotation later.
 - **Context binding:** every encrypt and decrypt call needs a context string, for example `users.gmail_token_enc:<user id>`. It's authenticated as associated data, so a ciphertext copied to another row or column fails to decrypt.
 - **`ENCRYPTION_KEY` format:** 32 bytes, as 64 hex characters or base64 (`openssl rand -hex 32`). Errors explain the format and never echo the value.
@@ -50,6 +51,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ## M1 Schedule engine
 
 ### 2026-11-03: Settings merge
+
 - **Where:** `apps/web/src/lib/settings.ts` holds the settings schema, the spec defaults and `mergeSettings()`, the one merge function. Timing rules stay in `lib/schedule.ts`.
 - **What each layer stores:** only the settings it overrides (`users.default_settings`, then `clients`, `projects` and `milestones.settings`). Missing or null layers count as empty. A key set to `null` means "off" (pre-due reminder, late fee) and does override the layer above.
 - **Grouped settings are replaced whole:** payment terms, interval, tier boundaries, send window and late fee come from a single layer, never mixed field by field. Mixing could produce tiers that don't ascend.
@@ -60,6 +62,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Strict parsing:** unknown or misspelled keys are rejected, and the error names the layer and field.
 
 ### 2026-11-03: Next send time
+
 - **Luxon** (`luxon` in `apps/web`, `@types/luxon` dev): CLAUDE.md names it as the one date library. No dependencies, no install scripts; `npm audit` shows only the existing `minimatch` advisory.
 - **API:** `nextSend({ settings, dueDate, timeZone, history, now })` returns `scheduled` (tier and UTC `sendAt`), `paused` or `done`. `history` is the invoice's sent or skipped reminders; while one is still waiting for approval, the caller doesn't ask for the next. `computeDueDate(terms, issuedOn)` and `nextWindowSlot()` live here too.
 - **Due date and day counting:** the due date is a calendar date in the client's time zone, and "day n overdue" counts the client's calendar days. Interval days run from the local date of the last reminder; the next one goes out at the window start on that date (or right away if it's already inside the window).
@@ -72,6 +75,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **DST:** a window start that doesn't exist on the change day (e.g. 02:30) moves to the first real time after it (Luxon's behaviour).
 
 ### 2026-11-03: Settings validation
+
 - **Two places:** rules about one setting's shape (tiers ascend, window end after start, no repeated days, ranges) live in the zod schema in `lib/settings.ts`, so `mergeSettings` also rejects bad saved values. Rules that need context live in `validateSettings(raw, context)` in `lib/settings-validation.ts`, which forms and API routes call.
 - **Field-level result:** `{ ok, settings | errors, warnings }`. Each issue is `{ field, message }`, with `field` a dot path such as `tierBoundaries.tier2` or `interval.dates.1`. Every invalid field is reported at once. Unknown keys are reported by name.
 - **Due date before deadline:** a warning on `paymentTerms`, never an error. It's checked when the due date is known: a specific date, or Net terms plus `issuedOn`. Inherited terms come from `context.parent`. Deposits will often warn, which is expected.
@@ -81,6 +85,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ## M2 Clients, projects and milestones
 
 ### 2026-11-03: Clients CRUD
+
 - **Dev server on 127.0.0.1:** `next dev --hostname 127.0.0.1` (asked for by the user). In dev every request acts as one local user, so the dashboard must not be reachable from the network.
 - **Who is signed in:** real sign-in isn't in the feature list, so `lib/auth.ts` returns the seeded demo freelancer (or `DEV_USER_ID`) in development and throws in production. Real Supabase Auth is in `docs/NEEDS_YOU.md`.
 - **Database access:** `pg` (added to `apps/web`; no install scripts, already a root dev dependency) instead of the Supabase JS client, because the local stack is plain Postgres. `runAsUser` opens one transaction with `SET LOCAL ROLE authenticated` and `request.jwt.claims.sub`, so the same RLS policies apply as on Supabase. A failed transaction discards its pooled connection. `lib/supabase.ts` stays an empty stub for now.
@@ -97,6 +102,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Not-found under streaming:** an unknown client id renders the 404 page with `noindex`, but the HTTP status is 200, because `loading.tsx` starts the stream first. That's standard Next.js behaviour; the API answers a real 404.
 
 ### 2026-11-03: Projects and ScheduleForm
+
 - **`projects.deadline`** (migration `003_project_deadline.sql`): a single-invoice project needs its own delivery deadline. The column is nullable so older rows stay valid; the API requires it.
 - **Currencies:** the 24 currencies on PayPal's supported-currencies page (updated 10 Jul 2026). BRL, CNY and MYR are labelled "in-country PayPal accounts only", as PayPal notes. That page is a reporting reference, so M3 must confirm per-API acceptance in the sandbox.
 - **Minor units follow PayPal's decimals:** HUF, JPY and TWD have no decimals in PayPal (ISO gives HUF and TWD two), so 1,500 forint is stored as `1500`. `minorDigits()` in `lib/currencies.ts` is the single source; `formatMoney` and the amount input use it. M3's PayPal conversion must use it too.
@@ -109,7 +115,8 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **No projects index page:** `docs/DESIGN.md` lists none. Projects appear on their client's page; the sidebar's Projects link opens New project.
 
 ### 2026-11-03: Milestones
-- **Rounding (the user's rule, from M0):** percentages convert to minor units rounded half up, and the last milestone absorbs the remainder, so the plan always adds up to the project total exactly. BigInt is used where total × basis points could pass 2^53. **Mixed plans** (some amounts, some percentages) are allowed: the remainder goes to the last *percentage* milestone, so a typed amount is never changed.
+
+- **Rounding (the user's rule, from M0):** percentages convert to minor units rounded half up, and the last milestone absorbs the remainder, so the plan always adds up to the project total exactly. BigInt is used where total × basis points could pass 2^53. **Mixed plans** (some amounts, some percentages) are allowed: the remainder goes to the last _percentage_ milestone, so a typed amount is never changed.
 - **Totals check:** amounts plus percentages of the total must equal the project total exactly, compared as integers (amounts × 10000 + total × bp = total × 10000). All-percentage plans must add up to 100%. An empty plan is valid: the project is billed as one invoice.
 - **Deadline order:** a milestone due before the one above it gets a warning, not an error. Rows still being typed (a blank or partial date) are skipped; a blank date used to crash the editor, which the regression test covers.
 - **Whole plan per save:** `PUT /api/projects/[id]/milestones` replaces the plan, so totals always see every milestone. Positions follow list order (the unique-position constraint is checked at commit, which allows reordering). Ids from another project are rejected.
@@ -120,6 +127,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ## M3 PayPal invoices and webhooks
 
 ### 2026-11-03: Invoices
+
 - **Sandbox only, fixed in code:** `lib/paypal.ts` always calls `https://api-m.sandbox.paypal.com`. No env var or input can point it elsewhere. Credentials are `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` (`PAYPAL_WEBHOOK_ID` is for the webhook item). They're checked the first time PayPal is used and by `npm run env:check`, not at startup, so the rest of the dashboard runs without them.
 - **No duplicates (spec wording fixed):** the real sandbox showed that **Invoicing v2 ignores `PayPal-Request-Id`**: the same id twice created two invoices. The header is still sent on every create (project rule), but the guard is the invoice number. Each invoice row gets a unique `FPR-` number from a Postgres sequence (migrations 004 and 005) before PayPal is called. PayPal refuses a second invoice with the same number (`DUPLICATE_INVOICE_NUMBER`), and the client then searches for that number (exact match) and reuses the invoice. Verified in the sandbox. The spec's PayPal table now says this.
 - **Order of steps:** (1) a short transaction checks the milestone and commits the draft row (request id, number, amount, due date); (2) PayPal create, then the PayPal id is saved; (3) PayPal send; (4) a transaction marks it sent with the pay link and sets the milestone to Invoiced. PayPal is never called inside a transaction. A retry after a failure at any step resumes the same row and the same PayPal invoice; tests cover a failed send and a lost create answer. Two racing clicks meet the one-open-invoice-per-milestone index and both get the same row.
@@ -136,6 +144,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Test timeout 15 s:** with 20 workers each starting an in-memory Postgres (PGlite), two older tests that start an extra database inside the test body sometimes passed 5 s. Assertions are unchanged.
 
 ### 2026-11-03: Webhook handler
+
 - **The app verifies and applies; n8n relays.** `POST /api/webhooks/paypal` holds the logic, in tested TypeScript. `n8n/workflows/06_paypal_webhook.json` is three nodes: Webhook (raw body) → HTTP Request to the app with the exact bytes and the five `PayPal-*` headers → respond with the app's status. It checks nothing itself and writes nothing; the app verifies before any write. The relay's app URL is fixed (`http://host.docker.internal:3000`, local dev), because reading `$env` would mean letting every n8n expression see n8n's own secrets. Hand-written because it's three nodes; it imports into n8n 2.45.7 cleanly.
 - **Verification:** `POST /v1/notifications/verify-webhook-signature` with `PAYPAL_WEBHOOK_ID`, the five headers and the event **spliced in byte for byte**. Re-serialising could change what PayPal checks. Splicing is safe because the body must first parse as one JSON object. Missing headers or a non-object body: 400, without calling PayPal. FAILURE: 401, logged, nothing changes. Verification service down or webhook id missing: 503, so PayPal retries later. Body capped at 1 MB. Confirmed in the real sandbox that a forged delivery gets FAILURE (not an error).
 - **PayPal's copy wins:** for invoice events (`INVOICING.INVOICE.PAID`/`UPDATED`/`REFUNDED`/`CANCELLED`, and `PAYMENT.CAPTURE.REFUNDED` matched by our invoice number), the handler reads the invoice from PayPal and uses its status and amounts, never the event body. A late or repeated event can't move anything backwards; a test sends a signed "PAID" for an invoice PayPal still shows unpaid, and nothing changes.
@@ -147,6 +156,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Not handled yet:** `PAYMENT.CAPTURE.COMPLETED` (milestone holds, M9) and subscription events (retainers, M8) are verified and acknowledged without changes.
 
 ### 2026-11-03: Installments replace partial payments; invoice templates (approved change)
+
 - **Folded in:** `docs/CHANGE-installments-and-templates.md` (approved by the user today) is now part of `docs/MVP-spec.md`: overview, payment modes, a new Installments part under Milestones, reply handling, the PayPal table, a new Invoice templates section, the data model, scope and demo steps 2, 5 and 6. `docs/FEATURES.md`: the M3 Invoices item is reworked, the M7 reply listener gets the installments branch, and M5 ends with a new Invoice templates item. The partial-payments item in `docs/NEEDS_YOU.md` is done.
 - **A deposit of the whole milestone is one plain invoice (detail fix):** the change's rules say a deposit is less than the milestone amount and a plan has 2 to 12 installments, but its demo step 2 sets up the $900 Design milestone as "installment 1 of 1". Choice: a deposit equal to the milestone amount is one invoice at kickoff with no plan and no "1 of 1" line. Why: it keeps both rules true, the demo outcome is the same (pay it, milestone Paid), and the client doesn't see "Installment 1 of 1".
 - **Deposit due dates:** "due at kickoff" and "due when the milestone is delivered" say when each installment is invoiced. Each is then due per the merged payment terms from that day, as every other invoice is.
@@ -156,6 +166,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Thirteen tables:** `installment_plans` (M3) and `invoice_templates` (M5) join the eleven.
 
 ### 2026-11-03: Invoices reworked for installments
+
 - **No PayPal partial payments anywhere:** `InvoiceDraft` has no partial-payment field and the create body has only `allow_tip: false` in `configuration`. The PayPal mock now records every request body, and the invoice API tests check after each test that no request contains `partial_payment`, `allow_partial_payment` or `minimum_amount_due`. Migration 007 drops `invoices.minimum_due_cents`.
 - **Migration 007:** `installment_plans` (owner RLS, one active plan per milestone, `items` length equals `count`, 2 to 12) plus `total_cents` and `currency`, so the plan's money has a currency like every other money column. `invoices` gets `installment_number`, `installment_count` and `installment_plan_id` (all set or all null, number ≤ count). The one-open-invoice index is now per (milestone, installment number), with a plain invoice as number 0.
 - **API:** `POST /api/milestones/[id]/invoice` takes `depositCents` (deposits) or `installment` (a deposit plan's next one) and answers `{ invoices }`. `PUT` / `DELETE /api/milestones/[id]/installments` save or remove a setup plan until its first invoice exists. `POST /api/invoices/[id]/cancel` also answers `{ invoices }`; for an installment it cancels the whole plan.
@@ -171,6 +182,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ## M4 Bring your own AI
 
 ### 2026-11-03: AI settings screen
+
 - **Shape:** one **main model** and, only when the main model is local, an optional **cloud fallback**. That's the spec's order (local, then cloud only if the user allows it, then a template), and the user allows it by adding one. Optional per-task model names for sorting replies and for Tier 3 use the main model's provider and key. Stored in `ai_providers` as one row per task (sort, draft, tier3) and order (1 main, 2 fallback).
 - **Migration 008:** `ai_providers.is_local`, and a check that `base_url` is http(s). Presets decide local or cloud; Custom URL has a "runs on my machine or network" box.
 - **Presets:** the spec's eight. Each base URL is the provider's OpenAI-compatible endpoint (Anthropic, OpenAI, Gemini, Groq, OpenRouter, Ollama `/v1`, LM Studio `/v1`). Only Claude suggests a model (`claude-sonnet-5-5`); the others ask for one rather than guess a name. The local LiteLLM gateway is reached through Custom URL.
@@ -180,6 +192,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **`secretBox()` exported from `lib/crypto.ts`,** so handlers take a `SecretBox` and tests pass a throwaway key.
 
 ### 2026-11-03: AI router
+
 - **The app routes; n8n relays (same pattern as the PayPal webhook).** `lib/ai-router.ts` holds the logic in tested TypeScript, and `07_ai_router` is two nodes: Execute Workflow Trigger → HTTP Request to `POST /api/internal/ai/route`. Keys are encrypted with the app's `ENCRYPTION_KEY` and bound to the row, so decrypting them in n8n would mean giving n8n that key and rewriting the crypto in a Code node. Spec wording updated. Imported into n8n 2.45.7, inactive.
 - **Direct OpenAI-compatible calls, LiteLLM as the gateway for the rest (spec wording updated):** Claude, OpenAI, Gemini, Groq and OpenRouter all accept the OpenAI chat format at their own endpoints, as do Ollama, LM Studio and vLLM. Calling them directly keeps each user's key between the app and that provider; routing per-user keys through a shared gateway would pass every key through one more service. LiteLLM stays in the stack for providers without such an endpoint (Bedrock and others) and for the offline `mock` model, reached with Custom URL. The fallback between models is the router's own (below), not LiteLLM's.
 - **Fallback order:** local models first, then the cloud fallback (only if the user added one), then the caller's fixed template. A model that can't be reached (network error, timeout, any HTTP error) passes to the next. An answer that doesn't match the schema is retried once on the same model with a short reminder; a second bad answer goes **straight to the template** (the done-when: "invalid JSON triggers one retry and then the template"), not to another model. With no template (for example a redraft from the freelancer's own words), the result is "unavailable" or "invalid", and the caller waits ("Otherwise the reminder waits until the model is back").
@@ -189,6 +202,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Hook block:** a by-hand run against LiteLLM that loaded the env file was refused by the protect-files hook; logged in `docs/NEEDS_YOU.md`, not worked around. The same run without a key showed the real-HTTP 401 → template path.
 
 ### 2026-11-03: Test connection
+
 - **What runs:** the spec's 4 sample tasks: sort a reply that promises a date, sort one that asks to pay in parts, draft a Tier 1 email, draft a Tier 2 email. Made-up data only (fake names and a fake sandbox pay link), so nothing real goes to a cloud model. Sorting uses the per-task sort model, drafting the main model.
 - **No template here:** the tasks go through the real router with no template, so a model that answers badly twice shows as **Fail** ("would use the fixed template") instead of quietly passing. The cloud fallback still steps in when the local model is down, and the result says so.
 - **Pass means:** the answer matches the schema, and the sort label is the expected one, or the draft carries the pay link exactly as given.
@@ -199,9 +213,20 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ## M5 Drafting
 
 ### 2026-11-03: Prompts
+
 - **Source and copy:** `prompts/*.md` hold the prompt text (title line, then the system prompt). The app can't count on reading files outside `apps/web` at run time, so `npm run ai:prompts` (new) writes them into `lib/prompt-text.ts`, and `tests/prompts.test.ts` fails if the two drift (same pattern as the schemas).
 - **One output schema:** courtesy, Tier 1, 2, 3 and the maintenance heads-up all answer `draft` (`subject`, `body`); no schema change.
 - **Facts, not free text:** each prompt gets the facts as JSON between `<facts>` tags, every value already formatted from the database (money by `formatMoney`, dates as "31 Oct 2026"). `<` in a fact is JSON-escaped so a client name can't close the tag. Only Tier 3 ever sees a `citation`.
 - **Checks beyond the shape (`lib/draft-checks.ts`):** a reminder must carry the pay link exactly and no other link; a maintenance heads-up has no link; any money amount (with a currency code or symbol) must appear in the facts (so "$1,500" for "USD 1,500.00" is fine, an invented fee is not); the subject has no line break. They run inside the schema the router checks (`checkedDraftSchema`), so a failing draft is retried once and then replaced by the fixed template, like invalid JSON.
 - **Fixed templates (`lib/draft-templates.ts`):** one per kind, built only from the facts, and passing the same checks. With a template always available, a reminder never waits on the model.
 - **Maintenance heads-up:** prompt, template and checks now; storing and approving it comes with M8, because `reminders` are tied to invoices.
+
+### 2026-11-03: Drafter
+
+- **The app drafts; n8n relays (as with the AI router).** `02_drafter` is two nodes: Execute Workflow Trigger (`userId`, `reminderId`) → HTTP Request to `POST /api/internal/drafts` (Bearer `INTERNAL_API_TOKEN`, same credential as `07_ai_router`). The app calls `lib/ai-router.ts` in-process rather than going back out through n8n: it's the same router code `07_ai_router` relays to, and in-process the content checks (pay link, amounts, legal gating) run inside the router's retry-once-then-template rule. Calling 07 from 02 would put the checks after the router, where a bad draft could only fall to the template with no retry. Spec wording updated. Imported into n8n, inactive.
+- **Facts from the database only:** client, freelancer, project, milestone and deliverable, invoice number, amount left to pay (amount minus paid, by `formatMoney`), due date, days overdue (new `daysOverdue` in `lib/schedule.ts`, in the client's calendar), merged payment terms (new `formatPaymentTerms`), contract terms (first 2,000 characters), installment "2 of 3", and the invoice's own PayPal link. The n8n input is only the two ids.
+- **When it refuses:** not found for this user (RLS) 404; already approved or skipped 409; invoice not sent, paid, cancelled or with nothing left 409. Retainer invoices answer "unsupported" until M8.
+- **Idempotent:** a reminder with a draft is left alone (200 "exists", no model call). The save is `UPDATE … WHERE draft IS NULL AND approval_status = 'waiting'`, so a race between two runs keeps the first. The model call runs outside any transaction.
+- **Stored draft (`reminders.draft`, `lib/stored-draft.ts`):** subject, body, tier, `via` (model or template), model and local/cloud, the citation kind and law id (Tier 3), `notLegalAdvice` (true on every Tier 3), drafted-at. An event `reminder.drafted` records tier, via, model and citation kind, never the text.
+- **Models per task:** Tier 3 uses the `tier3` task's model; every other tier the `draft` task's.
+- **`lib/internal-auth.ts`:** the Bearer check moved out of the AI route handler so both n8n-facing endpoints share it.

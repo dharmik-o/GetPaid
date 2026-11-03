@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, formatDay, formatDaysAgo, formatFullDay, formatMoney } from "@/lib/format";
+import {
+  formatDateTime,
+  formatDay,
+  formatDaysAgo,
+  formatFullDay,
+  formatMoney,
+  formatPaymentTerms,
+} from "@/lib/format";
 
 /** Intl puts a no-break space between the code and the amount. */
 const plain = (text: string): string => text.replace(/\s/gu, " ");
@@ -66,5 +73,13 @@ describe("formatDay and formatDateTime", () => {
       "Thu 19 Nov, 09:00",
     );
     expect(formatDateTime(instant, "America/Lima").replace(/\s/gu, " ")).toBe("Wed 18 Nov, 15:00");
+  });
+});
+
+describe("formatPaymentTerms", () => {
+  it("says each kind of terms as a client reads it", () => {
+    expect(formatPaymentTerms({ kind: "on_receipt" })).toBe("Due on receipt");
+    expect(formatPaymentTerms({ kind: "net", days: 14 })).toBe("Net 14");
+    expect(formatPaymentTerms({ kind: "date", date: "2026-11-18" })).toBe("Due by 18 Nov 2026");
   });
 });

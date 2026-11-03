@@ -1,4 +1,5 @@
 import { isPaypalCurrency, minorDigits } from "./currencies";
+import type { PaymentTerms } from "./settings";
 
 // The one money formatter and the date formatters for the dashboard. Pure: safe in client components.
 
@@ -68,3 +69,15 @@ export const formatFullDay = (isoDate: string): string =>
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${isoDate}T00:00:00Z`));
+
+/** "Net 14", "Due on receipt" or "Due by 18 Nov 2026", as clients read them. */
+export const formatPaymentTerms = (terms: PaymentTerms): string => {
+  switch (terms.kind) {
+    case "on_receipt":
+      return "Due on receipt";
+    case "net":
+      return `Net ${String(terms.days)}`;
+    case "date":
+      return `Due by ${formatFullDay(terms.date)}`;
+  }
+};

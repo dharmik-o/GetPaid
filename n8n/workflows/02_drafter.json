@@ -1,1 +1,45 @@
-{ "name": "Drafter: builds context, calls AI router, checks JSON, saves draft", "nodes": [], "connections": {} }
+{
+  "name": "Drafter: builds context, calls AI router, checks JSON, saves draft",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "id": "2d7a6c10-0201-4f3b-8a2e-000000000201",
+      "name": "Called by a workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "notes": "Input: userId and reminderId (from the scheduler, M7). Nothing else: every fact in the draft comes from the database."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/drafts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ userId: $json.userId, reminderId: $json.reminderId }) }}",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 300000
+        }
+      },
+      "id": "2d7a6c10-0202-4f3b-8a2e-000000000202",
+      "name": "Draft in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "app-internal-api-token", "name": "App internal API token" }
+      },
+      "notes": "The app builds the facts, runs the AI router (local first, then the cloud fallback if allowed, then the fixed template), checks the draft (schema, pay link, no invented amounts, Tier 3 legal gating) and saves it on the reminder. Safe to re-run: a reminder that already has a draft is left alone. Returns { status, draft?, message }. Local dev URL; change it for a deployed app."
+    }
+  ],
+  "connections": {
+    "Called by a workflow": {
+      "main": [[{ "node": "Draft in the app", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

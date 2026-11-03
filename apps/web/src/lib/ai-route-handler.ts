@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { routeTask } from "./ai-router";
 import { AI_SCHEMA_NAMES, AI_SCHEMAS } from "./ai-schemas";
@@ -7,6 +6,7 @@ import type { SecretBox } from "./crypto";
 import type { UserDbRunner } from "./db";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, readJson, serverError } from "./http";
+import { refuseUnlessInternal } from "./internal-auth";
 import { logEvent } from "./log";
 
 // Server-only: POST /api/internal/ai/route, which n8n's 07_ai_router calls for every AI task.
@@ -34,32 +34,10 @@ const bodySchema = z.strictObject({
   template: z.unknown().optional(),
 });
 
-const digest = (value: string): Buffer => createHash("sha256").update(value).digest();
-
-/** Constant-time comparison of the Bearer token. */
-const authorized = (request: Request, expected: string): boolean => {
-  const header = request.headers.get("authorization") ?? "";
-  const given = header.startsWith("Bearer ") ? header.slice("Bearer ".length) : "";
-  return given !== "" && timingSafeEqual(digest(given), digest(expected));
-};
-
 export const aiRouteHandler = (deps: Deps) => ({
   post: async (request: Request): Promise<Response> => {
-    const expected = deps.token();
-    if (!expected) {
-      logEvent("ai_route.rejected", { reason: "token_not_configured" });
-      return jsonResponse(
-        {
-          error:
-            "The AI router isn't set up: set INTERNAL_API_TOKEN (see .env.example) and restart.",
-        },
-        503,
-      );
-    }
-    if (!authorized(request, expected)) {
-      logEvent("ai_route.rejected", { reason: "bad_token" });
-      return jsonResponse({ error: "Not authorized. Check the n8n credential's token." }, 401);
-    }
+    const refused = refuseUnlessInternal(request, deps.token(), "ai_route.rejected");
+    if (refused) return refused;
     const json = await readJson(request);
     if (!json.ok) return json.response;
     const parsed = bodySchema.safeParse(json.body);

@@ -79,6 +79,10 @@ export const todayIn = (now: Date, timeZone: string): string => {
   return localDateOf(now, timeZone);
 };
 
+/** Calendar days after the due date, counted in the client's zone; negative before it. */
+export const daysOverdue = (dueDate: string, now: Date, timeZone: string): number =>
+  daysBetween(dueDate, todayIn(now, timeZone));
+
 /** The dates on a new invoice: issued today in the client's zone, due per the payment terms. */
 export const invoiceDates = (
   terms: PaymentTerms,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mergeSettings, type ReminderInterval, type SettingsOverride } from "@/lib/settings";
 import {
   computeDueDate,
+  daysOverdue,
   invoiceDates,
   nextSend,
   nextWindowSlot,
@@ -421,5 +422,21 @@ describe("nextSend", () => {
       // 09:00 on Thu 19 Nov in Auckland = 20:00Z on 18 Nov, still 15:00 on 18 Nov in Lima.
       expect(result).toEqual(scheduled("tier1", "2026-11-18T20:00:00Z"));
     });
+  });
+});
+
+describe("daysOverdue", () => {
+  it("counts calendar days in the client's zone, negative before the due date", () => {
+    expect(daysOverdue("2026-11-10", new Date("2026-11-08T15:00:00Z"), "America/New_York")).toBe(
+      -2,
+    );
+    expect(daysOverdue("2026-11-10", new Date("2026-11-10T23:00:00Z"), "America/New_York")).toBe(0);
+    // 03:00 UTC on 11 Nov is still 10 Nov in New York, but already 11 Nov in Kolkata.
+    expect(daysOverdue("2026-11-10", new Date("2026-11-11T03:00:00Z"), "America/New_York")).toBe(0);
+    expect(daysOverdue("2026-11-10", new Date("2026-11-11T03:00:00Z"), "Asia/Kolkata")).toBe(1);
+  });
+
+  it("isn't thrown off by a DST change (New York, 1 Nov 2026)", () => {
+    expect(daysOverdue("2026-10-31", new Date("2026-11-02T12:00:00Z"), "America/New_York")).toBe(2);
   });
 });
