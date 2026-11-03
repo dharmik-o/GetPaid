@@ -46,6 +46,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Note: the routing runs in the app (`lib/ai-router.ts`, tested with mock models); `07_ai_router` relays to it. Calls use the OpenAI-compatible format, direct to each provider's compatible endpoint; the LiteLLM gateway is used through Custom URL for providers without one (see `docs/DECISIONS.md`).
 - [ ] **Test connection:** runs 4 sample tasks and shows pass or fail for each.
   - Done when: it works with a mock model in tests and with Claude plus Ollama by hand, and invalid JSON triggers one retry and then the template.
+  - Status: built and committed, not ticked. Passes with mock models in tests (including the retry and the template); the by-hand runs with Claude and Ollama need your API key and Ollama with a model on your PC (see `docs/NEEDS_YOU.md`).
 
 ## M5 Drafting [Escalation engine]
 

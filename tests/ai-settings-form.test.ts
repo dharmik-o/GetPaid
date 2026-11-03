@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AiSettingsForm, type SavedAiSettings } from "@/components/AiSettingsForm";
+import { AiTestPanel } from "@/components/AiTestPanel";
 import { AI_PRESETS } from "@/lib/ai-presets";
 
 // The AI settings form, rendered on the server as the page does.
@@ -46,5 +47,19 @@ describe("AiSettingsForm", () => {
     // A cloud main model falls back to the template, not another cloud model.
     expect(html).not.toContain("Use a cloud model as a fallback");
     expect(html).toContain("falls back to a fixed template");
+  });
+});
+
+describe("AiTestPanel", () => {
+  it("can't run until a model is saved", () => {
+    const html = renderToStaticMarkup(createElement(AiTestPanel, { hasSettings: false }));
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Test connection<\/button>/);
+    expect(html).toContain("Save a model above first.");
+  });
+
+  it("offers the test once a model is saved", () => {
+    const html = renderToStaticMarkup(createElement(AiTestPanel, { hasSettings: true }));
+    expect(html).not.toContain("disabled");
+    expect(html).toContain("made-up data only");
   });
 });

@@ -1,4 +1,5 @@
 import { AiSettingsForm } from "@/components/AiSettingsForm";
+import { AiTestPanel } from "@/components/AiTestPanel";
 import { getAiSettings } from "@/lib/ai-settings";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -23,6 +24,10 @@ const AiSettingsPage = async () => {
       <section className="card" aria-labelledby="ai-model">
         <h2 id="ai-model">Model</h2>
         <AiSettingsForm initial={settings} />
+      </section>
+      <section className="card" aria-labelledby="ai-test">
+        <h2 id="ai-test">Test connection</h2>
+        <AiTestPanel hasSettings={settings.main !== null} />
       </section>
     </div>
   );
