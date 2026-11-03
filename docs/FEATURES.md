@@ -26,7 +26,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 ## M2 Clients, projects and milestones [Milestones]
 
 - [x] **Clients CRUD** with country and time zone (auto from country, editable).
-- [ ] **Projects:** new project form with deadline, terms, schedule and currency (`ScheduleForm`).
+- [x] **Projects:** new project form with deadline, terms, schedule and currency (`ScheduleForm`).
 - [ ] **Milestones (optional):** amount or %, deadline, acceptance window, payment mode (`MilestoneEditor`).
   - Done when: totals must equal the project total (or 100%), out-of-order deadlines warn, and the lifecycle statuses match the spec.
 

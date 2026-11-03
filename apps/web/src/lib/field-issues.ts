@@ -27,3 +27,10 @@ export const toFieldIssues = (
     }
     return [{ field: joinPath(prefix, issue.path) || `${noun}s`, message: issue.message }];
   });
+
+/** Nests issues under a parent field, e.g. `graceDays` → `settings.graceDays`. */
+export const nestIssues = (issues: FieldIssue[], parent: string): FieldIssue[] =>
+  issues.map((issue) => ({
+    field: issue.field === parent ? parent : `${parent}.${issue.field}`,
+    message: issue.message,
+  }));

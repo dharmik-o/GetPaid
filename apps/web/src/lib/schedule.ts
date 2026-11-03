@@ -50,7 +50,8 @@ const assertTimeZone = (zone: string): void => {
 const localDateOf = (instant: Date, zone: string): string =>
   isoDateOf(DateTime.fromJSDate(instant, { zone }));
 
-const startOfLocalDay = (iso: string, zone: string): Date =>
+/** Midnight at the start of a calendar date in the given zone. */
+export const startOfLocalDay = (iso: string, zone: string): Date =>
   DateTime.fromISO(iso, { zone }).startOf("day").toJSDate();
 
 const laterOf = (a: Date, b: Date): Date => (a > b ? a : b);

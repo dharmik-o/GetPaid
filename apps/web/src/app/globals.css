@@ -349,3 +349,82 @@ h2 {
     display: none;
   }
 }
+
+.form-wide {
+  max-width: 720px;
+}
+
+.field textarea {
+  width: 100%;
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.schedule-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.schedule-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.schedule-group legend {
+  font-weight: 600;
+  padding: 0 var(--space-1);
+}
+
+.schedule-group input,
+.schedule-group select {
+  width: auto;
+}
+
+.schedule-group input[type="number"] {
+  width: 5em;
+}
+
+.schedule-preview {
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.banner-warning {
+  background: var(--warning-soft);
+}
+
+label.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: normal;
+  margin-right: var(--space-3);
+}
+
+.link-button {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDaysAgo, formatMoney } from "@/lib/format";
+import { formatDateTime, formatDay, formatDaysAgo, formatMoney } from "@/lib/format";
 
 /** Intl puts a no-break space between the code and the amount. */
 const plain = (text: string): string => text.replace(/\s/gu, " ");
@@ -39,5 +39,27 @@ describe("formatDaysAgo", () => {
 
   it("treats a time slightly in the future as today", () => {
     expect(formatDaysAgo(new Date("2026-11-18T12:00:05Z"), now)).toBe("today");
+  });
+});
+
+describe("formatMoney with PayPal's zero-digit currencies", () => {
+  it("shows HUF and TWD as whole amounts, as PayPal stores them", () => {
+    expect(formatMoney(1500, "HUF").replace(/\s/gu, " ")).toBe("HUF 1,500");
+    expect(formatMoney(1500, "TWD").replace(/\s/gu, " ")).toBe("TWD 1,500");
+  });
+});
+
+describe("formatDay and formatDateTime", () => {
+  it("shows a calendar date as '18 Nov', whatever the machine's zone", () => {
+    expect(formatDay("2026-11-18")).toBe("18 Nov");
+    expect(formatDay("2027-01-02")).toBe("2 Jan");
+  });
+
+  it("shows an instant in the given zone", () => {
+    const instant = new Date("2026-11-18T20:00:00Z");
+    expect(formatDateTime(instant, "Pacific/Auckland").replace(/\s/gu, " ")).toBe(
+      "Thu 19 Nov, 09:00",
+    );
+    expect(formatDateTime(instant, "America/Lima").replace(/\s/gu, " ")).toBe("Wed 18 Nov, 15:00");
   });
 });

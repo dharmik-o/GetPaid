@@ -95,3 +95,15 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Event log:** `lib/log.ts` writes one JSON line per event to stderr, with ids and error class names only, never messages or bodies.
 - **`db:seed` is local-only too:** it writes `auth.users`, so it gets the same host guard as `db:dev-auth`. For now the seed holds only the demo freelancer (`example.test` email); the demo project comes in M10.
 - **Not-found under streaming:** an unknown client id renders the 404 page with `noindex`, but the HTTP status is 200, because `loading.tsx` starts the stream first. That's standard Next.js behaviour; the API answers a real 404.
+
+### 2026-11-03: Projects and ScheduleForm
+- **`projects.deadline`** (migration `003_project_deadline.sql`): a single-invoice project needs its own delivery deadline. The column is nullable so older rows stay valid; the API requires it.
+- **Currencies:** the 24 currencies on PayPal's supported-currencies page (updated 10 Jul 2026). BRL, CNY and MYR are labelled "in-country PayPal accounts only", as PayPal notes. That page is a reporting reference, so M3 must confirm per-API acceptance in the sandbox.
+- **Minor units follow PayPal's decimals:** HUF, JPY and TWD have no decimals in PayPal (ISO gives HUF and TWD two), so 1,500 forint is stored as `1500`. `minorDigits()` in `lib/currencies.ts` is the single source; `formatMoney` and the amount input use it. M3's PayPal conversion must use it too.
+- **Amount input:** typed amounts ("3,000.50") are parsed to minor units with string maths, never floats. The API takes `totalCents` as an integer.
+- **Steps on one page:** step 1 (details) and step 2 (schedule) are numbered sections of one form rather than a wizard. Step 3 (milestones) goes on the project page, because milestones need the saved project (next feature).
+- **ScheduleForm stores only changes:** each group shows the inherited value (account, then client). A group is saved as an override only when it differs, and "Use the default" removes it. Validation runs live with the same `validateSettings` the server uses, and the preview runs the real schedule engine (`describeSchedule` in `lib/schedule-preview.ts`, assuming the invoice goes out on the deadline).
+- **Pause and snooze aren't in the new-project form:** they're actions on a running project, and the API already accepts them. Controls come with the Outbox and project actions.
+- **Late fee needs the clause, live:** the late-fee control appears only once the contract's late-fee clause is filled in, matching the server rule.
+- **A project can't move to another client:** `clientId` isn't accepted on PATCH. A PATCH is checked against the saved values, so clearing the late-fee clause while a late fee is set is rejected.
+- **No projects index page:** `docs/DESIGN.md` lists none. Projects appear on their client's page; the sidebar's Projects link opens New project.

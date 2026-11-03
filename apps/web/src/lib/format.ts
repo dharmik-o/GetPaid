@@ -1,8 +1,13 @@
-// The one money formatter and the one relative-date formatter for the dashboard.
+import { isPaypalCurrency, minorDigits } from "./currencies";
 
+// The one money formatter and the date formatters for the dashboard. Pure: safe in client components.
+
+/** PayPal's decimals for its currencies (HUF, JPY, TWD have none); ISO's for anything else. */
 const fractionDigits = (currency: string): number =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).resolvedOptions()
-    .maximumFractionDigits ?? 2;
+  isPaypalCurrency(currency)
+    ? minorDigits(currency)
+    : (new Intl.NumberFormat("en-US", { style: "currency", currency }).resolvedOptions()
+        .maximumFractionDigits ?? 2);
 
 /** Integer minor units to a decimal string, without floating point. */
 const toDecimalString = (minor: number, digits: number): `${number}` => {
@@ -23,6 +28,8 @@ export const formatMoney = (minor: number, currency: string): string => {
     style: "currency",
     currency,
     currencyDisplay: "code",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(toDecimalString(minor, digits));
 };
 
@@ -34,3 +41,21 @@ export const formatDaysAgo = (instant: Date, now: Date): string => {
   const days = Math.max(0, Math.floor((now.getTime() - instant.getTime()) / DAY_MS));
   return relative.format(-days, "day");
 };
+
+/** "18 Nov" for a calendar date (`YYYY-MM-DD`), with no time zone shift. */
+export const formatDay = (isoDate: string): string =>
+  new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+    new Date(`${isoDate}T00:00:00Z`),
+  );
+
+/** "Thu 19 Nov, 09:00" for an instant, in the given IANA zone. */
+export const formatDateTime = (instant: Date, timeZone: string): string =>
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  }).format(instant);

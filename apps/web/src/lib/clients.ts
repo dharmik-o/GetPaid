@@ -2,7 +2,7 @@ import { z } from "zod";
 import { countryName, defaultTimeZone, isCountryCode, isValidTimeZone } from "./countries";
 import type { Db } from "./db";
 import { toCents, toIso } from "./db-values";
-import { toFieldIssues, type FieldIssue } from "./field-issues";
+import { nestIssues, toFieldIssues, type FieldIssue } from "./field-issues";
 import { settingsOverrideSchema, type SettingsOverride } from "./settings";
 import { validateSettings } from "./settings-validation";
 
@@ -63,12 +63,7 @@ const settingsIssues = (raw: unknown): { settings?: SettingsOverride; errors: Fi
   if (value === undefined) return { errors: [] };
   const result = validateSettings(value);
   if (result.ok) return { settings: result.settings, errors: [] };
-  return {
-    errors: result.errors.map((issue) => ({
-      field: issue.field === "settings" ? "settings" : `settings.${issue.field}`,
-      message: issue.message,
-    })),
-  };
+  return { errors: nestIssues(result.errors, "settings") };
 };
 
 const fieldIssues = (error: z.ZodError | undefined): FieldIssue[] =>
