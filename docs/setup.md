@@ -28,3 +28,7 @@ With the stack up, run these once, in order:
 Tests: `npm test` runs the schema and RLS tests on an in-memory Postgres (PGlite), so it doesn't need Docker. `npm run test:db:docker` runs the same RLS isolation tests against the Docker Postgres in a throwaway database that is dropped afterwards.
 
 Roles: the dashboard acts as `authenticated` (row-level security applies). `service_role` bypasses RLS and is only for n8n and webhook handlers, never for user-facing dashboard code.
+
+## Server environment
+
+The dashboard checks its environment when it starts and refuses to run if something is missing or invalid. Today that's `ENCRYPTION_KEY` (32 bytes, generate with `openssl rand -hex 32`) and `DATABASE_URL`. Run `npm run env:check` to see the same result without starting the server; it prints variable names only, never values. Keep `ENCRYPTION_KEY` safe and unchanged: if it changes, stored API keys and tokens can't be decrypted and must be entered again.

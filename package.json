@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p apps/web",
     "check": "npm run lint && npm run typecheck && npm test",
     "format": "prettier --write .",
+    "env:check": "tsx --env-file-if-exists=.env scripts/env-check.ts",
     "db:dev-auth": "tsx --env-file-if-exists=.env scripts/db.ts dev-auth",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db.ts migrate",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db.ts seed"
