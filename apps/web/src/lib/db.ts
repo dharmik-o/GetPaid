@@ -59,18 +59,22 @@ let pool: pg.Pool | undefined;
 const getPool = (): pg.Pool =>
   (pool ??= new pg.Pool({ connectionString: loadServerEnv().DATABASE_URL, max: 5 }));
 
-/** A runner for this user on the shared pool. A failed transaction discards its connection. */
+/** Work on one pooled connection. A failed transaction discards the connection. */
+export const withConnection = async <T>(work: (conn: Db) => Promise<T>): Promise<T> => {
+  const client = await getPool().connect();
+  let failed = false;
+  try {
+    return await work(fromPgClient(client));
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    client.release(failed);
+  }
+};
+
+/** A runner for this user on the shared pool. */
 export const withUserDb =
   (userId: string): UserDbRunner =>
-  async (work) => {
-    const client = await getPool().connect();
-    let failed = false;
-    try {
-      return await runAsUser(fromPgClient(client), userId, work);
-    } catch (error) {
-      failed = true;
-      throw error;
-    } finally {
-      client.release(failed);
-    }
-  };
+  (work) =>
+    withConnection((conn) => runAsUser(conn, userId, work));

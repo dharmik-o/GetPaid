@@ -35,8 +35,9 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [ ] **Invoices:** create once per milestone, send, cancel; partial payment and minimum amount due for deposits.
   - Done when: sandbox integration tests pass, and a retry with the same `PayPal-Request-Id` creates no duplicate.
   - Status: built and committed, not ticked. The no-duplicate retry passes in the real sandbox (via the invoice number; PayPal ignores the request id). The partial-payment sandbox tests fail because PayPal blocks partial payments for this sandbox account's country; see `docs/NEEDS_YOU.md`.
-- [ ] **Webhook handler** (n8n `06_paypal_webhook`): verify the signature, then update invoice and milestone status (Paid, Partially paid, refund, dispute).
+- [x] **Webhook handler** (n8n `06_paypal_webhook`): verify the signature, then update invoice and milestone status (Paid, Partially paid, refund, dispute).
   - Done when: an unsigned or forged event is rejected, and paid stops all pending reminders for that invoice.
+  - Note: both checks pass in tests (PayPal mocked), and the real sandbox answers FAILURE for a forged delivery. A live delivery through n8n hasn't run yet: it needs a public URL (see `docs/NEEDS_YOU.md`).
 
 ## M4 Bring your own AI [Bring your own AI]
 

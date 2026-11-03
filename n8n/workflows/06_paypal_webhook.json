@@ -1,1 +1,73 @@
-{ "name": "PayPal webhook: verifies signature, updates invoices, milestones, retainers", "nodes": [], "connections": {} }
+{
+  "name": "PayPal webhook: verifies signature, updates invoices, milestones, retainers",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "paypal",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "id": "6a1f0c2e-0601-4d6b-9c1a-000000000601",
+      "name": "PayPal delivery",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "6a1f0c2e-0601-4d6b-9c1a-0000000006aa",
+      "notes": "Receives PayPal's webhook. Nothing here trusts or changes anything: the raw bytes and the PayPal-* signature headers go to the app, which verifies the signature with PayPal before any write."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/webhooks/paypal",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" },
+            { "name": "paypal-auth-algo", "value": "={{ $json.headers['paypal-auth-algo'] }}" },
+            { "name": "paypal-cert-url", "value": "={{ $json.headers['paypal-cert-url'] }}" },
+            { "name": "paypal-transmission-id", "value": "={{ $json.headers['paypal-transmission-id'] }}" },
+            { "name": "paypal-transmission-sig", "value": "={{ $json.headers['paypal-transmission-sig'] }}" },
+            { "name": "paypal-transmission-time", "value": "={{ $json.headers['paypal-transmission-time'] }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": { "response": { "fullResponse": true, "neverError": true } },
+          "timeout": 30000
+        }
+      },
+      "id": "6a1f0c2e-0602-4d6b-9c1a-000000000602",
+      "name": "Verify and apply in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "notes": "Forwards the exact body bytes (rawBody) so the signature still matches. Local dev URL; change it for a deployed app."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": { "responseCode": "={{ $json.statusCode }}" }
+      },
+      "id": "6a1f0c2e-0603-4d6b-9c1a-000000000603",
+      "name": "Answer PayPal",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [520, 0],
+      "notes": "Passes on the app's status: 2xx tells PayPal it's done; 401 for a forged event; 5xx makes PayPal retry later."
+    }
+  ],
+  "connections": {
+    "PayPal delivery": {
+      "main": [[{ "node": "Verify and apply in the app", "type": "main", "index": 0 }]]
+    },
+    "Verify and apply in the app": {
+      "main": [[{ "node": "Answer PayPal", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

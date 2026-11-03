@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
+import { loadPaypalEnv } from "@/lib/env";
 import { paypalFromEnv, type InvoiceDraft } from "@/lib/paypal";
 
 // Real PayPal SANDBOX calls (`npm run test:paypal:sandbox`). PayPal sends no emails: every
@@ -75,5 +76,26 @@ describe("PayPal sandbox: invoices", () => {
     );
     leftovers.push(id);
     expect((await paypal.getInvoice(id)).status).toBe("DRAFT");
+  });
+});
+
+describe("PayPal sandbox: webhook verification", () => {
+  it("answers FAILURE (not an error) for a forged delivery", async () => {
+    const webhookId = loadPaypalEnv().PAYPAL_WEBHOOK_ID;
+    expect(webhookId, "set PAYPAL_WEBHOOK_ID in the local env file").toBeTruthy();
+    const forged = `{"id":"WH-FORGED-1","event_type":"INVOICING.INVOICE.PAID","resource":{"id":"INV2-FORGED"}}`;
+    const verified = await paypal.verifyWebhook(
+      {
+        auth_algo: "SHA256withRSA",
+        cert_url:
+          "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-360caa42-fca2a594-a5cafa77",
+        transmission_id: randomUUID(),
+        transmission_sig: "Zm9yZ2Vk",
+        transmission_time: new Date().toISOString(),
+      },
+      forged,
+      webhookId ?? "",
+    );
+    expect(verified).toBe(false);
   });
 });

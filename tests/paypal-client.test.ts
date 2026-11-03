@@ -185,6 +185,7 @@ describe("sendInvoice and getInvoice", () => {
       currency: "USD",
       amountCents: 90000,
       paidCents: 30000,
+      refundedCents: 0,
       payerViewUrl: `https://www.sandbox.paypal.com/invoice/p/#${id}`,
     });
   });

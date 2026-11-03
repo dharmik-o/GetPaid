@@ -140,6 +140,8 @@ export type PaypalInvoice = {
   currency: string;
   amountCents: number;
   paidCents: number;
+  /** Refunded so far; the money the freelancer keeps is paid minus refunded. */
+  refundedCents: number;
   /** The page where the client pays; null until the invoice is sent. */
   payerViewUrl: string | null;
 };
@@ -155,6 +157,7 @@ const invoiceSchema = z.object({
   }),
   amount: moneySchema,
   payments: z.object({ paid_amount: moneySchema.optional() }).optional(),
+  refunds: z.object({ refund_amount: moneySchema.optional() }).optional(),
 });
 
 /** Create answers with the invoice, or with only a link to it; either way we need the id. */
@@ -211,17 +214,34 @@ const invoiceBody = (draft: InvoiceDraft) => ({
 /** Neither PayPal nor the client gets an email from PayPal: reminders go out only after approval. */
 const NO_EMAILS = { send_to_invoicer: false, send_to_recipient: false };
 
+/** The PayPal-* headers on a webhook delivery, as PayPal's verify call names them. */
+export type WebhookHeaders = {
+  auth_algo: string;
+  cert_url: string;
+  transmission_id: string;
+  transmission_sig: string;
+  transmission_time: string;
+};
+
+const verificationSchema = z.object({ verification_status: z.string() });
+
 export interface PaypalClient {
   createInvoice(draft: InvoiceDraft): Promise<{ id: string }>;
   sendInvoice(id: string): Promise<void>;
   getInvoice(id: string): Promise<PaypalInvoice>;
   cancelInvoice(id: string): Promise<void>;
   deleteInvoice(id: string): Promise<void>;
+  /**
+   * Asks PayPal whether a webhook delivery is genuine. `rawBody` must be the exact bytes
+   * received and already known to be one JSON object.
+   */
+  verifyWebhook(headers: WebhookHeaders, rawBody: string, webhookId: string): Promise<boolean>;
 }
 
 type Credentials = { clientId: string; clientSecret: string };
 
-type CallOptions = { body?: unknown; requestId?: string };
+/** `raw` is sent as given, for bodies that must keep exact bytes. */
+type CallOptions = { body?: unknown; raw?: string; requestId?: string };
 
 const invoicePath = (id: string): string => `/v2/invoicing/invoices/${encodeURIComponent(id)}`;
 
@@ -276,7 +296,11 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
         prefer: "return=representation",
         ...(options.requestId ? { "paypal-request-id": options.requestId } : {}),
       },
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...(options.raw !== undefined
+        ? { body: options.raw }
+        : options.body === undefined
+          ? {}
+          : { body: JSON.stringify(options.body) }),
     });
 
   /** One call; on 401 the token is renewed and the call tried once more. */
@@ -344,12 +368,14 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
       const invoice = parse(invoiceSchema, action, await call(action, "GET", invoicePath(id)));
       const currency = invoice.detail.currency_code;
       const paid = invoice.payments?.paid_amount;
+      const refunded = invoice.refunds?.refund_amount;
       return {
         id: invoice.id,
         status: invoice.status,
         currency,
         amountCents: fromPaypalValue(invoice.amount.value, currency),
         paidCents: paid ? fromPaypalValue(paid.value, currency) : 0,
+        refundedCents: refunded ? fromPaypalValue(refunded.value, currency) : 0,
         payerViewUrl: invoice.detail.metadata?.recipient_view_url ?? null,
       };
     },
@@ -360,6 +386,18 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
 
     deleteInvoice: async (id) => {
       await call("delete draft invoice", "DELETE", invoicePath(id));
+    },
+
+    verifyWebhook: async (headers, rawBody, webhookId) => {
+      const action = "verify webhook signature";
+      // The event goes in byte for byte: re-serialising it could change what PayPal checks.
+      // Safe to splice: the caller has checked rawBody parses as a single JSON object.
+      const fields = JSON.stringify({ ...headers, webhook_id: webhookId }).slice(0, -1);
+      const raw = `${fields},"webhook_event":${rawBody}}`;
+      const body = await call(action, "POST", "/v1/notifications/verify-webhook-signature", {
+        raw,
+      });
+      return parse(verificationSchema, action, body).verification_status === "SUCCESS";
     },
   };
 };

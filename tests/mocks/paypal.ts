@@ -3,18 +3,25 @@ import { PAYPAL_SANDBOX_BASE } from "@/lib/paypal";
 
 // An in-memory PayPal sandbox for msw, matching what the real sandbox does: create ignores
 // PayPal-Request-Id but refuses a second invoice with the same invoice number. It follows the
-// invoice states the app relies on. No real network calls.
+// invoice states the app relies on, and verifies webhook signatures: only events signed with
+// VALID_SIGNATURE for FAKE_WEBHOOK_ID pass. No real network calls.
 
 export const FAKE_TOKEN = "fake-access-token";
+export const FAKE_WEBHOOK_ID = "WH-FAKE-0001";
+export const VALID_SIGNATURE = "valid-signature";
 
 export type FakeInvoice = {
   id: string;
   status: string;
   body: Record<string, unknown>;
   paidValue: string | null;
+  refundedValue: string | null;
 };
 
 type Call = { method: string; path: string; requestId: string | null };
+
+/** One call to verify-webhook-signature, with its raw request text. */
+type Verification = { text: string; body: Record<string, unknown> };
 
 const invoiceJson = (invoice: FakeInvoice) => {
   const detail = (invoice.body.detail ?? {}) as Record<string, unknown>;
@@ -30,6 +37,9 @@ const invoiceJson = (invoice: FakeInvoice) => {
     amount: { currency_code: currency, value: items[0]?.unit_amount.value ?? "0.00" },
     ...(invoice.paidValue
       ? { payments: { paid_amount: { currency_code: currency, value: invoice.paidValue } } }
+      : {}),
+    ...(invoice.refundedValue
+      ? { refunds: { refund_amount: { currency_code: currency, value: invoice.refundedValue } } }
       : {}),
   };
 };
@@ -48,6 +58,7 @@ const unprocessable = (issue: string) =>
 export const createFakePaypal = () => {
   const invoices = new Map<string, FakeInvoice>();
   const calls: Call[] = [];
+  const verifications: Verification[] = [];
   let tokensIssued = 0;
   let nextId = 1;
 
@@ -81,7 +92,13 @@ export const createFakePaypal = () => {
   /** Creates a draft as PayPal would. Tests use it directly for "created, but the answer was lost". */
   const store = (body: Record<string, unknown>): FakeInvoice => {
     const id = `INV2-FAKE-${String(nextId++).padStart(4, "0")}`;
-    const invoice: FakeInvoice = { id, status: "DRAFT", body, paidValue: null };
+    const invoice: FakeInvoice = {
+      id,
+      status: "DRAFT",
+      body,
+      paidValue: null,
+      refundedValue: null,
+    };
     invoices.set(id, invoice);
     return invoice;
   };
@@ -143,6 +160,20 @@ export const createFakePaypal = () => {
       withInvoice(request, params.id, (invoice) => HttpResponse.json(invoiceJson(invoice))),
     ),
 
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v1/notifications/verify-webhook-signature`,
+      async ({ request }) => {
+        record(request);
+        if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+        const text = await request.text();
+        const body = JSON.parse(text) as Record<string, unknown>;
+        verifications.push({ text, body });
+        const valid =
+          body.transmission_sig === VALID_SIGNATURE && body.webhook_id === FAKE_WEBHOOK_ID;
+        return HttpResponse.json({ verification_status: valid ? "SUCCESS" : "FAILURE" });
+      },
+    ),
+
     http.delete(`${base}/:id`, ({ request, params }) =>
       withInvoice(request, params.id, (invoice) => {
         if (invoice.status !== "DRAFT") return unprocessable("CANT_DELETE");
@@ -156,6 +187,7 @@ export const createFakePaypal = () => {
     handlers,
     invoices,
     calls,
+    verifications,
     store,
     get tokensIssued() {
       return tokensIssued;
@@ -166,6 +198,19 @@ export const createFakePaypal = () => {
       if (!invoice) throw new Error(`No fake invoice ${id}`);
       invoice.status = status;
       invoice.paidValue = value;
+    },
+    /** Simulates the freelancer refunding part or all of a payment. */
+    refund(id: string, value: string, status: "REFUNDED" | "PARTIALLY_REFUNDED") {
+      const invoice = invoices.get(id);
+      if (!invoice) throw new Error(`No fake invoice ${id}`);
+      invoice.status = status;
+      invoice.refundedValue = value;
+    },
+    /** Simulates the freelancer cancelling the invoice on paypal.com. */
+    setStatus(id: string, status: string) {
+      const invoice = invoices.get(id);
+      if (!invoice) throw new Error(`No fake invoice ${id}`);
+      invoice.status = status;
     },
   };
 };
