@@ -9,7 +9,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Local stack:** `docker-compose.yml` runs n8n, Postgres, LiteLLM, plus Ollama as an optional profile.
   - Done when: `docker compose up -d` starts all services and each health check passes.
   - Note: Postgres, n8n and LiteLLM verified healthy. The Ollama profile is defined, but its runtime health check is deferred to M4 (agreed).
-- [ ] **Database:** `db/migrations/001_init.sql` creates the 11 tables from [Data model], with foreign keys, timestamps, row-level security per user, and money in integer cents.
+- [x] **Database:** `db/migrations/001_init.sql` creates the 11 tables from [Data model], with foreign keys, timestamps, row-level security per user, and money in integer cents.
   - Done when: migrations apply to an empty database, and a test checks that each table and its RLS policy exist.
 - [ ] **Secrets helper:** `lib/crypto.ts` encrypts and decrypts with `ENCRYPTION_KEY`; env is loaded and checked with zod at startup.
   - Done when: round-trip tests pass, and startup fails with a clear message if a required env var is missing.

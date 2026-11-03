@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts", "apps/web/src/**/*.test.ts"],
-    exclude: ["tests/e2e/**", "**/node_modules/**"],
+    // *.docker.test.ts need the local stack; run them with `npm run test:db:docker`.
+    exclude: ["tests/e2e/**", "**/*.docker.test.ts", "**/node_modules/**"],
   },
 });

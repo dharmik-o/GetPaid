@@ -5,3 +5,5 @@ playwright-report
 test-results
 coverage
 n8n/workflows
+# Exported from the shared spec doc; keep its formatting as exported.
+docs/MVP-spec.md

@@ -9,3 +9,4 @@ paths:
 - Every route handler validates input with zod and checks that the record belongs to the signed-in user.
 - Use one money formatter and one date formatter from `src/lib`; show both time zones on send times.
 - Each new screen needs an empty state, a loading state and an error state.
+- Never use the `service_role` connection or key in dashboard pages, components or user-facing route handlers; they act as the signed-in user (`authenticated`). Only webhook handlers (and n8n) may use `service_role`.

@@ -246,7 +246,7 @@ Eleven tables cover the MVP. Schedules are stored as one settings object per lev
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status |
 | invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status |
-| reminders | invoice_id, tier, scheduled_at (client time), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
+| reminders | invoice_id, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
 | messages | invoice_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |
 
