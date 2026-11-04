@@ -315,7 +315,7 @@ The stack from v1 stays. The scheduler now runs hourly instead of daily, so mess
 
 **n8n workflows**
 
-1. **Scheduler** (hourly): finds reminders due inside their send window. It also creates each cycle's retainer invoice and sends the freelancer's maintenance and renewal reminders.
+1. **Scheduler** (hourly): plans each unpaid invoice's next reminder up to a day ahead, so there's time to approve it, and drafts it. It also creates each cycle's retainer invoice and sends the freelancer's maintenance and renewal reminders.
 2. **Drafter:** builds the context, calls the AI Router, validates the JSON, stores the draft. The n8n workflow relays to the app, which does all four with the same router code as `07_ai_router`, so the content checks share its retry-then-template rule.
 3. **Approval handler:** posts each draft to the Outbox and to Telegram (a card with buttons, sent by the n8n Telegram node at the app's request), then acts on Approve, Edit or Skip from either place. A Telegram Trigger catches plain-word edit replies and sends them back to the Drafter.
 4. **Sender:** sends via Gmail on the original thread and logs it. The first reminder starts the thread, because PayPal's own emails are off; every follow-up keeps its thread ID, subject and In-Reply-To and References headers.

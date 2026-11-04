@@ -333,3 +333,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Message-ID:** we set our own and then ask Gmail for what it recorded, since Gmail's is what replies refer to. If that lookup fails, the mail has still gone, so ours is stored rather than risking a repeat.
 - **Telegram stays in Approval handler:** `04_sender` has no Telegram nodes. The one-minute run reads `sent_at` and edits the card to "Sent ✓ <time>", replacing whatever it said. It runs before the "already handled" step, so a sent card goes straight to Sent.
 - **A hold column isn't read yet:** `onHold` is wired through and stays false until the reply listener adds it.
+
+### Scheduler (4 Nov 2026)
+
+- **Added to M7 (not a scope change):** the spec has the scheduler, and the M5 drafter's note says it comes in M7, but `docs/FEATURES.md` had no item for it. Without it nothing creates a reminder, so the sender would have nothing to send. Item added to the list.
+- **Plans a day ahead:** a reminder is created once its send time is within 24 hours. Drafting right at send time would leave no time to approve it, and earlier would quote stale details.
+- **One reminder in progress per invoice:** the next one is worked out only after this one is sent or skipped, using `nextSend`. A unique partial index enforces it, so two overlapping runs can't double-plan.
+- **It runs the drafter directly:** same code and same router as `02_drafter`, which stays as a relay for calling one reminder by hand. n8n calling a sub-workflow per reminder would add nothing, since the logic is in the app.
+- **Ten drafts a run:** a local model can take a minute each, and the rest wait for the next hour rather than timing out. Draft failures are logged and retried without stopping the others.
+- **Auto-send Tier 1 is honoured:** the setting exists on the schedule form, so ignoring it would be wrong. It approves Tier 1 only, and only after the draft has passed every check. `approved_via` stays empty, and the event records `auto_send_tier1`. Tier 2, Tier 3 and courtesy always wait for a person.
+- **Retainers wait for M8:** only milestone invoices are planned, because the drafter refuses retainer reminders until then.

@@ -1,1 +1,76 @@
-{ "name": "Scheduler (hourly): due reminders, retainer invoices, maintenance reminders", "nodes": [], "connections": {} }
+{
+  "name": "Scheduler (hourly): due reminders, retainer invoices, maintenance reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "2d7a6c10-0101-4f3b-8a2e-000000000101",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/scheduler/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "id": "2d7a6c10-0102-4f3b-8a2e-000000000102",
+      "name": "Plan and draft in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "The app plans each unpaid invoice's next reminder from lib/schedule.ts and drafts it through the AI router. It never sends. Safe to re-run: an invoice has at most one reminder in progress. Retainers and maintenance join in M8."
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Plan and draft in the app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

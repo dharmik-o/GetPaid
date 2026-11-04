@@ -115,7 +115,6 @@ beforeEach(async () => {
     INSERT INTO public.reminders (user_id, invoice_id, tier, scheduled_at, approval_status, approved_via, draft, sent_at)
       VALUES
         ('${USER_A.userId}', '${INVOICE}', 'courtesy', '2026-11-15T14:00:00Z', 'approved', 'outbox', '{}', '2026-11-15T14:00:00Z'),
-        ('${USER_A.userId}', '${INVOICE}', 'tier1', '2026-11-18T14:00:00Z', 'approved', 'telegram', '{}', NULL),
         ('${USER_A.userId}', '${INVOICE}', 'tier2', '2026-11-25T14:00:00Z', 'waiting', NULL, '{}', NULL);
   `);
 });
@@ -202,13 +201,19 @@ describe("payments", () => {
     expect((await deliver(paidEvent())).status).toBe(200);
     expect(await invoiceRow()).toEqual({ status: "paid", amount_paid_cents: "90000" });
     expect(await milestoneStatus()).toBe("paid");
-    // Sent stays in the log; approved-but-unsent and waiting drafts are stopped.
-    expect(await reminderStatuses()).toEqual([
-      "courtesy:approved",
-      "tier1:skipped",
-      "tier2:skipped",
-    ]);
+    // Sent stays in the log; the waiting draft is stopped.
+    expect(await reminderStatuses()).toEqual(["courtesy:approved", "tier2:skipped"]);
     expect(await eventTypes()).toContain("invoice.paid");
+  });
+
+  it("paid: an approved draft that hasn't gone out is stopped too", async () => {
+    await handle.db.query(
+      `UPDATE public.reminders SET approval_status = 'approved', approved_via = 'telegram'
+       WHERE invoice_id = '${INVOICE}' AND tier = 'tier2'`,
+    );
+    fake.pay(paypalId, "900.00", "PAID");
+    expect((await deliver(paidEvent())).status).toBe(200);
+    expect(await reminderStatuses()).toEqual(["courtesy:approved", "tier2:skipped"]);
   });
 
   it("trusts PayPal's own copy of the invoice, not the event body", async () => {
@@ -224,11 +229,7 @@ describe("payments", () => {
     expect((await deliver(body)).status).toBe(200);
     expect(await invoiceRow()).toEqual({ status: "partially_paid", amount_paid_cents: "75000" });
     expect(await milestoneStatus()).toBe("partially_paid");
-    expect(await reminderStatuses()).toEqual([
-      "courtesy:approved",
-      "tier1:skipped",
-      "tier2:skipped",
-    ]);
+    expect(await reminderStatuses()).toEqual(["courtesy:approved", "tier2:skipped"]);
   });
 
   it("handles the same event delivered twice only once", async () => {

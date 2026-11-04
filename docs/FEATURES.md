@@ -73,6 +73,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Note: added to this list, because the sender can't run without it. Runs against a mocked Google in tests. A real connection needs your OAuth client (see `docs/NEEDS_YOU.md`).
 - [x] **Sender** (n8n `04_sender`): Gmail on the original thread, only for approved drafts, inside the send window.
   - Note: runs against a mocked Gmail in tests. A real send needs your OAuth client and `DEV_EMAIL_ALLOWLIST`.
+- [x] **Scheduler** (n8n `01_scheduler`): plans each unpaid invoice's next reminder from `lib/schedule.ts` and drafts it.
+  - Note: added to this list. The spec has it, but no item built it, and without it no reminder is ever created. Retainers and maintenance join it in M8.
 - [ ] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
   - Installments branch: drafts a split of the unpaid remainder (amounts and due dates) for the freelancer to approve. On approval, in one step, the open unpaid invoices are cancelled and the installment invoices are created (`created_from: client_request`). An invoice with money on it is never cancelled.
   - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, no reply text can change status or amount, and an approved split replaces the open invoice with installments while a paid invoice is never cancelled.
