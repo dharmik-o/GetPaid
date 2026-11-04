@@ -12,7 +12,7 @@
 | Real webhook delivery | **Passed.** A real `BILLING.SUBSCRIPTION.CREATED` came through the tunnel and n8n, passed PayPal's signature check and was recorded.                                                                                              |
 | Failures to fix       | None.                                                                                                                                                                                                                             |
 
-Your message still had template text in three places: the M4 answer, Telegram buttons and the email test. I checked the last two from the database and logs. The M4 answer is still open.
+Your message still had template text in three places: the M4 answer, Telegram buttons and the email test. The email test I read from the database, as above. I can't tell how the Telegram buttons are working for you: no tap has been recorded since your earlier check, so they're on the list of live checks. The M4 answer is still open.
 
 ## Checks
 
