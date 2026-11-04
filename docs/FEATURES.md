@@ -102,7 +102,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Client timeline:** messages, replies, payments and events (the evidence timeline).
 - [x] **Metrics:** amount recovered, days late per invoice, recovery rate.
 - [x] **Demo clock** (`DEMO_CLOCK_OFFSET_DAYS`, dev only) and seed data for the $3,000 website project.
-- [ ] **E2E:** a Playwright test runs the 8 demo steps end to end.
+- [x] **E2E:** a Playwright test runs the 8 demo steps end to end.
 
 ## Out of scope (Phase 2, don't build)
 

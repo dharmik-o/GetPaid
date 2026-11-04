@@ -22,9 +22,9 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Net 7, a reminder every 3 days, 9:00 to 17:00 client time. All seven days, so a demo on any day
 -- of the week can send, and no courtesy note, so nothing is waiting before the clock jumps.
-INSERT INTO public.projects (id, user_id, client_id, title, total_cents, currency, settings)
+INSERT INTO public.projects (id, user_id, client_id, title, total_cents, currency, deadline, settings)
 VALUES ('00000000-0000-4000-8000-0000000000d1', '00000000-0000-4000-8000-000000000001',
-  '00000000-0000-4000-8000-0000000000c1', 'Website redesign', 300000, 'USD',
+  '00000000-0000-4000-8000-0000000000c1', 'Website redesign', 300000, 'USD', current_date + 42,
   '{"paymentTerms": {"kind": "net", "days": 7},
     "interval": {"kind": "every", "days": 3},
     "preDueDays": null,

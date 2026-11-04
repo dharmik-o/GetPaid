@@ -3,6 +3,7 @@
 .env.production
 node_modules/
 .next/
+.next-e2e/
 *.log
 CLAUDE.local.md
 .claude/settings.local.json

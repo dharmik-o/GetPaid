@@ -9,9 +9,10 @@ export const DemoClockBanner = ({ env = process.env, real = new Date() }: Props)
   const days = demoOffsetDays(env);
   if (days === 0) return null;
   const today = formatDay(appNow(env, real).toISOString().slice(0, 10));
+  const shown = new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(days);
   return (
     <p className="banner demo-clock" role="status">
-      Demo clock: {days} {days === 1 ? "day" : "days"} ahead. Today here is {today} (UTC).
+      Demo clock: {shown} {days === 1 ? "day" : "days"} ahead. Today here is {today} (UTC).
     </p>
   );
 };

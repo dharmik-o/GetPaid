@@ -46,6 +46,7 @@ describe("db/seed.sql", () => {
         const project = await getProject(db, PROJECT);
         if (!project) throw new Error("The seeded project is missing.");
         expect(project).toMatchObject({ title: "Website redesign", totalCents: 300000 });
+        expect(project.deadline).toBeTruthy();
         return listMilestones(db, project);
       });
       expect(milestones.map((m) => [m.name, m.cents, m.paymentMode])).toEqual([

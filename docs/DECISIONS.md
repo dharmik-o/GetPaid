@@ -544,3 +544,11 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Postgres's own timestamps follow the clock,** through `demo_clock_now()` and a transaction-local setting. Without that, reminders are dated days ahead and replies today, and the timeline reads out of order. With nothing set, always so in production, it's exactly `now()`.
 - **Tokens, PayPal and Google keep the real clock.** A jump can't make a token look expired or valid wrongly, and PayPal never sees the demo date except as an invoice's due date.
 - **The seed's send window is all seven days,** not just weekdays, so a demo works on any day. The spec only names the hours. It also has no courtesy note, so nothing is waiting before the clock jumps.
+
+### E2E (5 Nov 2026)
+
+- **It runs by itself, beside your dev server.** `npm run test:e2e` starts its own Next server on port 3100 with its own build folder (`NEXT_DIST_DIR`), a throwaway Postgres container on port 5433, and fake values only. With `E2E_FAKE_URL` set, `next.config.mjs` doesn't load your env file. Your dev server and data aren't touched. It needs Docker running.
+- **Nothing real can be reached, by construction.** `tests/e2e/fake-network.cjs` is loaded into the server before anything else. Every outbound `fetch` goes to the fake services or is refused, and it has a test of its own. The fakes are the same PayPal and Gmail ones the integration tests use, plus a fake model that answers through the app's real draft checks.
+- **The test does what n8n does:** same internal routes, same token. So n8n itself and real Telegram aren't in the run, and neither is PayPal's real checkout. `docs/DEMO.md` covers those live.
+- **The demo's step 5 runs in the order the app works,** which differs a little from the spec's wording. The split is approved in the Outbox, as Telegram sends you there for its amounts and dates. Then "mention the 15th" rewords the email that announces it, and that email goes out on the original thread. I reworded the spec's step 5 to say so.
+- **Phone checks are part of it:** Home, Outbox, Client and Project must have no sideways scroll and nothing cut off at 390 pixels. It failed on the Project page first, which is the fix you asked for: the two milestone tables are now cards on a phone.

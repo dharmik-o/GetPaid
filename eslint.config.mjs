@@ -10,6 +10,7 @@ export default tseslint.config(
       ".claude/**",
       "**/node_modules/**",
       "**/.next/**",
+      "**/.next-e2e/**",
       "**/next-env.d.ts",
       "playwright-report/**",
       "test-results/**",
@@ -21,7 +22,7 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ["*.mjs", "apps/web/*.mjs"] },
+        projectService: { allowDefaultProject: ["*.mjs", "apps/web/*.mjs", "tests/e2e/*.cjs"] },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -31,7 +32,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["**/*.mjs", "**/*.js"],
+    files: ["**/*.mjs", "**/*.js", "**/*.cjs"],
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
