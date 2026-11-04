@@ -54,6 +54,7 @@ const OUTLINE_PAIRS: [string, string, string][] = [
   ["focus ring and primary fill on the page", "accent", "background"],
   ["button border on a card", "border-control", "surface"],
   ["button border on the page", "border-control", "background"],
+  ["disabled button and field border", "border-control", "disabled-fill"],
   ["danger border", "danger", "surface"],
 ];
 
@@ -73,6 +74,15 @@ describe.each([
 
   it.each(OUTLINE_PAIRS)("%s meets 3:1", (_what, line, fill) => {
     expect(contrast(color(line), color(fill))).toBeGreaterThanOrEqual(3);
+  });
+
+  // WCAG sets no ratio for a card's edge, as it isn't a control. 1.6:1 is this project's floor for
+  // "visible": the old light border, at 1.35:1, was too faint to see on a laptop.
+  it.each([
+    ["a card", "surface"],
+    ["the page", "background"],
+  ])("the card and table border is visible on %s", (_where, fill) => {
+    expect(contrast(color("border"), color(fill))).toBeGreaterThanOrEqual(1.6);
   });
 });
 

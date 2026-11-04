@@ -572,3 +572,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The invoice preview stays white in dark mode,** because it shows the PDF as the client will get it.
 - **Contrast is tested twice:** `tests/theme-contrast.test.ts` checks the tokens, and `tests/e2e/theme.spec.ts` measures every button on 17 pages, in both themes, at desktop and phone width.
 - **The new check that nothing spills out of its card found three overflows, now fixed.** Bordering the `link-button`s pushed the milestone rows about 11 pixels past their card on desktop, which was my own regression. On phones, the template list's actions and the template tag chips already spilled: the chips because their `<details>` carried the `.details` grid meant for the summary list.
+
+### Borders everywhere (5 Nov 2026)
+
+- **Two border tokens, not one.** Fields and buttons need 3:1 under WCAG AA, because a person has to find them. Using that colour for every card and table row would make the calm pages look like a spreadsheet, so `--border` is lighter (1.84:1 on white, up from 1.35:1) and `--border-control` is stronger.
+- **One base rule for fields.** Five rules each set their own border and colours, and textareas and milestone inputs had missed some, which is why they showed as browser grey in dark mode. A zero-specificity `:where()` rule now covers all of them, including fields on a card with no `.field` around them.
+- **Disabled fields use the disabled colours,** the same as disabled buttons, and placeholder text uses the muted token, so both stay readable in each theme.
+- **Tables use separate borders,** so their rounded corners show. Collapsed borders ignore them.
+- **Checkboxes and radios keep the browser's drawing,** coloured with the accent. Their own edges are already visible, and redrawing them would be a lot of CSS for no gain.
+- **Tested on every page,** in both themes at both widths, by `tests/e2e/theme.spec.ts`: fields at 3:1 and readable text, panels at 1.5:1 against their own fill. That's lower than the token's 1.6:1 because a panel can sit on a tinted fill.

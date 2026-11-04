@@ -64,6 +64,26 @@ const buttonProblems = (buttons: Measured[]): string[] =>
     return problems;
   });
 
+const FIELDS = 'main input:not([type="checkbox"]):not([type="radio"]), main select, main textarea';
+const PANELS =
+  "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body";
+
+/** Fields need 3:1 at the edge and readable text. Panels need an edge you can see. */
+const fieldProblems = (fields: Measured[]): string[] =>
+  fields.flatMap(({ label, text, fill, border, width }) => {
+    const problems: string[] = [];
+    if (width < 1) problems.push(`${label}: no border`);
+    if (contrast(border, fill) < 3) problems.push(`${label}: border is too faint`);
+    if (contrast(text, fill) < 4.5) problems.push(`${label}: text is too faint`);
+    return problems;
+  });
+
+const panelProblems = (panels: Measured[]): string[] =>
+  panels.flatMap(({ label, fill, border, width }) => {
+    if (width < 1) return [`${label}: no border`];
+    return contrast(border, fill) < 1.5 ? [`${label}: border is too faint`] : [];
+  });
+
 /**
  * Anything poking out past its card's right edge. A page can have no sideways scroll and still do
  * this, so the page-level check doesn't catch it. Tables made to scroll sideways are left out.
@@ -150,7 +170,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       [1280, 900, "desktop"],
       [390, 844, "phone"],
     ] as const) {
-      test(`every page's buttons, and what fits its card, on a ${name}`, async ({
+      test(`every page's buttons, fields, panels and fit on a ${name}`, async ({
         page,
       }, testInfo) => {
         await page.setViewportSize({ width, height });
@@ -158,7 +178,11 @@ for (const colorScheme of ["light", "dark"] as const) {
         for (const path of PAGES) {
           await page.goto(path, { waitUntil: "networkidle" });
           await expect(page.locator("main h1").first()).toBeVisible();
-          const problems = buttonProblems(await measure(page, "main button, main a.button"));
+          const problems = [
+            ...buttonProblems(await measure(page, "main button, main a.button")),
+            ...fieldProblems(await measure(page, FIELDS)),
+            ...panelProblems(await measure(page, PANELS)),
+          ];
           found.push(...problems.map((line) => `${path}: ${line}`));
           found.push(...(await spills(page)).map((line) => `${path}: ${line}`));
           const file = path.replace(/[^a-z0-9]+/gi, "-").replace(/^-$/, "-home");

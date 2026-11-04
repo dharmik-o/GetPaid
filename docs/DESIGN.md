@@ -44,7 +44,8 @@ Starter design rules for the dashboard in `apps/web`. If you make mockups later 
 - **Colours:** neutral greys plus one accent (teal). Status: green = paid, amber = due soon or partially paid, red = overdue (used sparingly, only on the badge).
 - **Themes:** light and dark, following the device's setting. All colours are tokens in `globals.css`, set once for each theme. The only fixed colour is the white paper behind an invoice preview.
 - **Buttons:** primary is a solid accent fill with `--on-accent` text. Secondary and danger have a surface fill and a coloured border. The small `link-button` has a grey `--border-control` border. Disabled buttons use solid `--disabled-fill` and `--disabled-text`, never a fade. Every state's text meets 4.5:1, and borders and the focus ring meet 3:1, in both themes.
-- **Spacing:** 4px steps; cards 16px padding, 8px radius, 1px border, no heavy shadows.
+- **Spacing:** 4px steps; cards 16px padding, 8px radius, no heavy shadows.
+- **Borders:** every card, table, panel, field and button has a visible 1px border in both themes. Cards, tables and panels use `--border` (at least 1.6:1 against what's behind them). Anything you can press or type in uses `--border-control` or a colour of its own, at 3:1 or more. Fields get theirs from one base rule in `globals.css`.
 - **Money:** right-aligned, tabular numbers, always with the currency code (USD 1,500.00).
 
 ## States and accessibility
