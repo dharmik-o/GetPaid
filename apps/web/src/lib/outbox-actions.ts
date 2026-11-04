@@ -133,7 +133,8 @@ export const editDraft = async (
       message: `Not saved: ${problems.join("; ")}. Fix it and save again.`,
     };
   }
-  const updated: StoredDraft = { ...current.data, ...edit, editedAt: now.toISOString() };
+  const { subject, body } = edit;
+  const updated: StoredDraft = { ...current.data, subject, body, editedAt: now.toISOString() };
   const { rowCount } = await db.query(
     "UPDATE public.reminders SET draft = $2 WHERE id = $1 AND approval_status = 'waiting'",
     [id, JSON.stringify(updated)],

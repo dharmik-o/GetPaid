@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runAsUser, type Db } from "@/lib/db";
 import { listOutbox, outboxCounts } from "@/lib/outbox";
 import { outboxHandlers } from "@/lib/outbox-handlers";
-import type { StoredDraft } from "@/lib/stored-draft";
+import { storedDraftSchema, type StoredDraft } from "@/lib/stored-draft";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
 import { TEST_LAWS } from "../fixtures/statutes";
@@ -219,6 +219,14 @@ describe("Edit", () => {
       editedAt: NOW.toISOString(),
     });
     expect(await eventTypes()).toEqual(["reminder.edited"]);
+  });
+
+  it("an edited draft still passes the schema, shows on its card and can be approved", async () => {
+    await edit("A softer subject", `Thanks for your patience. ${PAY_LINK}`);
+    expect(storedDraftSchema.safeParse((await row()).draft).success).toBe(true);
+    const [item] = await asUserA((db) => listOutbox(db, "waiting", NOW));
+    expect(item?.draft?.subject).toBe("A softer subject");
+    expect((await act(REMINDER, { action: "approve" })).status).toBe(200);
   });
 
   it.each([
