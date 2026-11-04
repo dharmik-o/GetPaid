@@ -269,6 +269,24 @@ describe("the draft checks", () => {
     );
   });
 
+  it("a date in text the freelancer typed is theirs, while every other check stays", () => {
+    const typed = { typedByFreelancer: true };
+    const draft = { subject: "Heads-up", body: "Moved to 20 Jan 2031. Estimate USD 200.00." };
+    expect(draftProblems(draft, maintenance)).toHaveLength(1);
+    expect(draftProblems(draft, maintenance, [], typed)).toEqual([]);
+    expect(
+      draftProblems(
+        { ...draft, body: "Moved to 20 Jan 2031. About USD 250.00." },
+        maintenance,
+        [],
+        typed,
+      ),
+    ).toEqual(["it mentions an amount that isn't in the facts"]);
+    expect(
+      draftProblems({ ...draft, body: "See https://x.example" }, maintenance, [], typed),
+    ).toEqual(["it has a link, but a maintenance heads-up has none"]);
+  });
+
   it("the router treats a wrong date as an invalid answer", () => {
     const schema = checkedDraftSchema(maintenance);
     expect(

@@ -343,6 +343,34 @@ describe("plain-word edits", () => {
     expect((await row()).draft).toEqual(before);
   });
 
+  it("the AI adding a second date to the one named keeps the old draft", async () => {
+    await delivered(REMINDER, 501);
+    await tap(`e:${REMINDER}`);
+    const before = (await row()).draft;
+    model({ ...NEW, body: `${NEW.body}\nOn the 15th, or by 20 Dec 2026.` });
+    await say("mention the 15th");
+    expect((await row()).draft).toEqual(before);
+  });
+
+  it("a date typed by hand in the Outbox can stay through a redraft, but no new one", async () => {
+    await handle.db.query(
+      `UPDATE public.reminders SET draft = jsonb_set(draft, '{body}', to_jsonb($1::text)) WHERE id = $2`,
+      [`Please pay by 20 Jan 2031. ${PAY_LINK}`, REMINDER],
+    );
+    await delivered(REMINDER, 501);
+    await tap(`e:${REMINDER}`);
+    const kept = { ...NEW, body: `Thanks. Please pay by 20 Jan 2031. ${PAY_LINK}` };
+    model(kept);
+    await say("make it softer");
+    expect((await row()).draft).toMatchObject({ body: kept.body, via: "model" });
+
+    await delivered(REMINDER, 502);
+    await tap(`e:${REMINDER}`, CHAT_A, 502);
+    model({ ...NEW, body: `Please pay by 21 Jan 2031. ${PAY_LINK}` });
+    await say("make it softer still");
+    expect((await row()).draft).toMatchObject({ body: kept.body });
+  });
+
   it("the message after that is ignored: one edit, one instruction", async () => {
     await tap(`e:${REMINDER}`);
     model(NEW);

@@ -67,7 +67,12 @@ const quotedNames = (request: DraftRequest): string[] => {
     ];
   }
   if (request.kind === "maintenance") {
-    return [request.facts.freelancerName, request.facts.clientName, request.facts.projectTitle, request.facts.task];
+    return [
+      request.facts.freelancerName,
+      request.facts.clientName,
+      request.facts.projectTitle,
+      request.facts.task,
+    ];
   }
   const reminder = request.facts;
   return [
@@ -84,6 +89,8 @@ const quotedNames = (request: DraftRequest): string[] => {
 export type DraftCheckOptions = {
   /** The freelancer's own words: a date they named or already approved can stay in the draft. */
   alsoAllowed?: readonly string[];
+  /** A hand edit: every date in it is the freelancer's own. Only the AI's dates are checked. */
+  typedByFreelancer?: boolean;
 };
 
 /** Problems with a schema-valid draft, in words the log and tests can show. Empty = fine. */
@@ -91,7 +98,7 @@ export const draftProblems = (
   draft: Draft,
   request: DraftRequest,
   laws: readonly Law[] = [],
-  { alsoAllowed = [] }: DraftCheckOptions = {},
+  { alsoAllowed = [], typedByFreelancer = false }: DraftCheckOptions = {},
 ): string[] => {
   const problems: string[] = [];
   const text = `${draft.subject}\n${draft.body}`;
@@ -116,11 +123,13 @@ export const draftProblems = (
   const allowed = new Set(factTexts(request).flatMap(amountsIn));
   const invented = amountsIn(text).filter((key) => !allowed.has(key));
   if (invented.length > 0) problems.push("it mentions an amount that isn't in the facts");
-  const dates = unknownDates(text, {
-    facts: factTexts(request),
-    quoted: quotedNames(request),
-    alsoAllowed,
-  });
+  const dates = typedByFreelancer
+    ? []
+    : unknownDates(text, {
+        facts: factTexts(request),
+        quoted: quotedNames(request),
+        alsoAllowed,
+      });
   for (const date of dates) {
     problems.push(`it mentions a date that isn't in the facts: ${date}`);
   }

@@ -134,7 +134,8 @@ export const skipDraft = async (
 
 /**
  * Saves new wording for a waiting draft, under the same checks as the AI's: it keeps the pay
- * link, adds no other link or amount, and cites only what Tier 3 was given.
+ * link, adds no other link or amount, and cites only what Tier 3 was given. Dates are the
+ * exception: the freelancer typed this, so any date in it is theirs.
  */
 export const editDraft = async (
   db: Db,
@@ -150,10 +151,7 @@ export const editDraft = async (
   const request = await requestFor(db, id, now, laws);
   if (!request) return NOT_FOUND;
   if (typeof request === "string") return conflict(request);
-  // A date already in the draft stays allowed: it came from the facts or the freelancer's note.
-  const problems = draftProblems(edit, request, laws, {
-    alsoAllowed: [current.data.subject, current.data.body],
-  });
+  const problems = draftProblems(edit, request, laws, { typedByFreelancer: true });
   if (problems.length > 0) {
     return {
       status: "invalid",

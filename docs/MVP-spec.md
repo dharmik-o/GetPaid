@@ -337,7 +337,7 @@ The AI suggests and drafts. Money, status changes and legal claims stay under ha
 **Dates**
 
 - Every date in a draft, in any common format, must be in the facts. The same date in another format passes ("May 15, 2027" for "15 May 2027"). Relative dates such as "next Friday" count as new dates. A draft that fails is treated like any invalid draft.
-- A date the freelancer named in a plain-word edit counts for that redraft, and a date already in a draft can stay through a hand edit.
+- A date the freelancer typed is theirs: one named in a plain-word edit on Telegram counts for that redraft and stays in later ones, and a hand edit in the Outbox can contain any date. A date the AI adds that isn't in the facts or the freelancer's words is always refused. A hand edit still can't add an amount or a link.
 
 **Legal**
 

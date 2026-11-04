@@ -509,3 +509,8 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ### M9's Done-when line (5 Nov 2026, your decision)
 
 - **Reworded to match what ran, then ticked:** the line asked for sandbox tests of capture, reauthorize and void. You ran capture and void against the real sandbox with a buyer, and both passed. A real reauthorize can't run until PayPal's 3-day honor period has passed, so the line now says that one is covered with PayPal mocked and by reaching PayPal's real API, with the real run to follow. It's in `docs/NEEDS_YOU.md`, using authorization `1AY82822TV949110M`, on or after 9 Nov 2026.
+
+### Dates the freelancer typed (5 Nov 2026, your decision after M9)
+
+- **The same rule in both places:** a date you typed yourself is allowed, in a Telegram edit or a hand edit in the Outbox. A date the AI adds that isn't in the facts or your words is still refused. This replaces the earlier split, where a new date typed in the Outbox was refused.
+- **Only dates changed:** a hand edit still can't add an amount or a link, and legal gating still applies to it. A date typed into a Tier 3 notice isn't checked either, so that one rests on you reading it.

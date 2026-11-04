@@ -221,11 +221,22 @@ describe("Edit", () => {
     expect(await eventTypes()).toEqual(["reminder.edited"]);
   });
 
-  it("refuses a date typed in that isn't in the facts, and says which", async () => {
-    const response = await edit("A softer subject", `Please pay by 20 Jan 2031. ${PAY_LINK}`);
+  it.each(["20 Jan 2031", "next Friday", "the 15th"])(
+    "keeps a date the freelancer typed: %s",
+    async (date) => {
+      const body = `Please pay by ${date}. ${PAY_LINK}`;
+      const response = await edit(`About ${date}`, body);
+      expect(response.status).toBe(200);
+      expect((await row()).draft).toMatchObject({ subject: `About ${date}`, body });
+    },
+  );
+
+  it("a typed date doesn't let anything else through", async () => {
+    const response = await edit("A softer subject", `By 20 Jan 2031, USD 99,999.00 at ${PAY_LINK}`);
     expect(response.status).toBe(400);
     const { error } = (await response.json()) as { error: string };
-    expect(error).toContain("a date that isn't in the facts: 20 Jan 2031");
+    expect(error).toContain("amount");
+    expect(error).not.toContain("date");
   });
 
   it("lets a date already in the draft stay through a hand edit", async () => {
