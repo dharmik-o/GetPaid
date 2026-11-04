@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { TelegramConnect } from "@/components/TelegramConnect";
 import { telegramBotUsername } from "@/lib/env";
+import type { TelegramOp } from "@/lib/telegram-card";
 
 // next is installed in the web workspace only, so the mock names its path from here.
 vi.mock("../apps/web/node_modules/next/navigation.js", () => ({
@@ -54,15 +55,43 @@ describe("03_approval_handler workflow", () => {
   );
   const workflow = JSON.parse(raw) as {
     active: boolean;
-    nodes: { name: string; type: string; parameters: { url?: string } }[];
+    nodes: {
+      name: string;
+      parameters: {
+        url?: string;
+        rules?: { values: { conditions: { conditions: { rightValue: string }[] } }[] };
+      };
+    }[];
     connections: Record<string, { main: { node: string }[][] }>;
   };
+  const next = (name: string) => workflow.connections[name]?.main[0]?.[0]?.node;
+  const node = (name: string) => workflow.nodes.find((candidate) => candidate.name === name);
 
-  it("relays each update to the app, then sends the app's reply", () => {
-    const relay = workflow.nodes.find((node) => node.name === "Handle in the app");
-    expect(relay?.parameters.url).toMatch(/\/api\/internal\/telegram\/update$/);
-    expect(workflow.connections["Telegram update"]?.main[0]?.[0]?.node).toBe("Handle in the app");
-    expect(workflow.connections["Has a reply?"]?.main[0]?.[0]?.node).toBe("Send the reply");
+  it("sends both the bot's updates and the card run through the same steps", () => {
+    expect(next("Telegram update")).toBe("Handle in the app");
+    expect(node("Handle in the app")?.parameters.url).toMatch(/\/telegram\/update$/);
+    expect(next("Every minute")).toBe("Cards to send");
+    expect(node("Cards to send")?.parameters.url).toMatch(/\/telegram\/pending$/);
+    expect(next("Handle in the app")).toBe("One step at a time");
+    expect(next("Cards to send")).toBe("One step at a time");
+  });
+
+  it("has a Telegram node for every step the app can ask for", () => {
+    const routed = node("Which step")?.parameters.rules?.values.map(
+      (rule) => rule.conditions.conditions[0]?.rightValue,
+    );
+    expect(routed).toEqual([
+      "sendCard",
+      "sendText",
+      "editText",
+      "answer",
+    ] satisfies TelegramOp["op"][]);
+    expect(workflow.connections["Which step"]?.main).toHaveLength(routed?.length ?? 0);
+  });
+
+  it("reports a card back so it can be changed later", () => {
+    expect(next("Send card")).toBe("Report the card");
+    expect(node("Report the card")?.parameters.url).toMatch(/\/telegram\/delivered$/);
   });
 
   it("holds no token and starts inactive", () => {

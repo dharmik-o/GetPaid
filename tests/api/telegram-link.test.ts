@@ -1,4 +1,6 @@
+import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createSecretBox } from "@/lib/crypto";
 import { runAsUser, type Db } from "@/lib/db";
 import { runAsService } from "@/lib/service-db";
 import { telegramLinkHandlers, telegramUpdateHandler } from "@/lib/telegram-handlers";
@@ -13,6 +15,7 @@ let handle: TestDatabase;
 let clock = new Date("2026-11-04T10:00:00Z");
 
 const TOKEN = "t".repeat(64);
+const box = createSecretBox(randomBytes(32));
 const BOT = "PaymentRecoveryTestBot";
 const CHAT_A = 7001;
 const CHAT_B = 7002;
@@ -47,8 +50,12 @@ const startLink = async (userId = USER_A.userId): Promise<string> => {
 const relay = (update: unknown, authorization: string | null = `Bearer ${TOKEN}`) =>
   telegramUpdateHandler({
     runAsService: (work) => runAsService(handle.db, work),
+    runAsUser: asUser,
     now: () => clock,
     token: () => TOKEN,
+    box: () => box,
+    laws: [],
+    outboxUrl: () => undefined,
   }).post(
     new Request("http://127.0.0.1:3000/api/internal/telegram/update", {
       method: "POST",
@@ -66,7 +73,7 @@ const message = (text: string, chatId = CHAT_A, type = "private") => ({
 });
 
 const replyOf = async (response: Response) =>
-  ((await response.json()) as { reply: { chatId: number; text: string } | null }).reply;
+  ((await response.json()) as { ops: { chatId: number; text: string }[] }).ops[0] ?? null;
 
 const chatIdOf = async (userId: string) => {
   const { rows } = await handle.db.query<{ telegram_chat_id: string | null }>(

@@ -3,19 +3,28 @@
   "nodes": [
     {
       "parameters": {
-        "updates": ["message", "callback_query"],
+        "updates": [
+          "message",
+          "callback_query"
+        ],
         "additionalFields": {}
       },
       "id": "2d7a6c10-0301-4f3b-8a2e-000000000301",
       "name": "Telegram update",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.1,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "2d7a6c10-0301-4f3b-8a2e-0000000003a1",
       "credentials": {
-        "telegramApi": { "id": "telegram-bot", "name": "Telegram bot" }
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
       },
-      "notes": "A bot has one webhook, so every update comes through here. n8n checks Telegram's secret token on the webhook. Needs a public HTTPS URL (WEBHOOK_URL), see docs/NEEDS_YOU.md."
+      "notes": "A bot has one webhook, so every update comes through here. Needs a public HTTPS URL (WEBHOOK_URL), see docs/NEEDS_YOU.md."
     },
     {
       "parameters": {
@@ -27,71 +36,474 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {
-          "response": { "response": { "neverError": true } },
-          "timeout": 60000
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 300000
         }
       },
       "id": "2d7a6c10-0302-4f3b-8a2e-000000000302",
       "name": "Handle in the app",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [260, 0],
+      "position": [
+        260,
+        0
+      ],
       "credentials": {
-        "httpHeaderAuth": { "id": "app-internal-api-token", "name": "App internal API token" }
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
       },
-      "notes": "The app decides everything: it treats Telegram text as untrusted, checks the chat, and answers with the reply to send, or none. Safe to re-run: a used code does nothing more."
+      "notes": "The app decides everything: it treats Telegram text as untrusted, matches the chat to a freelancer by linked chat ID, and answers with the steps to send. A plain-word edit can take a minute on a local model. Safe to re-run: a handled draft stays handled."
     },
     {
       "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
+        "rule": {
+          "interval": [
             {
-              "id": "2d7a6c10-0303-4f3b-8a2e-0000000003b1",
-              "leftValue": "={{ Boolean($json.reply) }}",
-              "rightValue": "",
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "field": "minutes",
+              "minutesInterval": 1
             }
-          ],
-          "combinator": "and"
+          ]
+        }
+      },
+      "id": "2d7a6c10-0303-4f3b-8a2e-000000000303",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/telegram/pending",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "2d7a6c10-0304-4f3b-8a2e-000000000304",
+      "name": "Cards to send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "Works out from the database which cards are due, for every freelancer with a linked chat. Safe to re-run: a card is handed over once, and again only if Telegram never confirmed it."
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "ops",
+        "options": {}
+      },
+      "id": "2d7a6c10-0305-4f3b-8a2e-000000000305",
+      "name": "One step at a time",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        520,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "sendCard",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send card"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "sendText",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "editText",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Edit text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "answer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Answer tap"
+            }
+          ]
         },
         "options": {}
       },
-      "id": "2d7a6c10-0303-4f3b-8a2e-000000000303",
-      "name": "Has a reply?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [520, 0]
+      "id": "2d7a6c10-0306-4f3b-8a2e-000000000306",
+      "name": "Which step",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        780,
+        100
+      ]
     },
     {
       "parameters": {
         "resource": "message",
         "operation": "sendMessage",
-        "chatId": "={{ $json.reply.chatId }}",
-        "text": "={{ $json.reply.text }}",
-        "additionalFields": { "appendAttribution": false }
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Approve",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.approve }}"
+                    }
+                  },
+                  {
+                    "text": "Edit",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.edit }}"
+                    }
+                  },
+                  {
+                    "text": "Skip",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.skip }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
-      "id": "2d7a6c10-0304-4f3b-8a2e-000000000304",
-      "name": "Send the reply",
+      "id": "2d7a6c10-0307-4f3b-8a2e-000000000307",
+      "name": "Send card",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [780, -100],
+      "position": [
+        1040,
+        -120
+      ],
       "credentials": {
-        "telegramApi": { "id": "telegram-bot", "name": "Telegram bot" }
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
       }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2d7a6c10-0308-4f3b-8a2e-000000000308",
+      "name": "Send text",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        40
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "editMessageText",
+        "messageType": "message",
+        "chatId": "={{ $json.chatId }}",
+        "messageId": "={{ $json.messageId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "none",
+        "additionalFields": {}
+      },
+      "id": "2d7a6c10-0309-4f3b-8a2e-000000000309",
+      "name": "Edit text",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        200
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "callback",
+        "operation": "answerQuery",
+        "queryId": "={{ $json.callbackQueryId }}",
+        "additionalFields": {
+          "text": "={{ $json.text }}"
+        }
+      },
+      "id": "2d7a6c10-0310-4f3b-8a2e-000000000310",
+      "name": "Answer tap",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        360
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/telegram/delivered",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ reminderId: $('Which step').item.json.reminderId, messageId: $json.result.message_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "2d7a6c10-0311-4f3b-8a2e-000000000311",
+      "name": "Report the card",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        -120
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "Saves Telegram's message id, so the card can be changed once the draft is handled. Safe to re-run: only the first answer counts."
     }
   ],
   "connections": {
     "Telegram update": {
-      "main": [[{ "node": "Handle in the app", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Handle in the app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Handle in the app": {
-      "main": [[{ "node": "Has a reply?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "One step at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "Has a reply?": {
-      "main": [[{ "node": "Send the reply", "type": "main", "index": 0 }], []]
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Cards to send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cards to send": {
+      "main": [
+        [
+          {
+            "node": "One step at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One step at a time": {
+      "main": [
+        [
+          {
+            "node": "Which step",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which step": {
+      "main": [
+        [
+          {
+            "node": "Send card",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Answer tap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send card": {
+      "main": [
+        [
+          {
+            "node": "Report the card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "active": false
 }

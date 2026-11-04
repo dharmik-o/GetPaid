@@ -315,7 +315,7 @@ The stack from v1 stays. The scheduler now runs hourly instead of daily, so mess
 
 1. **Scheduler** (hourly): finds reminders due inside their send window. It also creates each cycle's retainer invoice and sends the freelancer's maintenance and renewal reminders.
 2. **Drafter:** builds the context, calls the AI Router, validates the JSON, stores the draft. The n8n workflow relays to the app, which does all four with the same router code as `07_ai_router`, so the content checks share its retry-then-template rule.
-3. **Approval handler:** posts each draft to the Outbox and to Telegram (the n8n Telegram node's send-and-wait operation, with buttons), then acts on Approve, Edit or Skip from either place. A Telegram Trigger catches plain-word edit replies and sends them back to the Drafter.
+3. **Approval handler:** posts each draft to the Outbox and to Telegram (a card with buttons, sent by the n8n Telegram node at the app's request), then acts on Approve, Edit or Skip from either place. A Telegram Trigger catches plain-word edit replies and sends them back to the Drafter.
 4. **Sender:** sends via Gmail on the original thread and logs it.
 5. **Reply listener:** catches client replies, calls the AI Router to sort them, and pauses or branches.
 6. **PayPal webhook handler:** verifies the signature, then updates invoice and milestone status.

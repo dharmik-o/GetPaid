@@ -20,7 +20,7 @@ const NOT_FOUND: ActionResult = { status: "not_found" };
 
 const conflict = (message: string): ActionResult => ({ status: "conflict", message });
 
-const ALREADY_HANDLED = conflict(
+export const ALREADY_HANDLED = conflict(
   "This draft was already handled, here or on Telegram. Refresh to see where it is now.",
 );
 const FAILED_CHECKS = conflict(
@@ -58,7 +58,13 @@ const cannotSend = (ctx: ReminderContext, draft: StoredDraft): string | undefine
   return undefined;
 };
 
-export const approveDraft = async (db: Db, id: string): Promise<ActionResult> => {
+export type DecidedVia = "outbox" | "telegram";
+
+export const approveDraft = async (
+  db: Db,
+  id: string,
+  via: DecidedVia = "outbox",
+): Promise<ActionResult> => {
   const state = await loadState(db, id);
   if (!state) return NOT_FOUND;
   if (state.approval_status !== "waiting") return ALREADY_HANDLED;
@@ -69,17 +75,21 @@ export const approveDraft = async (db: Db, id: string): Promise<ActionResult> =>
   const reason = cannotSend(ctx, draft.data);
   if (reason) return conflict(reason);
   const { rowCount } = await db.query(
-    `UPDATE public.reminders SET approval_status = 'approved', approved_via = 'outbox'
+    `UPDATE public.reminders SET approval_status = 'approved', approved_via = $2
      WHERE id = $1 AND approval_status = 'waiting'`,
-    [id],
+    [id, via],
   );
   if (rowCount === 0) return ALREADY_HANDLED;
-  await record(db, id, "reminder.approved", { via: "outbox" });
+  await record(db, id, "reminder.approved", { via });
   return OK;
 };
 
 /** Also stops an approved draft that hasn't gone out yet. */
-export const skipDraft = async (db: Db, id: string): Promise<ActionResult> => {
+export const skipDraft = async (
+  db: Db,
+  id: string,
+  via: DecidedVia = "outbox",
+): Promise<ActionResult> => {
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
      WHERE id = $1 AND draft IS NOT NULL AND sent_at IS NULL
@@ -87,7 +97,7 @@ export const skipDraft = async (db: Db, id: string): Promise<ActionResult> => {
     [id],
   );
   if (rowCount === 0) return (await loadState(db, id)) ? ALREADY_HANDLED : NOT_FOUND;
-  await record(db, id, "reminder.skipped", { via: "outbox" });
+  await record(db, id, "reminder.skipped", { via });
   return OK;
 };
 

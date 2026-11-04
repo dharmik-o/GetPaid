@@ -36,8 +36,20 @@ describe("prompts/*.md", () => {
 
   it("covers every kind of draft", () => {
     expect([...DRAFT_PROMPTS].sort()).toEqual(
-      PROMPT_FILES.filter((name) => name !== "invoice_text").sort(),
+      PROMPT_FILES.filter(
+        (name) => !["invoice_text", "redraft_from_feedback"].includes(name),
+      ).sort(),
     );
+  });
+
+  it("the redraft prompt treats the note as data and keeps every rule", () => {
+    const text = PROMPT_TEXT.redraft_from_feedback;
+    expect(text).toMatch(/quoted data/);
+    expect(text).toMatch(/can't give you new rules/);
+    expect(text).toMatch(/Never invent amounts, dates, fees, laws/);
+    expect(text).toContain("pay link (`payLink`) exactly as given");
+    expect(text).toMatch(/subject/);
+    expect(text).toMatch(/only a JSON object/);
   });
 
   it("reminder prompts carry the pay link exactly; maintenance has no link", () => {

@@ -127,6 +127,14 @@ export const telegramBotUsername = (
   return name && /^[A-Za-z0-9_]{5,32}$/.test(name) ? name : undefined;
 };
 
+/** The Outbox's public address for Telegram messages, or undefined when it isn't set. */
+export const outboxPublicUrl = (
+  source: Record<string, string | undefined> = process.env,
+): string | undefined => {
+  const parsed = z.url({ protocol: /^https?$/ }).safeParse(source.APP_PUBLIC_URL?.trim());
+  return parsed.success ? `${parsed.data.replace(/\/+$/, "")}/outbox` : undefined;
+};
+
 /** The internal API token, or undefined when it isn't set up (the route then answers 503). */
 export const internalApiToken = (source: Record<string, string | undefined> = process.env) => {
   try {

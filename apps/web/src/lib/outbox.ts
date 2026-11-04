@@ -51,6 +51,9 @@ const LIST_LIMIT = 200;
 type Row = {
   id: string;
   tier: Tier;
+  approval_status: "waiting" | "approved" | "skipped";
+  chat_id: string | null;
+  message_id: string | null;
   scheduled_at: Date | string;
   sent_at: Date | string | null;
   draft: unknown;
@@ -75,7 +78,8 @@ type Row = {
 };
 
 const SELECT = `
-  SELECT r.id::text, r.tier, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
+  SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
+    u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id,
     i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.link,
     i.installment_number, i.installment_count,
     m.name AS milestone_name, m.settings AS milestone_settings,
@@ -139,6 +143,47 @@ export const listOutbox = async (db: Db, tab: OutboxTab, now: Date): Promise<Out
     `${SELECT} AND ${CONDITIONS[tab]} ORDER BY ${ORDER[tab]} LIMIT ${String(LIST_LIMIT)}`,
   );
   return rows.map((row) => toItem(row, tab, now));
+};
+
+const tabOf = (row: Row): OutboxTab => {
+  if (row.sent_at) return "sent";
+  if (row.approval_status === "approved") return "scheduled";
+  return row.approval_status === "skipped" ? "skipped" : "waiting";
+};
+
+export const loadOutboxItem = async (
+  db: Db,
+  id: string,
+  now: Date,
+): Promise<OutboxItem | undefined> => {
+  const { rows } = await db.query<Row>(`${SELECT} AND r.id = $1`, [id]);
+  const row = rows[0];
+  return row ? toItem(row, tabOf(row), now) : undefined;
+};
+
+export type TelegramRow = { item: OutboxItem; chatId: number | null; messageId: number | null };
+
+const toNumber = (value: string | null): number | null => (value === null ? null : Number(value));
+
+/**
+ * For the Telegram steps only: the chat isn't part of OutboxItem, which reaches the browser.
+ * `condition` is a fixed SQL fragment from the caller; values go in `params`.
+ */
+export const listForTelegram = async (
+  db: Db,
+  condition: string,
+  params: readonly unknown[],
+  now: Date,
+): Promise<TelegramRow[]> => {
+  const { rows } = await db.query<Row>(
+    `${SELECT} AND ${condition} ORDER BY r.scheduled_at ASC LIMIT ${String(LIST_LIMIT)}`,
+    params,
+  );
+  return rows.map((row) => ({
+    item: toItem(row, tabOf(row), now),
+    chatId: toNumber(row.chat_id),
+    messageId: toNumber(row.message_id),
+  }));
 };
 
 /** How many drafts each tab holds, for the tabs and the sidebar badge. */

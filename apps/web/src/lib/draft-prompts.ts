@@ -27,3 +27,20 @@ export const draftMessages = (request: DraftRequest): ChatMessage[] => [
   { role: "system", content: PROMPT_TEXT[PROMPT_FOR[request.kind]] },
   { role: "user", content: `<facts>${quoted(factsFor(request))}</facts>` },
 ];
+
+/** A plain-word edit from Telegram: everything but the prompt is quoted data. */
+export const redraftMessages = (
+  request: DraftRequest,
+  current: { subject: string; body: string },
+  feedback: string,
+): ChatMessage[] => [
+  { role: "system", content: PROMPT_TEXT.redraft_from_feedback },
+  {
+    role: "user",
+    content: [
+      `<facts>${quoted(factsFor(request))}</facts>`,
+      `<current_draft>${quoted({ subject: current.subject, body: current.body })}</current_draft>`,
+      `<feedback>${JSON.stringify(feedback).replace(/</g, `${String.fromCharCode(92)}u003c`)}</feedback>`,
+    ].join("\n"),
+  },
+];
