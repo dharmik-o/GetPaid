@@ -245,7 +245,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
               );
               return (
                 <tr key={row.key}>
-                  <td>
+                  <td data-label="Name">
                     <input
                       aria-label={`Name of ${label}`}
                       value={row.name}
@@ -258,7 +258,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                       <div className="field-error">Name {errorAt(index, "name")}</div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Share">
                     <div className="share">
                       <input
                         aria-label={`Share of ${label}`}
@@ -294,7 +294,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                       </div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Deadline">
                     <input
                       aria-label={`Deadline of ${label}`}
                       type="date"
@@ -311,7 +311,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                       <div className="field-hint warning-text">{warning.message}</div>
                     ) : null}
                   </td>
-                  <td>
+                  <td data-label="Payment">
                     <select
                       aria-label={`Payment mode of ${label}`}
                       value={row.paymentMode}
@@ -326,7 +326,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                       ))}
                     </select>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     {row.status && row.id ? (
                       <>
                         <span className="chip">{statusLabel(row.status)}</span>

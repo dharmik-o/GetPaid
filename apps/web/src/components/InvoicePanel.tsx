@@ -314,17 +314,17 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
             const paid = openInvoices(row).reduce((sum, i) => sum + i.amountPaidCents, 0);
             return (
               <tr key={row.milestoneId}>
-                <td>
+                <td data-label="Milestone">
                   {row.name}
                   <div className="field-hint">{statusLabel(row.status)}</div>
                 </td>
-                <td className="money">
+                <td className="money" data-label="Amount">
                   {formatMoney(row.cents, currency)}
                   {paid > 0 ? (
                     <div className="field-hint">Paid {formatMoney(paid, currency)}</div>
                   ) : null}
                 </td>
-                <td>
+                <td data-label="Invoices">
                   {row.invoices.length > 0 ? (
                     row.invoices.map((invoice) => (
                       <InvoiceLine key={invoice.id} invoice={invoice} currency={currency} />
@@ -333,7 +333,7 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
                     <span className="muted">No invoice yet</span>
                   )}
                 </td>
-                <td>{actions(row)}</td>
+                <td data-label="Action">{actions(row)}</td>
               </tr>
             );
           })}
