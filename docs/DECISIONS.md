@@ -433,3 +433,23 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **What's listed:** retainer charges only while a retainer is active, so one waiting for approval or suspended isn't counted. A job already overdue shows once, at its due date.
 - **The window uses your own time zone,** because this list is for you. Each retainer's charge dates are calendar dates, so they don't shift.
 - **Rows fold the type and client under the name:** five columns overflowed a phone by 74 pixels.
+
+### A fixed tunnel that exposes only /webhook/* (4 Nov 2026)
+
+- **The problem:** the cloudflared quick tunnel changes address on every restart, which breaks PayPal's webhook and Telegram's, and it exposes the whole n8n editor to the internet.
+- **Choice: ngrok's free dev domain, with a traffic policy** (`gateway/ngrok-policy.yml`). Anything outside `/webhook/` gets a 404 from ngrok's edge, before it reaches your PC.
+- **Why not a named Cloudflare tunnel:** its ingress rules do the same job well (`path: ^/webhook/`, then a final `service: http_status:404`). But its hostname is routed through Cloudflare DNS, which as far as I can tell means owning a domain on Cloudflare, and nothing here shows you have one. It's the better choice if you do, or once this is deployed, since it has no free-plan limits.
+- **What was checked, and what wasn't:** ngrok's docs list one assigned dev domain, up to 5 policy rules and about 1 GB a month on the free plan, which is plenty for webhooks. Its two pricing pages don't fully agree, so check before relying on those numbers. Its warning page is for browser HTML traffic, so PayPal and Telegram shouldn't see it, but I haven't run any of this: the `curl` checks in `docs/NEEDS_YOU.md` and a real delivery will show it.
+- **Rule details:** `/webhook-test/` and `/webhook-waiting/` don't match `/webhook/`, so they stay closed. Paths with `..` or `%` are refused too, since something further on might read them as outside `/webhook/`. The only production webhook here is PayPal's, which verifies every delivery, and Telegram's, whose path n8n generates.
+
+### Publishing workflows is now your step (4 Nov 2026)
+
+- **What happened:** you asked me to publish Scheduler, Sender and Reply listener once the live check passed. My command to publish them and restart n8n was refused by the permission check as a production deploy. An earlier publish of "PayPal webhook" had gone through. Rule 10 says to stop that approach, so I didn't split it up or try another route.
+- **Choice: `npm run n8n:go-live`, which you run.** It also carries the updated Approval handler, which has per-instance credentials that are fiddly to map by hand. Its dry run reads only names, types and ids, and I ran that. It never prints a credential.
+- **Sender was already active,** so it isn't in the script.
+
+### Your answers to the M7 questions (4 Nov 2026)
+
+- **Replies:** kept as built, as you confirmed. Any reply holds the invoice, and you decide with a tap.
+- **M4's Done-when line:** your message still held the template text for this answer, so I changed nothing and asked again in `docs/NEEDS_YOU.md`.
+- **Live check slots:** the Telegram and email answers were template text too. I read the state from the database instead of assuming: the send had gone through the Outbox.

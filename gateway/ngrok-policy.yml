@@ -1,0 +1,14 @@
+# Traffic policy for the n8n tunnel (see docs/NEEDS_YOU.md for the command).
+# Only /webhook/* reaches n8n: PayPal's deliveries and the Telegram bot. The editor, its API, and
+# /webhook-test/ and /webhook-waiting/ all answer 404 from ngrok's edge, before reaching this PC.
+# A path with ".." or an encoded character could otherwise be read as outside /webhook/ further on.
+on_http_request:
+  - expressions:
+      - "!req.url.path.startsWith('/webhook/') || req.url.path.contains('..') || req.url.path.contains('%')"
+    actions:
+      - type: custom-response
+        config:
+          status_code: 404
+          headers:
+            content-type: text/plain
+          body: Not found
