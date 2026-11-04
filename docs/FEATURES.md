@@ -45,8 +45,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **AI router** (n8n `07_ai_router`) via LiteLLM, with the fallback order local, then cloud (if allowed), then template.
   - Note: the routing runs in the app (`lib/ai-router.ts`, tested with mock models); `07_ai_router` relays to it. Calls use the OpenAI-compatible format, direct to each provider's compatible endpoint; the LiteLLM gateway is used through Custom URL for providers without one (see `docs/DECISIONS.md`).
 - [x] **Test connection:** runs 4 sample tasks and shows pass or fail for each.
-  - Done when: it works with a mock model in tests and with Claude plus Ollama by hand, and invalid JSON triggers one retry and then the template.
-  - Status: done. Passes with mock models in tests (including the retry and the template), and the user ran Test connection by hand with a real model on 4 Nov 2026: all 4 tasks passed.
+  - Done when: it works with a mock model in tests and with Ollama (`llama3.2`) by hand, and invalid JSON triggers one retry and then the template.
+  - Status: done. Passes with mock models in tests (including the retry and the template), and the user ran Test connection by hand with Ollama (`llama3.2`) on 4 Nov 2026: all 4 tasks passed. It hasn't been run by hand with Claude, which is optional (see `docs/NEEDS_YOU.md`).
 
 ## M5 Drafting [Escalation engine]
 

@@ -481,3 +481,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **It's drafted once by itself.** After you skip it, nothing comes back unless you press Draft the approval email. Skipping is your decision, and a retried setup mustn't undo it.
 - **It stops if it's out of date:** the client approving, or you cancelling, stops a draft not yet sent, and the sender checks again just before sending.
 - **Same path as a heads-up:** both are "an email with no invoice" (`lib/standalone-draft.ts`), so the sender, Outbox and redraft have one extra path, not two. No PDF, and replies to it land in your Gmail unread by the app, as rule 7 covers invoice threads.
+
+### M4's Done-when line (4 Nov 2026, your decision after M8)
+
+- **Reworded to match what ran:** the line said "Claude plus Ollama by hand". You ran Test connection by hand with Ollama (`llama3.2`) only, so it now says that. A run with Claude is an optional item in `docs/NEEDS_YOU.md`. Cloud models are still covered by mock models in tests.

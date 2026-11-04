@@ -16,9 +16,11 @@ Things only you can do (values in your local env file, accounts or keys, install
 
   **What to expect:** Scheduler starts real AI drafts, so FPR-000008's next reminder (Tier 1) can arrive as a new card within a day. Skip it if you don't want a second email. Once Reply listener is on, reply from your second inbox to test reading a real reply.
 
-- **2. Your M4 answer didn't come through.** Your message still had the template text (`<"I ran both Claude and Ollama" or "I ran only <model>...">`). The `Done when` line says "Claude plus Ollama by hand", and your earlier note says "a real model". Tell me which you ran. If only one, I'll reword the line. I've changed nothing.
+  **Status (4 Nov 2026):** you're checking the email and running this yourself.
 
-- **3. Fixed tunnel address (ngrok, my recommendation; reasons in `docs/DECISIONS.md`):** it gives one address that doesn't change, and only `/webhook/*` gets through. **I haven't run this**, because it needs your account. Step 4 is how you check it.
+- **2. Optional: run Test connection with Claude.** M4 now records what you ran by hand: Ollama (`llama3.2`). To try Claude too, pick it in Settings > AI, enter your key, and press Test connection. Nothing depends on this.
+
+- **3. Fixed tunnel address (postponed by you on 4 Nov 2026; ngrok is my recommendation, reasons in `docs/DECISIONS.md`):** it gives one address that doesn't change, and only `/webhook/*` gets through. Until then the quick tunnel still exposes the whole n8n editor. **I haven't run this**, because it needs your account. Step 4 is how you check it.
   1. Create a free account at https://ngrok.com, and copy your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken.
   2. Install it, and save the token in ngrok's own config: `winget install ngrok.ngrok`, then `ngrok config add-authtoken <your token>`. It stays out of this repo.
   3. Stop `cloudflared`. Find your free dev domain in the ngrok dashboard under Domains, then run this from the repo folder and leave it running:
@@ -38,11 +40,14 @@ Things only you can do (values in your local env file, accounts or keys, install
   6. In your PayPal sandbox app, edit the webhook's URL to `https://<your-domain>/webhook/paypal`. If PayPal gives it a new ID, update `PAYPAL_WEBHOOK_ID` and restart the dev server.
   7. The n8n editor stays at http://localhost:5678.
 
-- **4. Live checks left, once item 1 is done.** Each needs your phone or a sandbox buyer:
+- **4. Live checks left, once item 1 is done (you're doing these in parallel).** Each needs your phone or a sandbox buyer:
   1. **Telegram:** a real send approved by a tap (FPR-000008's went through the Outbox), Skip, and typing a change after Edit. `npm run telegram:test` makes a fake draft for the last two, and `npm run telegram:test -- status` shows what each tap did.
   2. **A paid invoice:** open FPR-000008's pay link and pay it with a sandbox buyer. It should turn Paid in the dashboard, and any waiting reminder should stop.
   3. **Maintenance buttons:** add a job on the Live Gmail test project, due within 14 days. After 09:00 your time, the next Scheduler run sends a card. Try Tell the client, then approve the draft: the client gets the email only then. Try Create invoice, Snooze and Mark done too.
-  4. **Auto-pay:** add an auto-pay retainer on the Live Gmail Test client, then open its approval link and approve with a sandbox buyer. It should turn Active. Cancel it from the sandbox buyer's account: Telegram should alert you. PayPal's simulator can't produce a charge failure that passes signature checks, so a failed charge stays tested with PayPal mocked.
+  4. **Auto-pay:** add an auto-pay retainer on the Live Gmail Test client. This changed since M8: the approval link no longer shows on the Retainers screen. Instead a draft appears in the Outbox and on Telegram, with the link as its only link. Approve it, open the link from the email, and approve with a sandbox buyer. It should turn Active. Cancel it from the sandbox buyer's account: Telegram should alert you. PayPal's simulator can't produce a charge failure that passes signature checks, so a failed charge stays tested with PayPal mocked.
+  5. **Suspend on a real subscription:** once a sandbox buyer has approved one, tell me and leave it running. The sandbox refuses suspend on an unapproved subscription, so its path is the one part of the double-payment fix not yet run against PayPal. I can then suspend and reactivate it in a sandbox test.
+
+- **5. Your call: charge dates during an auto-pay pause.** After a failed charge, auto-pay stays paused until that invoice is paid. Charge dates that pass during the pause aren't billed by PayPal, and I don't invoice them either, because PayPal's docs don't rule out billing missed cycles on reactivation, and that could charge twice. So a client who takes two months to pay skips those months unless you act. The alert tells you to check. If you'd like invoices for those dates, say so. It's a small change, but only safe once a real pause and reactivation shows what PayPal does.
 
 - **Real sign-in (before any deployment):** the dashboard acts as the seeded demo user in development and refuses to run in production (`apps/web/src/lib/auth.ts`). Before deploying, decide on sign-in (Supabase Auth with email magic links is the natural fit) and create the Supabase project and keys. This isn't in `docs/FEATURES.md`, so it's a scope decision for you. Nothing in M2–M9 is blocked.
 
