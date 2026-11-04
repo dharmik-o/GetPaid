@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runAsUser, type UserDbRunner } from "@/lib/db";
 import { projectHandlers } from "@/lib/project-handlers";
+import { listProjects } from "@/lib/projects";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
 
@@ -86,6 +87,23 @@ beforeEach(async () => {
     USER_B.rows.projects,
   ]);
   await handle.db.query("UPDATE public.clients SET settings = '{}'");
+});
+
+describe("listProjects", () => {
+  it("lists only the signed-in user's projects, with the client's name", async () => {
+    const { project } = await createAsA(valid());
+    const rows = await runnerFor(USER_A.userId)((db) => listProjects(db));
+    expect(rows.map((row) => row.id)).toContain(project.id);
+    expect(rows.map((row) => row.id)).not.toContain(USER_B.rows.projects);
+    expect(rows.find((row) => row.id === project.id)).toMatchObject({
+      title: "Website redesign",
+      clientId: USER_A.rows.clients,
+      clientName: "Client a",
+      totalCents: 300000,
+      currency: "USD",
+      deadline: "2026-12-01",
+    });
+  });
 });
 
 describe("POST /api/projects", () => {

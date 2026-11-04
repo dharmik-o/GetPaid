@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 import { sendJson } from "@/lib/api-client";
@@ -90,15 +91,12 @@ export const MaintenanceForm = ({
       setError(result.message);
       return;
     }
-    setTask("");
-    setCost("");
-    setChecklist("");
+    router.push("/maintenance");
     router.refresh();
   };
 
   return (
     <form className="card form" onSubmit={(event) => void submit(event)}>
-      <h2>Add a job or renewal</h2>
       <p className="muted">
         These reminders come to you. Nothing reaches the client unless you approve it.
       </p>
@@ -238,9 +236,14 @@ export const MaintenanceForm = ({
           {error}
         </p>
       ) : null}
-      <button className="button" type="submit" disabled={busy || projects.length === 0}>
-        {busy ? "Saving…" : "Add reminder"}
-      </button>
+      <div className="actions">
+        <button className="button" type="submit" disabled={busy || projects.length === 0}>
+          {busy ? "Saving…" : type === "renewal" ? "Add renewal" : "Add maintenance job"}
+        </button>
+        <Link className="button button-secondary" href="/maintenance">
+          Cancel
+        </Link>
+      </div>
     </form>
   );
 };

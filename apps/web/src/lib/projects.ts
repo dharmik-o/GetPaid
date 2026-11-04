@@ -37,6 +37,9 @@ export type ProjectSummary = Pick<
   "id" | "title" | "totalCents" | "currency" | "deadline" | "status"
 >;
 
+/** A row on the Projects page. */
+export type ProjectListItem = ProjectSummary & Pick<Project, "clientId" | "clientName">;
+
 export type ProjectResult =
   | { ok: true; project: Project; warnings: FieldIssue[] }
   | { ok: false; errors: FieldIssue[] }
@@ -179,6 +182,22 @@ export const listProjectsForClient = async (
     currency,
     deadline,
     status,
+  }));
+};
+
+export const listProjects = async (db: Db): Promise<ProjectListItem[]> => {
+  const { rows } = await db.query<ProjectRow>(
+    `${SELECT_PROJECTS} ORDER BY p.deadline NULLS LAST, p.created_at`,
+  );
+  return rows.map(toProject).map((project) => ({
+    id: project.id,
+    title: project.title,
+    totalCents: project.totalCents,
+    currency: project.currency,
+    deadline: project.deadline,
+    status: project.status,
+    clientId: project.clientId,
+    clientName: project.clientName,
   }));
 };
 

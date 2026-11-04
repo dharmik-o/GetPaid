@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 import { ScheduleForm } from "@/components/ScheduleForm";
@@ -32,6 +33,8 @@ type Props = {
   clients: ClientOption[];
   initialClientId?: string | undefined;
   initial?: ProjectFormValues;
+  /** Where Cancel goes on a new project. Editing has no Cancel: the form sits on the project page. */
+  cancelHref?: string;
 };
 
 type FieldIssue = { field: string; message: string };
@@ -46,7 +49,7 @@ const LABELS: Record<string, string> = {
   lateFeeClause: "Late-fee clause",
 };
 
-export const ProjectForm = ({ clients, initialClientId, initial }: Props) => {
+export const ProjectForm = ({ clients, initialClientId, initial, cancelHref }: Props) => {
   const router = useRouter();
   const [clientId, setClientId] = useState(
     initial?.clientId ?? initialClientId ?? clients[0]?.id ?? "",
@@ -274,6 +277,11 @@ export const ProjectForm = ({ clients, initialClientId, initial }: Props) => {
         <button className="button" type="submit" disabled={saving}>
           {saving ? "Saving…" : initial ? "Save changes" : "Create project"}
         </button>
+        {cancelHref ? (
+          <Link className="button button-secondary" href={cancelHref}>
+            Cancel
+          </Link>
+        ) : null}
       </div>
     </form>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 import { sendJson } from "@/lib/api-client";
@@ -75,14 +76,12 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
       router.refresh();
       return;
     }
-    setName("");
-    setAmount("");
+    router.push("/retainers");
     router.refresh();
   };
 
   return (
     <form className="card form" onSubmit={(event) => void submit(event)}>
-      <h2>Add a retainer</h2>
       <div className="field">
         <label htmlFor="retainer-client">Client</label>
         <select
@@ -225,9 +224,14 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
           {error}
         </p>
       ) : null}
-      <button className="button" type="submit" disabled={busy || clients.length === 0}>
-        {busy ? "Saving…" : "Add retainer"}
-      </button>
+      <div className="actions">
+        <button className="button" type="submit" disabled={busy || clients.length === 0}>
+          {busy ? "Saving…" : "Add retainer"}
+        </button>
+        <Link className="button button-secondary" href="/retainers">
+          Cancel
+        </Link>
+      </div>
     </form>
   );
 };

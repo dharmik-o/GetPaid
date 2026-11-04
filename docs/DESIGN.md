@@ -11,6 +11,7 @@ Starter design rules for the dashboard in `apps/web`. If you make mockups later 
 ## Layout
 
 - Left sidebar: Home, Outbox (with a count badge), Clients, Projects, Retainers, Maintenance, Settings.
+- **Lists first:** a list page shows only the list. A primary button in the page header ("Add client", "New project", "Add retainer", "Add maintenance job") opens the create form on its own page, and Cancel goes back. While the list is empty, the button moves into the empty state, so there's only ever one.
 - Content max width 1100px; one main column, with an optional right panel for details.
 - Mobile: the sidebar collapses to a bottom bar with Home, Outbox, Clients and More. Approving a draft must work well on a phone.
 
@@ -20,12 +21,13 @@ Starter design rules for the dashboard in `apps/web`. If you make mockups later 
 | --- | --- | --- |
 | Home | `/` | Needs attention (drafts waiting, overdue invoices), recovery metrics, Upcoming list (next 90 days) |
 | Outbox | `/outbox` | Filter tabs Waiting / Scheduled / Sent / Skipped; `OutboxCard` per draft |
-| Clients | `/clients` | Table: name, country, open balance, last activity |
+| Clients | `/clients` | Table: name, country, open balance, last activity. **Add client** opens `/clients/new` |
 | Client | `/clients/[id]` | Header with totals; `Timeline` of messages, replies, payments, events |
+| Projects | `/projects` | Table: project, client, deadline, total. **New project** opens `/projects/new` |
 | New project | `/projects/new` | Step 1 details, step 2 schedule (`ScheduleForm`), step 3 optional milestones (`MilestoneEditor`) |
 | Project | `/projects/[id]` | Milestone list with status, invoice link, next reminder |
-| Retainers | `/retainers` | List and form: amount, interval, method (auto-pay / invoice) |
-| Maintenance | `/maintenance` | Jobs and renewals with next due date, cost, lead time |
+| Retainers | `/retainers` | List of retainers. **Add retainer** opens `/retainers/new`: amount, interval, method (auto-pay / invoice) |
+| Maintenance | `/maintenance` | Jobs and renewals with next due date, cost, lead time. **Add maintenance job** opens `/maintenance/new` |
 | Settings | `/settings`, `/settings/ai`, `/settings/integrations` | Schedule defaults; AI provider and test results; PayPal, Gmail and Telegram connections |
 
 ## Components

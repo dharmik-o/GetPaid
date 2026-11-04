@@ -38,7 +38,8 @@ The Sender and the Telegram cards run every minute by themselves.
 
 - **Click:** Projects > Website redesign.
 - **Say:** "A freelancer in India, a client in New York, USD 3,000 in three milestones: a 30% deposit, then 50% and 20%. Net 7, a reminder every 3 days, only in the client's working hours."
-- **On screen:** USD 900, 1,500 and 600, and the schedule line under Summary.
+- **On screen:** the Projects list first, then USD 900, 1,500 and 600, and the schedule line under Summary.
+- **If someone asks how a project gets set up:** on the Projects list, press **New project**. The form opens on its own page, and **Cancel** goes back to the list. **Add client**, **Add retainer** and **Add maintenance job** work the same way on their lists.
 
 ### 2. Deposit (40 seconds)
 

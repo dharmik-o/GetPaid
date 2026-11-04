@@ -14,24 +14,26 @@ const NewProjectPage = async ({
 }) => {
   const { clientId } = await searchParams;
   const clients = await runAsCurrentUser((db) => listClientChoices(db));
+  const fromClient = clients.some((c) => c.id === clientId) ? clientId : undefined;
   return (
     <div className="page">
       <div className="page-header">
         <h1>New project</h1>
-        <Link href="/clients">Back to clients</Link>
+        <Link href="/projects">Back to projects</Link>
       </div>
       {clients.length === 0 ? (
         <div className="card empty">
           <p>Projects belong to a client. Add your first client, then come back here.</p>
           <Link className="button" href="/clients/new">
-            Add a client
+            Add client
           </Link>
         </div>
       ) : (
         <div className="card">
           <ProjectForm
             clients={clients}
-            initialClientId={clients.some((c) => c.id === clientId) ? clientId : undefined}
+            initialClientId={fromClient}
+            cancelHref={fromClient ? `/clients/${fromClient}` : "/projects"}
           />
         </div>
       )}

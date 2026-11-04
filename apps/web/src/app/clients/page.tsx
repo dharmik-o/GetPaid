@@ -36,7 +36,7 @@ const ClientsPage = async () => {
         <div className="card empty">
           <p>No clients yet. Add a client, then set up a project with deadlines and reminders.</p>
           <Link className="button" href="/clients/new">
-            Add your first client
+            Add client
           </Link>
         </div>
       ) : (

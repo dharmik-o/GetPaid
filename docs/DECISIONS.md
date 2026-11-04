@@ -552,3 +552,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The test does what n8n does:** same internal routes, same token. So n8n itself and real Telegram aren't in the run, and neither is PayPal's real checkout. `docs/DEMO.md` covers those live.
 - **The demo's step 5 runs in the order the app works,** which differs a little from the spec's wording. The split is approved in the Outbox, as Telegram sends you there for its amounts and dates. Then "mention the 15th" rewords the email that announces it, and that email goes out on the original thread. I reworded the spec's step 5 to say so.
 - **Phone checks are part of it:** Home, Outbox, Client and Project must have no sideways scroll and nothing cut off at 390 pixels. It failed on the Project page first, which is the fix you asked for: the two milestone tables are now cards on a phone.
+
+### Lists first (5 Nov 2026)
+
+- **Projects now has a list page, `/projects`.** This replaces the 3 Nov entry "No projects index page": the sidebar's Projects link used to open New project. The list shows project, client, deadline and total, and uses the same deadline order as the client page.
+- **One button at a time.** While a list is empty, the button sits in the empty state and not in the header too. Clients already worked this way, and two identical primary buttons on an empty page add nothing. It keeps the same label in both places, so "Add your first client" became "Add client".
+- **A saved retainer or job goes back to its list,** where its card shows what's next, such as the auto-pay approval link. A new client or project still opens its own page, which is where the next step is.
+- **Cancel on a new project goes back to where you came from:** the client's page if you started there, otherwise the Projects list.
+- **What needs a client or project first says so on the form page.** The list's button is always there, and `/retainers/new` or `/maintenance/new` explains what to add first.
+- **Left as they are, because they don't create a record from a list:** the Edit forms on the Client and Project pages, and settings forms. The Milestone editor also stays inline, even with its Add milestone button: a plan is saved whole so its total can be checked, so its rows can't go on separate pages. New template was already its own page, and gains a Cancel.
+- **The maintenance submit button follows the Type field:** "Add maintenance job" or "Add renewal".

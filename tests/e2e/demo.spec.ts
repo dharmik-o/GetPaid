@@ -59,8 +59,14 @@ const newestInvoice = async (page: Page) => {
 };
 
 test("the 8-step demo, end to end", async ({ page }) => {
-  await test.step("1. Set up: the seeded $3,000 project", async () => {
-    await openProject(page);
+  await test.step("1. Set up: the seeded $3,000 project, reached from the Projects list", async () => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page
+      .getByRole("navigation", { name: "Main" })
+      .getByRole("link", { name: "Projects" })
+      .click();
+    await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Website redesign" }).click();
     await expect(page.getByRole("heading", { name: "Website redesign" })).toBeVisible();
     await expect(page.locator("dl.details")).toContainText("Hudson Street Bakery");
     await expect(invoiceRow(page, "Design")).toContainText("USD 900.00");
@@ -243,6 +249,57 @@ test("the 8-step demo, end to end", async ({ page }) => {
   });
 });
 
+// After the demo, so what's added here can't change what the demo's scheduler picks up.
+test.describe("adding from a list", () => {
+  for (const { list, button, form } of [
+    { list: "/retainers", button: "Add retainer", form: "/retainers/new" },
+    { list: "/maintenance", button: "Add maintenance job", form: "/maintenance/new" },
+    { list: "/clients", button: "Add client", form: "/clients/new" },
+    { list: "/projects", button: "New project", form: "/projects/new" },
+  ]) {
+    test(`${button} opens its own page, and Cancel goes back to the list`, async ({ page }) => {
+      await page.goto(list, { waitUntil: "networkidle" });
+      await expect(page.locator("main form")).toHaveCount(0);
+      await page.getByRole("main").getByRole("link", { name: button, exact: true }).click();
+      await expect(page).toHaveURL(form);
+      await expect(page.locator("main form")).toBeVisible();
+      await page.getByRole("main").getByRole("link", { name: "Cancel", exact: true }).click();
+      await expect(page).toHaveURL(list);
+    });
+  }
+
+  test("an empty list offers Add retainer, and a saved one lands back on the list", async ({
+    page,
+  }) => {
+    await page.goto("/retainers", { waitUntil: "networkidle" });
+    await expect(page.locator(".empty")).toContainText("No retainers yet");
+    await page.locator(".empty").getByRole("link", { name: "Add retainer" }).click();
+    await page.getByLabel("Name").fill("Monthly care plan");
+    await page.getByLabel("Amount").fill("200.00");
+    await page.getByRole("button", { name: "Add retainer" }).click();
+    await expect(page).toHaveURL("/retainers");
+    await expect(page.locator("main")).toContainText("Monthly care plan");
+    await expect(
+      page.locator(".page-header").getByRole("link", { name: "Add retainer" }),
+    ).toBeVisible();
+  });
+
+  test("an empty list offers Add maintenance job, and a saved one lands back on the list", async ({
+    page,
+  }) => {
+    await page.goto("/maintenance", { waitUntil: "networkidle" });
+    await expect(page.locator(".empty")).toContainText("No jobs or renewals yet");
+    await page.locator(".empty").getByRole("link", { name: "Add maintenance job" }).click();
+    await page.getByLabel("Task").fill("Security updates");
+    await page.getByRole("button", { name: "Add maintenance job" }).click();
+    await expect(page).toHaveURL("/maintenance");
+    await expect(page.locator("main")).toContainText("Security updates");
+    await expect(
+      page.locator(".page-header").getByRole("link", { name: "Add maintenance job" }),
+    ).toBeVisible();
+  });
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -251,6 +308,14 @@ test.describe("on a phone", () => {
     ["Outbox", "/outbox"],
     ["Client", `/clients/${CLIENT}`],
     ["Project", `/projects/${PROJECT}`],
+    ["Clients", "/clients"],
+    ["Projects", "/projects"],
+    ["Retainers", "/retainers"],
+    ["Maintenance", "/maintenance"],
+    ["Add client", "/clients/new"],
+    ["New project", "/projects/new"],
+    ["Add retainer", "/retainers/new"],
+    ["Add maintenance job", "/maintenance/new"],
   ] as const) {
     test(`${name} fits, with nothing cut off`, async ({ page }) => {
       await page.goto(path, { waitUntil: "networkidle" });

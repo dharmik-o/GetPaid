@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 
@@ -216,6 +217,11 @@ export const ClientForm = ({ countries, allTimeZones, initial }: Props) => {
         <button className="button" type="submit" disabled={saving}>
           {saving ? "Saving…" : values.id ? "Save changes" : "Add client"}
         </button>
+        {values.id ? null : (
+          <Link className="button button-secondary" href="/clients">
+            Cancel
+          </Link>
+        )}
       </div>
     </form>
   );

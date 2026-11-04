@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LIST_SECTIONS, TAG_GROUPS } from "@/lib/template-tags";
@@ -286,6 +287,11 @@ export const TemplateEditor = ({ initial }: { initial: EditableTemplate }) => {
           <button className="button" type="button" disabled={busy} onClick={() => void save()}>
             {busy ? "Saving…" : "Save template"}
           </button>
+          {initial.id ? null : (
+            <Link className="button button-secondary" href="/settings/templates">
+              Cancel
+            </Link>
+          )}
           {initial.id ? (
             <button
               className="button button-danger"
