@@ -42,6 +42,8 @@ Starter design rules for the dashboard in `apps/web`. If you make mockups later 
 
 - **Font:** Inter (or the system UI font); sizes 14 body, 16 section, 20 page title.
 - **Colours:** neutral greys plus one accent (teal). Status: green = paid, amber = due soon or partially paid, red = overdue (used sparingly, only on the badge).
+- **Themes:** light and dark, following the device's setting. All colours are tokens in `globals.css`, set once for each theme. The only fixed colour is the white paper behind an invoice preview.
+- **Buttons:** primary is a solid accent fill with `--on-accent` text. Secondary and danger have a surface fill and a coloured border. The small `link-button` has a grey `--border-control` border. Disabled buttons use solid `--disabled-fill` and `--disabled-text`, never a fade. Every state's text meets 4.5:1, and borders and the focus ring meet 3:1, in both themes.
 - **Spacing:** 4px steps; cards 16px padding, 8px radius, 1px border, no heavy shadows.
 - **Money:** right-aligned, tabular numbers, always with the currency code (USD 1,500.00).
 

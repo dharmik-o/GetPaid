@@ -1,5 +1,6 @@
 /* Tokens and base styles from docs/DESIGN.md: neutral greys, one teal accent, 4px spacing steps. */
 :root {
+  color-scheme: light dark;
   --font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --text: #1f2933;
   --text-muted: #52606d;
@@ -9,9 +10,14 @@
   --accent: #0f766e;
   --accent-hover: #115e59;
   --accent-soft: #e6f4f2;
+  --on-accent: #ffffff;
+  --border-control: #7b8794;
+  --disabled-fill: #e4e7eb;
+  --disabled-text: #52606d;
   --danger: #b42318;
   --danger-soft: #fdecea;
   --warning-soft: #fff7e0;
+  --warning-text: #8a5a00;
   --radius: 8px;
   --space-1: 4px;
   --space-2: 8px;
@@ -19,6 +25,28 @@
   --space-4: 16px;
   --space-6: 24px;
   --space-8: 32px;
+}
+
+/* Follows the device's setting. Every colour below reads these tokens. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e6eaee;
+    --text-muted: #a7b3bf;
+    --border: #46515c;
+    --surface: #1b2127;
+    --background: #12161a;
+    --accent: #2dd4bf;
+    --accent-hover: #5eead4;
+    --accent-soft: #12393a;
+    --on-accent: #052e2b;
+    --border-control: #7f8c99;
+    --disabled-fill: #2a323a;
+    --disabled-text: #a7b3bf;
+    --danger: #fb8a7e;
+    --danger-soft: #3a1c1a;
+    --warning-soft: #3a2f12;
+    --warning-text: #f5c451;
+  }
 }
 
 * {
@@ -138,18 +166,14 @@ h2 {
   border-radius: var(--radius);
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   text-decoration: none;
   cursor: pointer;
 }
 
 .button:hover {
   background: var(--accent-hover);
-}
-
-.button:disabled {
-  opacity: 0.6;
-  cursor: progress;
+  border-color: var(--accent-hover);
 }
 
 .button-secondary {
@@ -159,6 +183,7 @@ h2 {
 
 .button-secondary:hover {
   background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .button-danger {
@@ -169,6 +194,18 @@ h2 {
 
 .button-danger:hover {
   background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+/* Solid colours, not a fade: a disabled button should still be readable. */
+.button:disabled,
+.button:disabled:hover,
+.link-button:disabled,
+.link-button:disabled:hover {
+  background: var(--disabled-fill);
+  border-color: var(--border-control);
+  color: var(--disabled-text);
+  cursor: not-allowed;
 }
 
 .table {
@@ -265,7 +302,8 @@ h2 {
   align-items: center;
 }
 
-.details {
+/* The label-and-value list. A <details> also carries this class, and must not become a grid. */
+dl.details {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: var(--space-2) var(--space-6);
@@ -413,14 +451,20 @@ label.inline {
   margin-right: var(--space-3);
 }
 
+/* A small secondary button: quiet beside the main action, but plainly a button. */
 .link-button {
   font: inherit;
   color: var(--accent);
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
+  background: var(--surface);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
   cursor: pointer;
+}
+
+.link-button:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 @media (max-width: 720px) {
@@ -456,7 +500,7 @@ label.inline {
 }
 
 .warning-text {
-  color: #8a5a00;
+  color: var(--warning-text);
 }
 
 .chip {
@@ -465,6 +509,19 @@ label.inline {
   border: 1px solid var(--border);
   border-radius: 999px;
   margin-right: var(--space-2);
+  white-space: nowrap;
+}
+
+button.chip {
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.chip:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .status-button {
@@ -477,7 +534,17 @@ label.inline {
 }
 
 .row-actions .link-button {
+  margin-right: var(--space-1);
+}
+
+.row-actions a {
   margin-right: var(--space-2);
+}
+
+/* The name gives up width first, so the bordered row actions stay inside the card. */
+.milestone-table td:first-child input {
+  width: 100%;
+  min-width: 7em;
 }
 
 .milestone-total {
@@ -524,6 +591,9 @@ label.inline {
 }
 
 .tag-list .chip {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
   cursor: pointer;
   font-family: ui-monospace, Consolas, monospace;
 }
@@ -630,7 +700,7 @@ label.inline {
   padding: 0 var(--space-1);
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 12px;
   line-height: 20px;
   text-align: center;
@@ -756,9 +826,9 @@ label.inline {
   display: inline-block;
   margin-left: var(--space-2);
   padding: 0 var(--space-2);
-  border: 1px solid #b91c1c;
+  border: 1px solid var(--danger);
   border-radius: 999px;
-  color: #b91c1c;
+  color: var(--danger);
 }
 
 /* A phone can't fit the milestone tables' columns: each row becomes a card of labelled lines. */
@@ -839,5 +909,13 @@ label.inline {
 
   .form .actions {
     flex-wrap: wrap;
+  }
+
+  .row-actions {
+    white-space: normal;
+  }
+
+  .row-actions .link-button {
+    margin-bottom: var(--space-1);
   }
 }

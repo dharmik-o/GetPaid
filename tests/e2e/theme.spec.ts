@@ -1,0 +1,174 @@
+import { expect, test, type Page } from "@playwright/test";
+import { contrast, parseColor } from "../contrast";
+
+// Runs after the demo, so the pages have real invoices, drafts, retainers and jobs on them. Read-only.
+// Each page is measured in both themes at desktop and phone width. A screenshot of each is left in
+// test-results for a person to look at.
+
+const CLIENT = "00000000-0000-4000-8000-0000000000c1";
+const PROJECT = "00000000-0000-4000-8000-0000000000d1";
+
+const PAGES = [
+  "/",
+  "/outbox",
+  "/clients",
+  "/clients/new",
+  `/clients/${CLIENT}`,
+  "/projects",
+  "/projects/new",
+  `/projects/${PROJECT}`,
+  "/retainers",
+  "/retainers/new",
+  "/maintenance",
+  "/maintenance/new",
+  "/settings",
+  "/settings/ai",
+  "/settings/integrations",
+  "/settings/templates",
+  "/settings/templates/new",
+];
+
+type Measured = { label: string; text: string; fill: string; border: string; width: number };
+
+/** Colours as drawn: a see-through background shows whatever is behind it. */
+const measure = (page: Page, selector: string): Promise<Measured[]> =>
+  page.evaluate((query) => {
+    const fillBehind = (element: Element): string => {
+      for (let at: Element | null = element; at; at = at.parentElement) {
+        const color = getComputedStyle(at).backgroundColor;
+        if (!/, 0\)$|^transparent$/.test(color)) return color;
+      }
+      return "rgb(255, 255, 255)";
+    };
+    return [...document.querySelectorAll(query)]
+      .filter((element) => element.getBoundingClientRect().width > 0)
+      .map((element) => {
+        const style = getComputedStyle(element);
+        return {
+          label: `${element.tagName.toLowerCase()}.${element.className} "${element.textContent.trim().slice(0, 30)}"`,
+          text: style.color,
+          fill: fillBehind(element),
+          border: style.borderTopColor,
+          width: parseFloat(style.borderTopWidth),
+        };
+      });
+  }, selector);
+
+/** Buttons that can't be seen or read, as readable lines, so a failure names them. */
+const buttonProblems = (buttons: Measured[]): string[] =>
+  buttons.flatMap(({ label, text, fill, border, width }) => {
+    const problems: string[] = [];
+    const ratio = contrast(text, fill);
+    if (ratio < 4.5) problems.push(`${label}: text is ${ratio.toFixed(2)}:1`);
+    if (width < 1 || parseColor(border).a === 0) problems.push(`${label}: no visible border`);
+    return problems;
+  });
+
+/**
+ * Anything poking out past its card's right edge. A page can have no sideways scroll and still do
+ * this, so the page-level check doesn't catch it. Tables made to scroll sideways are left out.
+ */
+const spills = (page: Page): Promise<string[]> =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("main .card")].flatMap((card) => {
+      const edge = card.getBoundingClientRect().right;
+      return [...card.querySelectorAll("button, input, select, textarea, a, td")]
+        .filter((element) => !element.closest(".table-scroll"))
+        .filter((element) => {
+          const box = element.getBoundingClientRect();
+          return box.width > 0 && box.right > edge + 1;
+        })
+        .map(
+          (element) =>
+            `${element.tagName.toLowerCase()} "${element.textContent.trim().slice(0, 30)}" spills out of its card`,
+        );
+    }),
+  );
+
+const GALLERY = ["button", "button button-secondary", "button button-danger", "link-button"];
+
+/** One real button of each kind, on a card and on the page, enabled and disabled. */
+const addGallery = (page: Page) =>
+  page.evaluate((kinds) => {
+    const shelf = document.createElement("div");
+    shelf.id = "gallery";
+    shelf.className = "card";
+    for (const kind of kinds) {
+      for (const disabled of [false, true]) {
+        const button = document.createElement("button");
+        button.className = kind;
+        button.disabled = disabled;
+        button.dataset.state = disabled ? "disabled" : "enabled";
+        button.textContent = `${kind} ${disabled ? "disabled" : ""}`;
+        button.style.margin = "4px";
+        shelf.append(button);
+      }
+    }
+    document.querySelector("main")?.prepend(shelf);
+  }, GALLERY);
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test.describe(`${colorScheme} theme`, () => {
+    test.use({ colorScheme });
+
+    test("every button state is readable and has a border", async ({ page }, testInfo) => {
+      await page.goto("/settings", { waitUntil: "networkidle" });
+      await addGallery(page);
+      const found: string[] = [];
+      const shelf = "#gallery button";
+      found.push(...buttonProblems(await measure(page, shelf)));
+      const enabled = page.locator(`${shelf}[data-state="enabled"]`);
+      for (let index = 0; index < GALLERY.length; index += 1) {
+        const button = enabled.nth(index);
+        const selector = `${shelf}[data-state="enabled"]:nth-of-type(${String(index * 2 + 1)})`;
+        await button.hover();
+        found.push(...buttonProblems(await measure(page, selector)).map((line) => `hover ${line}`));
+        await page.mouse.move(0, 0);
+        await button.focus();
+        await page.keyboard.press("Shift+Tab");
+        await page.keyboard.press("Tab");
+        const ring = await button.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            color: style.outlineColor,
+            width: style.outlineWidth,
+            style: style.outlineStyle,
+          };
+        });
+        expect(ring.style, `focus ring on ${GALLERY[index] ?? ""}`).toBe("solid");
+        expect(parseFloat(ring.width)).toBeGreaterThanOrEqual(2);
+        const card = await page
+          .locator("#gallery")
+          .evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(contrast(ring.color, card)).toBeGreaterThanOrEqual(3);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`buttons-${colorScheme}.png`) });
+      expect(found).toEqual([]);
+    });
+
+    for (const [width, height, name] of [
+      [1280, 900, "desktop"],
+      [390, 844, "phone"],
+    ] as const) {
+      test(`every page's buttons, and what fits its card, on a ${name}`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height });
+        const found: string[] = [];
+        for (const path of PAGES) {
+          await page.goto(path, { waitUntil: "networkidle" });
+          await expect(page.locator("main h1").first()).toBeVisible();
+          const problems = buttonProblems(await measure(page, "main button, main a.button"));
+          found.push(...problems.map((line) => `${path}: ${line}`));
+          found.push(...(await spills(page)).map((line) => `${path}: ${line}`));
+          const file = path.replace(/[^a-z0-9]+/gi, "-").replace(/^-$/, "-home");
+          await page.screenshot({
+            path: testInfo.outputPath(`${name}-${colorScheme}${file}.png`),
+            fullPage: true,
+          });
+        }
+        expect(found).toEqual([]);
+      });
+    }
+  });
+}

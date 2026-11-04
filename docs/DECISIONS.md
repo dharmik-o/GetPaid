@@ -562,3 +562,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **What needs a client or project first says so on the form page.** The list's button is always there, and `/retainers/new` or `/maintenance/new` explains what to add first.
 - **Left as they are, because they don't create a record from a list:** the Edit forms on the Client and Project pages, and settings forms. The Milestone editor also stays inline, even with its Add milestone button: a plan is saved whole so its total can be checked, so its rows can't go on separate pages. New template was already its own page, and gains a Cancel.
 - **The maintenance submit button follows the Type field:** "Add maintenance job" or "Add renewal".
+
+### Button contrast and the dark theme (5 Nov 2026)
+
+- **There was no dark theme, so I added one.** You asked for each button state to be checked in light and dark, but `globals.css` had one set of colours and nothing for dark. It follows the device's setting through `prefers-color-scheme`. There's no switch in the app: that's a new setting to store, and you didn't ask for one. Tell me if you want one.
+- **What was hard to see wasn't the primary button.** Its white on teal was already 5.47:1. The faint ones were the `link-button`s (arrows, Remove, Use the default, Mark in progress), which were underlined text with no border, and disabled buttons, which were faded to 60%. `link-button` is now a small bordered button, and disabled buttons use solid colours.
+- **Dark primary buttons use dark text on a brighter teal.** White on a teal bright enough to stand out on a dark card can't reach 4.5:1, so `--on-accent` differs by theme.
+- **A disabled button's cursor is now `not-allowed`,** because disabled no longer always means busy.
+- **The invoice preview stays white in dark mode,** because it shows the PDF as the client will get it.
+- **Contrast is tested twice:** `tests/theme-contrast.test.ts` checks the tokens, and `tests/e2e/theme.spec.ts` measures every button on 17 pages, in both themes, at desktop and phone width.
+- **The new check that nothing spills out of its card found three overflows, now fixed.** Bordering the `link-button`s pushed the milestone rows about 11 pixels past their card on desktop, which was my own regression. On phones, the template list's actions and the template tag chips already spilled: the chips because their `<details>` carried the `.details` grid meant for the summary list.
