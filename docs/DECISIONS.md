@@ -372,3 +372,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Workflow credentials:** repo files keep placeholder credential ids, since ids are per n8n instance. Importing one needs its credentials picked, or mapped as I did for yours. n8n needs a restart after a CLI publish.
 - **Three workflows stay inactive until Gmail works:** Scheduler would start real AI drafts, and Sender and Reply listener have nothing to do yet. That's your call.
 - **n8n warns that `WEBHOOK_URL` is deprecated** in favour of `N8N_WEBHOOK_URL`. It still works, and you set this name, so it stays for now.
+
+### A live Telegram check you can repeat (4 Nov 2026)
+
+- **Why:** the one-off test draft had been handled in the Outbox before the chat was linked, so no card could ever go out for it, and nothing showed that. `npm run telegram:test` makes a fresh waiting draft and waits for Telegram's confirmation, so it says which step failed: chat not linked, n8n not collecting, or Telegram not confirming.
+- **Choice: its own fake client, not a seeded one.** The address is on the reserved `.example` domain, so approving can't email anyone even with Gmail connected, and real clients are never touched. Fixed ids mean a repeat run replaces the draft and `-- remove` deletes exactly those rows and their events. It refuses any database that isn't local.
+- **The earlier draft is gone:** the first run replaced it, since it used the same project id. Lumen Labs itself stays.
+- **What "passed" means:** n8n reported the message id Telegram returned. It proves the bot sent the card, not that you tapped it.

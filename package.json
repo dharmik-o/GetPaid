@@ -19,6 +19,7 @@
     "db:dev-auth": "tsx --env-file-if-exists=.env scripts/db.ts dev-auth",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/db.ts migrate",
     "db:seed": "tsx --env-file-if-exists=.env scripts/db.ts seed",
+    "telegram:test": "tsx --env-file-if-exists=.env scripts/telegram-test.ts",
     "ai:schemas": "tsx scripts/generate-ai-schemas.ts",
     "ai:prompts": "tsx scripts/generate-prompt-text.ts && prettier --write apps/web/src/lib/prompt-text.ts apps/web/src/lib/statute-table.ts"
   },

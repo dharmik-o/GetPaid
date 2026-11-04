@@ -19,9 +19,8 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **The protect-files hook blocked another command of mine (4 Nov 2026):** while finding out why n8n had an http webhook address, one check named the env file, and I'd also planned to read `docker compose config`, which would have shown its values indirectly. I dropped both and read only the running container's own `WEBHOOK_URL`. Nothing is blocked.
 
-- **Restart your dev server:** it's holding an old copy of `env.ts`, so Connect Gmail answers 500 until it restarts. New env names also load on restart. The route itself is right.
-- **Telegram live check:** your chat isn't linked yet, which is why no card has arrived. In Settings > Integrations, press **Connect Telegram**, open the link and press **Start**. A card for the test draft arrives within about a minute. Then try Approve, Edit and Skip, and tell me what happens. If pressing Start does nothing, the webhook isn't reaching n8n: tell me that instead. To remove the test draft afterwards, tell me "remove the test draft". It's under a fake project, "Telegram test (fake)", and no email can go out for it, though the scheduler would plan another for it if you skip it while Scheduler is active.
-- **After Gmail works, turn on the rest:** "Scheduler", "Sender" and "Reply listener" are imported into n8n, inactive, with your credentials. Activate them, or tell me and I will. Scheduler starts real AI drafts for any unpaid invoice, so remove the test draft first.
+- **Telegram live check:** delivery is proven: on 4 Nov 2026 `npm run telegram:test` got a card to your chat, and Telegram confirmed it. What's left is your taps. Try Approve, Edit and Skip on it, running the command again for a fresh card after Approve or Skip. `npm run telegram:test -- status` shows what each tap did. Tell me anything that looks wrong. The draft belongs to a fake client at an address that can't receive mail, so no email can go out for it.
+- **After Gmail works, turn on the rest:** "Scheduler", "Sender" and "Reply listener" are imported into n8n, inactive, with your credentials. Activate them, or tell me and I will. Scheduler starts real AI drafts for any unpaid invoice, so run `npm run telegram:test -- remove` first.
 - **Check a real send and reply, once Gmail is connected:** put a second inbox of your own in `DEV_EMAIL_ALLOWLIST`, make a client with that address, approve a reminder, and reply to it from that inbox. I can't run this without your OAuth client, and it's what proves the Gmail side.
 - **Google OAuth client for Gmail (needed before any real send or reply check):**
   1. Open https://console.cloud.google.com/ and create a project, or pick one (for example "Payment Recovery").
@@ -36,6 +35,8 @@ Things only you can do (values in your local env file, accounts or keys, install
   10. Testing mode ends the connection after 7 days. When it does, sends are held and you're told on Telegram and in the dashboard to reconnect.
 
 ## Done
+
+- **Dev server restart and Connect Telegram** (4 Nov 2026): you did both. Connect Gmail now answers 503 with what to set, instead of 500, and your chat is linked.
 
 - **n8n token, Telegram bot and tunnel** (4 Nov 2026): you set `INTERNAL_API_TOKEN`, `TELEGRAM_BOT_USERNAME` and `WEBHOOK_URL`, and created the n8n credentials. What n8n needed to finish, which I did: "AI router", "Drafter" and "Approval handler" were still inactive, Approval handler still pointed at placeholder credentials, and the container still had the old http address. I pointed Approval handler at your credentials (they're named `Header Auth account` and `Telegram account` in n8n), published the three workflows, and recreated n8n. A quick tunnel gets a new address when it restarts: update `WEBHOOK_URL`, then run `docker compose up -d n8n`.
 - **Playwright browser** (4 Nov 2026): you ran `npx playwright install chromium`.
