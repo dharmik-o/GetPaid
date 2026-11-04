@@ -2,27 +2,29 @@
 
 **Holds are built and your three fixes are done, but M9's box stays unticked.** Its Done-when line asks for sandbox tests of capture, reauthorize and void. The sandbox can't authorize unless a buyer approves, and this account refuses the buyer-free card route, so that needs you: `npm run hold:check` is ready. A real reauthorize also needs 4 days to pass, because of PayPal's honor period.
 
+**Update, 5 Nov 2026:** you ran `npm run hold:check`, and real capture and void passed, so M9's box is now ticked on a reworded Done-when line. A real reauthorize is still to come, on or after 9 Nov (`docs/NEEDS_YOU.md`). The rest of this page is as written at the end of M9.
+
 ## Your three fixes and M4
 
-| Item | Result | Commit |
-| --- | --- | --- |
+| Item           | Result                                                                                                                                                            | Commit    |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | Double payment | A failed charge suspends the subscription first, and PayPal must confirm it before any invoice exists. Paying the invoice reactivates it. See "Worth checking" 1. | `412d86d` |
-| Dates | Every date in a draft, in any common format, must be in the facts. "May 15, 2027" passes for "15 May 2027". See "Worth checking" 2. | `3bb48eb` |
-| Approval link | Auto-pay now makes an email draft with the link as its only link, through normal approval. The link no longer shows on the Retainers screen. | `322416a` |
-| M4 | The Done-when line now says Ollama (`llama3.2`), logged, with Claude as an optional item. | `261abb3` |
+| Dates          | Every date in a draft, in any common format, must be in the facts. "May 15, 2027" passes for "15 May 2027". See "Worth checking" 2.                               | `3bb48eb` |
+| Approval link  | Auto-pay now makes an email draft with the link as its only link, through normal approval. The link no longer shows on the Retainers screen.                      | `322416a` |
+| M4             | The Done-when line now says Ollama (`llama3.2`), logged, with Claude as an optional item.                                                                         | `261abb3` |
 
 Each fix had failing tests first. The tunnel stays postponed in `docs/NEEDS_YOU.md`, and expected income is left as built.
 
 ## Checks
 
-| Check | Result |
-| --- | --- |
-| `npm run check` | Green: lint, typecheck and 1665 tests (up from 1428 at the end of M8). No real network calls. |
-| Real PayPal sandbox | A hold order with its approval link, a repeated request giving the same order, the refusal to authorize before approval, a JPY order, and capture, reauthorize and void reaching PayPal's API. For auto-pay, activate is confirmed; see "Not run" for suspend. |
-| Real local model (`llama3.2`) | 15 of 15 reminders and heads-ups passed the new date checks, with no fallback to the template. The auto-pay email passed 3 of 3, and a hold email passed through the real route. |
-| Real browser (Edge) and Postgres | Start hold and Void on a throwaway client, with its rows removed afterwards. The link isn't on the page, and the warning shows for a far deadline. |
-| **Your live state, read at 16:01 UTC** | All seven workflows are active. The real reply was read and labelled "promise", and you paused until 6 Nov. Scheduler's first live run succeeded at 16:00. The maintenance card reached Telegram (message 13). |
-| **Not run** | Real capture, reauthorize and void, needing a sandbox buyer. Suspend on a real subscription: the sandbox answers 404 for an unapproved one. A real failed charge, which the sandbox can't produce with a valid signature. A hold's PayPal webhooks, live. `next build`, because it shares a folder with your dev server. |
+| Check                                  | Result                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run check`                        | Green: lint, typecheck and 1665 tests (up from 1428 at the end of M8). No real network calls.                                                                                                                                                                                                                            |
+| Real PayPal sandbox                    | A hold order with its approval link, a repeated request giving the same order, the refusal to authorize before approval, a JPY order, and capture, reauthorize and void reaching PayPal's API. For auto-pay, activate is confirmed; see "Not run" for suspend.                                                           |
+| Real local model (`llama3.2`)          | 15 of 15 reminders and heads-ups passed the new date checks, with no fallback to the template. The auto-pay email passed 3 of 3, and a hold email passed through the real route.                                                                                                                                         |
+| Real browser (Edge) and Postgres       | Start hold and Void on a throwaway client, with its rows removed afterwards. The link isn't on the page, and the warning shows for a far deadline.                                                                                                                                                                       |
+| **Your live state, read at 16:01 UTC** | All seven workflows are active. The real reply was read and labelled "promise", and you paused until 6 Nov. Scheduler's first live run succeeded at 16:00. The maintenance card reached Telegram (message 13).                                                                                                           |
+| **Not run**                            | Real capture, reauthorize and void, needing a sandbox buyer. Suspend on a real subscription: the sandbox answers 404 for an unapproved one. A real failed charge, which the sandbox can't produce with a valid signature. A hold's PayPal webhooks, live. `next build`, because it shares a folder with your dev server. |
 
 ## What was built
 

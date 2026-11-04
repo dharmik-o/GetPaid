@@ -232,6 +232,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **`lib/internal-auth.ts`:** the Bearer check moved out of the AI route handler so both n8n-facing endpoints share it.
 
 ### 2026-11-03: Legal gating
+
 - **Order:** the contract's own late-fee clause first (it's what the client agreed to), quoted as written: `Our contract's late-payment clause says: "…"`. Otherwise the first law in `legal/statutes.json` for the client's country. Otherwise no citation: a plain "Final notice:" with nothing legal in it.
 - **Table shape (`lib/legal.ts`, zod):** `id`, `name`, `countries` (ISO alpha-2), `citation` (the one sentence a notice may include, written and checked by a person), `sourceUrl` (https), `checkedOn`, optional `condition`. A law with a condition (NYC's law is city-only, India's MSMED Act needs a registered MSME) is **never cited automatically**, because the app can't check the condition. Generated into `lib/statute-table.ts` by `npm run ai:prompts`; a test catches drift.
 - **Check on every reminder draft:** after taking out the given citation and the quoted contract terms, the text may not name a law in the table or use legal or fee words (law, legal, statute, Act, directive, regulation, court, lawyer, solicitor, collection agency, late fee, interest, penalty and others). Tiers 1 and 2 and the courtesy note may never cite. A failing draft is retried once, then the template is used. This is strict on purpose: a false alarm only means the fixed template.
@@ -239,6 +240,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **"Not legal advice" note:** every Tier 3 draft is stored with `notLegalAdvice: true`. The Outbox and Telegram cards (M6) show the note to the freelancer. It isn't put in the client's email.
 
 ### 2026-11-03: Invoice templates
+
 - **New dependencies (no install scripts; `npm audit` shows only the 13 moderate ESLint/minimatch findings that were already there):** `mustache` 4.2.0 (logic-less tags with HTML escaping, as the spec names), `sanitize-html` 2.18.1 (allow-list HTML sanitiser; writing one by hand is how sanitisers get bypassed), `postcss` 8.5 (already in the tree through Next and sanitize-html; now a direct dependency for the CSS allow-list), `playwright-core` 1.64.1 (the same version as `@playwright/test`, so it drives the Chromium you installed; Next already keeps it out of the server bundle), plus `@types/mustache` and `@types/sanitize-html`.
 - **Migration 009:** `invoice_templates` (built-ins have `user_id` NULL and kind `builtin`; a check ties the two; HTML plus CSS ≤ 100 KB). RLS: a signed-in user reads the built-ins and their own; only their own custom ones can be added, changed or deleted. `users` gets `default_template_id`, `business_name`, `address`, `logo_data_url` (embedded PNG, JPEG, GIF or WebP only, ≤ 300,000 characters); `clients` gets `default_template_id`, `company`, `address`; `invoices` gets `template_id`, `pdf_path`, `invoice_text`. The three built-ins (Classic, Modern, Minimal) are seeded in the migration with fixed ids. Applied locally.
 - **Default per account, not `is_default` (spec detail fixed):** a built-in row is shared, so it can't hold one user's "default" flag. The account default is `users.default_template_id` (NULL = Classic) and the client override is `clients.default_template_id`. An invoice uses: the pick on Create invoice, else the client's, else the account's, else Classic. A template the user can't see (another user's, or deleted) is skipped.
@@ -251,6 +253,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Attached to reminder emails:** `lib/reminder-email.ts` builds the reminder email (plain text, on the invoice thread) with the invoice PDF as a **required** argument, so a reminder can't be built without it. M7's sender passes it to Gmail. Header values can't carry line breaks.
 - **Not attached to the PayPal invoice:** the Invoicing v2 reference documents `detail.attachments` as references to PayPal file ids, but no endpoint to upload a file and get one (checked 3 Nov 2026). Spec wording updated.
 - **Screens:** Settings > Invoice templates (built-ins and yours; Preview/Edit, Duplicate, Set as default; your business name, address and logo); the editor at `/settings/templates/[id]` (and `/new`), with HTML and CSS side by side, a live preview, a click-to-insert tag list and the sanitiser's notes inline; built-ins open read-only with "Duplicate it to edit". On the project's Invoices card: an "Invoice document (PDF)" section per milestone (template pick, "Write the text with AI", editable text) and an "Invoice PDF" link on every sent invoice. On the client page: company, address and default template. The settings endpoint saves only the fields it's sent, so setting the default and saving the details can't overwrite each other.
+
 ## M6 Approvals
 
 ### Outbox page (4 Nov 2026)
@@ -502,3 +505,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **After the client approves, PayPal sends them to its own sandbox summary page:** the approval reaches the app by webhook, and a real deployment needs its own page. Noted for sign-in and deployment.
 - **Refund of a captured hold:** there's no PayPal invoice to read, so the amount comes from PayPal's own copy of the refund, and each refund counts once, by its id.
 - **Why the box isn't ticked:** the Done-when line asks for sandbox tests of capture, reauthorize and void. The sandbox refused the buyer-free route (`PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING`), so a buyer has to approve, and real reauthorization needs 4 days. `npm run hold:check` is ready, and I've marked this clearly rather than ticking it on mocks.
+
+### M9's Done-when line (5 Nov 2026, your decision)
+
+- **Reworded to match what ran, then ticked:** the line asked for sandbox tests of capture, reauthorize and void. You ran capture and void against the real sandbox with a buyer, and both passed. A real reauthorize can't run until PayPal's 3-day honor period has passed, so the line now says that one is covered with PayPal mocked and by reaching PayPal's real API, with the real run to follow. It's in `docs/NEEDS_YOU.md`, using authorization `1AY82822TV949110M`, on or after 9 Nov 2026.

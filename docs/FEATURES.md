@@ -93,9 +93,9 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M9 Milestone holds [Milestones]
 
-- [ ] **Hold:** authorize at milestone start, capture on acceptance, reauthorize after day 3, void on cancel; warn when the deadline is more than 29 days after the hold.
-  - Done when: sandbox tests cover capture, reauthorize and void.
-  - Status: built, but not ticked, because that check hasn't passed yet. The sandbox can't authorize without a buyer approving, and this account refuses the buyer-free card route, so `npm run hold:check` is for you to run (see `docs/NEEDS_YOU.md`). What has run: all the behaviour with PayPal mocked, and in the real sandbox the order, its approval link, a repeated request id, the refusal to authorize before approval, and capture, reauthorize and void reaching PayPal's API. A real reauthorize also needs 4 days to pass.
+- [x] **Hold:** authorize at milestone start, capture on acceptance, reauthorize after day 3, void on cancel; warn when the deadline is more than 29 days after the hold.
+  - Done when: a sandbox run with a buyer covers capture and void, and reauthorize is covered with PayPal mocked and by reaching PayPal's real API. A real reauthorize follows once PayPal's 3-day honor period has passed (see `docs/NEEDS_YOU.md`).
+  - Status: done on that wording. The user ran `npm run hold:check` on 5 Nov 2026 and approved both orders with a sandbox buyer: capture and void passed. A real reauthorize **hasn't run yet**: `npm run hold:check -- keep` left authorization `1AY82822TV949110M` open for it, on or after 9 Nov 2026. So far reauthorize has run only with PayPal mocked, and in the real sandbox only as far as PayPal's API answering 404 for an unknown id. Also not run live: a hold's PayPal webhooks, and a hold through the app.
 
 ## M10 Dashboard and demo [Hackathon demo plan, Success metrics]
 

@@ -33,10 +33,13 @@ Things only you can do (values in your local env file, accounts or keys, install
   4. **Auto-pay:** add an auto-pay retainer on the Live Gmail Test client. This changed since M8: the approval link no longer shows on the Retainers screen. Instead a draft appears in the Outbox and on Telegram, with the link as its only link. Approve it, open the link from the email, and approve with a sandbox buyer. It should turn Active. Cancel it from the sandbox buyer's account: Telegram should alert you. PayPal's simulator can't produce a charge failure that passes signature checks, so a failed charge stays tested with PayPal mocked.
   5. **Suspend on a real subscription:** once a sandbox buyer has approved one, tell me and leave it running. The sandbox refuses suspend on an unapproved subscription, so its path is the one part of the double-payment fix not yet run against PayPal. I can then suspend and reactivate it in a sandbox test.
 
-- **Real capture, reauthorize and void, which M9's box is waiting for.** The sandbox can't authorize without a buyer approving, and this account refuses the buyer-free card route (`PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING`). This needs a sandbox personal account, which you can find in the PayPal developer dashboard under Sandbox > Accounts.
-  1. Run `npm run hold:check`. It prints two links, one at a time. Open each, sign in with the sandbox buyer and approve. It runs a real capture and a real void, and shows PayPal's answer to reauthorizing early. It uses USD 5.00 of sandbox money, touches no database and emails nobody.
-  2. Run `npm run hold:check -- keep` and approve once more. It prints an authorization id. PayPal only allows reauthorizing after its 3-day honor period, so in 4 to 29 days run the command it prints.
-  3. Tell me the results. I'll tick M9 once 1 and 2 pass, or sooner if you decide 1 is enough for now, in which case I'd reword the Done when line as we did for M4.
+- **Real reauthorize, on or after 9 Nov 2026.** `npm run hold:check -- keep` left authorization `1AY82822TV949110M` open for this. PayPal's 29-day limit on it runs out around 3 Dec 2026, so run it before then:
+
+  ```
+  npm run hold:check -- reauthorize 1AY82822TV949110M
+  ```
+
+  It reauthorizes, checks PayPal gave a new authorization, and captures USD 5.00 of sandbox money. It touches no database and emails nobody. Tell me the result. This is the one part of M9 not yet run against real PayPal; M9's box is ticked on reworded wording that says so.
 
 - **Try a hold in the app.** On a project, set a milestone to Milestone hold, then press Start hold under Milestone holds. A draft appears in the Outbox and on Telegram, with PayPal's link as its only link. Approve it, approve the link with a sandbox buyer, and the hold turns Authorized with a Telegram message. Mark the milestone Delivered, then Accepted: that captures it, and the milestone turns Paid.
 
@@ -63,6 +66,7 @@ Nothing here is blocking work, and I didn't route around any of them.
 
 ## Done
 
+- **Real capture and void** (5 Nov 2026): you ran `npm run hold:check`, approved both orders with a sandbox buyer, and both passed. It first needed a fix (`892d524`): PayPal starts a hold order at `PAYER_ACTION_REQUIRED`, which the code took for approved. You then ran `-- keep`; the reauthorize it leaves open is under Open.
 - **Go-live and the real email** (4 Nov 2026): you ran `npm run n8n:go-live`, and all seven workflows are active. The FPR-000008 email reached your second inbox: you replied to it, Reply listener read the reply at 15:19 UTC and labelled it "promise", and you paused the invoice until 6 Nov from the card. Scheduler's first live run was at 16:00 UTC, and the new four-button card reached Telegram at 16:01.
 - **Answers to the M7 questions** (4 Nov 2026): any reply holds the invoice and you decide with a tap, as built.
 - **PayPal webhook is live** (4 Nov 2026): you'd set the URL, events and `PAYPAL_WEBHOOK_ID`. "PayPal webhook" still showed inactive in n8n's database and answered 404, so I published it and restarted n8n. A real `BILLING.SUBSCRIPTION.CREATED` then came through the tunnel and passed PayPal's signature check.
