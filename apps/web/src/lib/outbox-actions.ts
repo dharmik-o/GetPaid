@@ -1,7 +1,9 @@
 import type { Db } from "./db";
 import { draftProblems } from "./draft-checks";
+import type { DraftRequest } from "./draft-facts";
 import { notPayable, reminderFacts } from "./drafter";
 import type { Law } from "./legal";
+import { loadMaintenanceContext } from "./maintenance-context";
 import { loadReminderContext, type ReminderContext } from "./reminder-context";
 import { rescheduledSendAt } from "./schedule";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
@@ -48,6 +50,25 @@ const record = (db: Db, id: string, type: string, payload: object = {}) =>
     [id, type, JSON.stringify(payload)],
   );
 
+/** What an edit is checked against, or why this draft can't go out. */
+const requestFor = async (
+  db: Db,
+  id: string,
+  now: Date,
+  laws: readonly Law[],
+): Promise<DraftRequest | string | undefined> => {
+  const ctx = await loadReminderContext(db, id);
+  if (!ctx) {
+    const job = await loadMaintenanceContext(db, id);
+    return job ? { kind: "maintenance", facts: job.facts } : undefined;
+  }
+  const reason = notPayable(ctx);
+  if (reason || !ctx.invoice.link) {
+    return `This draft can't go out: ${reason ?? "the invoice has no pay link"}. Skip it.`;
+  }
+  return { kind: ctx.tier, facts: reminderFacts(ctx, now, ctx.invoice.link, laws) };
+};
+
 /** A reason this draft can't go to the client now, or undefined when it can. */
 const cannotSend = (ctx: ReminderContext, draft: StoredDraft): string | undefined => {
   const reason = notPayable(ctx);
@@ -74,9 +95,12 @@ export const approveDraft = async (
   const draft = storedDraftSchema.safeParse(state.draft);
   if (!draft.success) return FAILED_CHECKS;
   const ctx = await loadReminderContext(db, id);
-  if (!ctx) return NOT_FOUND;
-  const reason = cannotSend(ctx, draft.data);
-  if (reason) return conflict(reason);
+  if (ctx) {
+    const reason = cannotSend(ctx, draft.data);
+    if (reason) return conflict(reason);
+  } else if (!(await loadMaintenanceContext(db, id))) {
+    return NOT_FOUND;
+  }
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET approval_status = 'approved', approved_via = $2
      WHERE id = $1 AND approval_status = 'waiting'`,
@@ -119,16 +143,10 @@ export const editDraft = async (
   if (state.approval_status !== "waiting") return ALREADY_HANDLED;
   const current = storedDraftSchema.safeParse(state.draft);
   if (!current.success) return FAILED_CHECKS;
-  const ctx = await loadReminderContext(db, id);
-  if (!ctx) return NOT_FOUND;
-  const reason = notPayable(ctx);
-  if (reason || !ctx.invoice.link) {
-    return conflict(
-      `This draft can't go out: ${reason ?? "the invoice has no pay link"}. Skip it.`,
-    );
-  }
-  const facts = reminderFacts(ctx, now, ctx.invoice.link, laws);
-  const problems = draftProblems(edit, { kind: ctx.tier, facts }, laws);
+  const request = await requestFor(db, id, now, laws);
+  if (!request) return NOT_FOUND;
+  if (typeof request === "string") return conflict(request);
+  const problems = draftProblems(edit, request, laws);
   if (problems.length > 0) {
     return {
       status: "invalid",
@@ -174,7 +192,7 @@ export const rescheduleDraft = async (
   const state = await loadState(db, id);
   if (!state) return NOT_FOUND;
   if (state.approval_status === "skipped" || state.sent_at !== null) return ALREADY_HANDLED;
-  const ctx = await loadReminderContext(db, id);
+  const ctx = (await loadReminderContext(db, id)) ?? (await loadMaintenanceContext(db, id));
   if (!ctx) return NOT_FOUND;
   const sendAt = rescheduledSendAt(at, now, ctx.settings.sendWindow, ctx.client.timeZone);
   if (!sendAt) {

@@ -13,6 +13,7 @@ const TIER_LABELS: Record<OutboxItem["tier"], string> = {
   tier1: "Tier 1",
   tier2: "Tier 2",
   tier3: "Tier 3: final notice",
+  maintenance: "Maintenance heads-up",
 };
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

@@ -1,6 +1,7 @@
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { internalApiToken, outboxPublicUrl } from "@/lib/env";
+import { paypalFromEnv } from "@/lib/paypal";
 import { withServiceDb } from "@/lib/service-db";
 import { STATUTES } from "@/lib/statutes";
 import { telegramUpdateHandler } from "@/lib/telegram-handlers";
@@ -15,6 +16,7 @@ const handler = telegramUpdateHandler({
   laws: STATUTES,
   token: () => internalApiToken(),
   outboxUrl: () => outboxPublicUrl(),
+  paypal: paypalFromEnv,
 });
 
 export const POST = handler.post;

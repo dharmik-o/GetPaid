@@ -3,6 +3,7 @@ import type { UserDbRunner } from "./db";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, noContent, readJson, serverError } from "./http";
 import { refuseUnlessInternal } from "./internal-auth";
+import { recordMaintenanceCard } from "./maintenance-telegram";
 import { recordCardDelivered, telegramRun } from "./telegram-cards";
 import { disconnectTelegram, startTelegramLink } from "./telegram-link";
 import { handleTelegramUpdate, updateSchema, type UpdateDeps } from "./telegram-updates";
@@ -13,10 +14,16 @@ import { handleTelegramUpdate, updateSchema, type UpdateDeps } from "./telegram-
 
 const emptySchema = z.strictObject({});
 
-const deliveredSchema = z.strictObject({
-  reminderId: z.uuid({ error: "must be a reminder id" }),
-  messageId: z.int({ error: "must be a message id" }),
-});
+const deliveredSchema = z.union([
+  z.strictObject({
+    reminderId: z.uuid({ error: "must be a reminder id" }),
+    messageId: z.int({ error: "must be a message id" }),
+  }),
+  z.strictObject({
+    maintenanceTaskId: z.uuid({ error: "must be a task id" }),
+    messageId: z.int({ error: "must be a message id" }),
+  }),
+]);
 
 type LinkDeps = {
   runAsUser: UserDbRunner;
@@ -101,8 +108,12 @@ export const telegramCardHandlers = (
     const parsed = deliveredSchema.safeParse(read.body);
     if (!parsed.success) return fieldErrors(toFieldIssues(parsed.error, { noun: "field" }));
     try {
-      const { reminderId, messageId } = parsed.data;
-      const saved = await deps.runAsService((db) => recordCardDelivered(db, reminderId, messageId));
+      const delivered = parsed.data;
+      const saved = await deps.runAsService((db) =>
+        "reminderId" in delivered
+          ? recordCardDelivered(db, delivered.reminderId, delivered.messageId)
+          : recordMaintenanceCard(db, delivered.maintenanceTaskId, delivered.messageId),
+      );
       return jsonResponse({ saved });
     } catch (error) {
       return serverError("telegram.delivered_failed", error);

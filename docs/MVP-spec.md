@@ -129,8 +129,8 @@ Freelancers can bill a fixed fee on a repeating schedule, and the app reminds th
 - **Fields:** client and project, task (e.g. "Security updates and backups"), repeat every N months (e.g. 6), next due date, estimated cost, reminder lead time (default 14 days and 1 day before), optional checklist.
 - **What the freelancer gets** on Telegram and in the dashboard, e.g. "Maintenance for Acme website is due on 15 May, estimated $200." The buttons:
   - **Tell the client:** the AI drafts a heads-up with the date and cost, which goes through the normal approval flow.
-  - **Create invoice:** uses the existing invoice flow, with an optional deposit.
-  - **Snooze or reschedule**
+  - **Create invoice:** uses the existing invoice flow, with an optional deposit (in the dashboard, where an amount can be typed). Each due date gets a small project and milestone of its own, so the original project's total stays as agreed.
+  - **Snooze or reschedule:** Snooze waits 7 days and reminds again. Reschedule is in the dashboard, where a date can be picked.
   - **Mark done:** the next due date is set automatically, counted from the done date or from the original date (a setting).
 - **Renewals use the same reminder:** domains, hosting and SSL certificates, each with its own repeat interval and cost.
 - **Upcoming list:** the dashboard shows the next 90 days of maintenance jobs, renewals and retainer charges, with the expected income. It's a list, not a calendar; a full calendar is planned for later.
@@ -294,12 +294,12 @@ Fourteen tables cover the MVP (`invoice_templates` arrives with the Invoice temp
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status |
 | retainer_alerts | user_id, retainer_id, kind (payment_failed / suspended / cancelled / recovered / paid_twice / activated_after_cancel), telegram_notified_at, dismissed_at. The wording is made from the database when it's shown. |
-| maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status |
+| maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status, snoozed_until, last_notice_on, last_done_on, Telegram card fields, job_project_id, job_due_on, Gmail thread fields |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
 | invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
 | invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
-| reminders | invoice_id, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
-| messages | invoice_id, direction (in / out), body, AI classification, thread_id |
+| reminders | invoice_id or maintenance_task_id (a heads-up has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
+| messages | invoice_id or maintenance_task_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |
 
 ## Architecture and tech stack

@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { Db } from "./db";
 import { formatDay } from "./format";
 import { logEvent } from "./log";
+import { handleMaintenanceTap } from "./maintenance-tap";
+import type { PaypalClient } from "./paypal";
 import { loadOutboxItem } from "./outbox";
 import { ALREADY_HANDLED, approveDraft, skipDraft, type ActionResult } from "./outbox-actions";
 import { redraftReminder, type RedraftDeps } from "./redraft";
@@ -14,6 +16,7 @@ import {
   CARD_REPLACED_TEXT,
   outboxPointer,
   parseCardData,
+  parseMaintenanceData,
   parseReplyData,
   type CardAction,
   type TelegramOp,
@@ -48,6 +51,7 @@ export type TelegramUpdate = z.infer<typeof updateSchema>;
 export type UpdateDeps = RedraftDeps & {
   runAsService: ServiceDbRunner;
   outboxUrl: () => string | undefined;
+  paypal: () => PaypalClient;
 };
 
 /** Telegram's deep-link parameter: up to 64 of A-Z a-z 0-9 _ - */
@@ -207,6 +211,10 @@ const handleTap = async (
   const replyTap = parseReplyData(tap.data ?? "");
   if (replyTap) {
     return handleReplyTap(deps, user.id, { id: tap.id, chatId, messageId }, replyTap);
+  }
+  const maintenanceTap = parseMaintenanceData(tap.data ?? "");
+  if (maintenanceTap) {
+    return handleMaintenanceTap(deps, user.id, { id: tap.id, chatId, messageId }, maintenanceTap);
   }
   const parsed = parseCardData(tap.data ?? "");
   if (!parsed) return [answer(tap.id, "That button isn't recognised.")];

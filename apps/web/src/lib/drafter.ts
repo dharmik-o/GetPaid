@@ -3,14 +3,15 @@ import { loadAiConnections, type AiConnection } from "./ai-settings";
 import type { SecretBox } from "./crypto";
 import type { UserDbRunner } from "./db";
 import { checkedDraftSchema } from "./draft-checks";
-import type { ReminderFacts } from "./draft-facts";
+import type { DraftRequest, ReminderFacts } from "./draft-facts";
 import { draftMessages } from "./draft-prompts";
 import { draftTemplate } from "./draft-templates";
 import { pickCitation, type Law } from "./legal";
 import { formatFullDay, formatMoney, formatPaymentTerms } from "./format";
 import { logEvent } from "./log";
+import { loadMaintenanceContext } from "./maintenance-context";
 import { loadReminderContext, type ReminderContext } from "./reminder-context";
-import { daysOverdue, type Tier } from "./schedule";
+import { daysOverdue } from "./schedule";
 import type { StoredDraft } from "./stored-draft";
 
 // Server-only: the drafter (02_drafter relays here). Builds the facts from the database, asks
@@ -78,7 +79,7 @@ export const reminderFacts = (
   };
 };
 
-type Ready = { kind: Tier; facts: ReminderFacts; connections: AiConnection[] };
+type Ready = { request: DraftRequest; connections: AiConnection[] };
 
 const prepare = (
   deps: DrafterDeps,
@@ -88,7 +89,16 @@ const prepare = (
 ): Promise<DraftOutcome | Ready> =>
   deps.runAsUser(userId)(async (db): Promise<DraftOutcome | Ready> => {
     const ctx = await loadReminderContext(db, reminderId);
-    if (!ctx) return { status: "not_found" };
+    if (!ctx) {
+      const job = await loadMaintenanceContext(db, reminderId);
+      if (!job) return { status: "not_found" };
+      if (job.approvalStatus !== "waiting") return { status: "handled" };
+      if (job.hasDraft) return { status: "exists" };
+      return {
+        request: { kind: "maintenance", facts: job.facts },
+        connections: await loadAiConnections(db, "draft", deps.box()),
+      };
+    }
     if (ctx.approvalStatus !== "waiting") return { status: "handled" };
     if (ctx.hasDraft) return { status: "exists" };
     const reason = notPayable(ctx);
@@ -96,7 +106,10 @@ const prepare = (
     if (!ctx.invoice.link) return { status: "not_payable", reason: "the invoice has no pay link" };
     const facts = reminderFacts(ctx, now, ctx.invoice.link, deps.laws);
     const task = ctx.tier === "tier3" ? "tier3" : "draft";
-    return { kind: ctx.tier, facts, connections: await loadAiConnections(db, task, deps.box()) };
+    return {
+      request: { kind: ctx.tier, facts },
+      connections: await loadAiConnections(db, task, deps.box()),
+    };
   });
 
 const save = (
@@ -134,7 +147,7 @@ export const draftReminder = async (
   const now = deps.now();
   const prepared = await prepare(deps, userId, reminderId, now);
   if ("status" in prepared) return prepared;
-  const request = { kind: prepared.kind, facts: prepared.facts };
+  const { request } = prepared;
   // The model call runs outside any transaction: it can take a minute on a local model.
   const result = await routeTask(prepared.connections, {
     messages: draftMessages(request),
@@ -144,15 +157,15 @@ export const draftReminder = async (
   if (!result.ok) {
     throw new Error("The router gave no draft even with a template. Check draft-templates.ts.");
   }
-  const { citation } = request.facts;
+  const citation = request.kind === "tier3" ? request.facts.citation : null;
   const draft: StoredDraft = {
     ...result.output,
     kind: request.kind,
     via: result.via,
     model: result.via === "model" ? result.model : null,
     isLocal: result.via === "model" ? result.isLocal : null,
-    citation: request.kind === "tier3" ? (citation?.kind ?? null) : null,
-    lawId: request.kind === "tier3" && citation?.kind === "statute" ? citation.lawId : null,
+    citation: citation?.kind ?? null,
+    lawId: citation?.kind === "statute" ? citation.lawId : null,
     notLegalAdvice: request.kind === "tier3",
     draftedAt: now.toISOString(),
   };

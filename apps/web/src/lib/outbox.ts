@@ -1,6 +1,6 @@
 import type { Db } from "./db";
 import { toCents } from "./db-values";
-import { formatMoney, formatSendTime } from "./format";
+import { formatDay, formatMoney, formatSendTime } from "./format";
 import { effectiveSendAt, localTimeInput, type Tier } from "./schedule";
 import type { HoldReason } from "./sender";
 import { mergeSettings, type SendWindow } from "./settings";
@@ -19,7 +19,7 @@ export type OutboxItem = {
   /** "Website · Build · FPR-000042 · Installment 2 of 3" */
   what: string;
   amountDue: string;
-  tier: Tier;
+  tier: Tier | "maintenance";
   /** Both zones; null for a skipped draft, which has no send time. */
   sendTime: string | null;
   /** The send time as the reschedule input's value, in the client's zone. */
@@ -56,7 +56,7 @@ const LIST_LIMIT = 200;
 
 type Row = {
   id: string;
-  tier: Tier;
+  tier: Tier | "maintenance";
   approval_status: "waiting" | "approved" | "skipped";
   chat_id: string | null;
   message_id: string | null;
@@ -67,11 +67,15 @@ type Row = {
   approved_via: OutboxItem["approvedVia"];
   send_blocked_reason: HoldReason | null;
   gmail_thread_subject: string | null;
-  invoice_number: string;
+  invoice_number: string | null;
   amount_cents: unknown;
   amount_paid_cents: unknown;
-  currency: string;
+  currency: string | null;
   link: string | null;
+  task_name: string | null;
+  task_cost_cents: unknown;
+  task_currency: string | null;
+  task_due_on: string | null;
   installment_number: number | null;
   installment_count: number | null;
   milestone_name: string | null;
@@ -88,19 +92,22 @@ type Row = {
 
 const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
-    r.send_blocked_reason, i.gmail_thread_subject,
+    r.send_blocked_reason, coalesce(i.gmail_thread_subject, mt.gmail_thread_subject) AS gmail_thread_subject,
     u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id, r.telegram_card_sent_at AS card_sent_at,
     i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.link,
-    i.installment_number, i.installment_count,
+    i.installment_number, i.installment_count, mt.task AS task_name,
+    mt.est_cost_cents::text AS task_cost_cents, mt.currency AS task_currency,
+    r.maintenance_due_on::text AS task_due_on,
     m.name AS milestone_name, m.settings AS milestone_settings,
     p.title, p.settings AS project_settings, rt.name AS retainer_name,
     c.name AS client_name, c.time_zone, c.settings AS client_settings,
     u.time_zone AS own_time_zone, u.default_settings AS account_settings
   FROM public.reminders r
-  JOIN public.invoices i ON i.id = r.invoice_id
+  LEFT JOIN public.invoices i ON i.id = r.invoice_id
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
   LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
-  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
+  LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
   JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
   JOIN public.users u ON u.id = r.user_id
   WHERE r.draft IS NOT NULL`;
@@ -108,14 +115,25 @@ const SELECT = `
 const whatOf = (row: Row): string =>
   [
     row.title,
-    row.milestone_name ?? row.retainer_name,
+    row.milestone_name ?? row.retainer_name ?? row.task_name,
     row.invoice_number,
+    row.task_due_on === null ? null : `due ${formatDay(row.task_due_on)}`,
     row.installment_number === null || row.installment_count === null
       ? null
       : `Installment ${String(row.installment_number)} of ${String(row.installment_count)}`,
   ]
     .filter((part) => part !== null)
     .join(" · ");
+
+/** What's left on the invoice; for a heads-up, the estimate it quotes. */
+const amountOf = (row: Row): string => {
+  if (row.currency !== null) {
+    return formatMoney(toCents(row.amount_cents) - toCents(row.amount_paid_cents), row.currency);
+  }
+  return row.task_cost_cents === null || row.task_currency === null
+    ? "No cost given"
+    : `Estimate ${formatMoney(toCents(row.task_cost_cents), row.task_currency)}`;
+};
 
 const toItem = (row: Row, tab: OutboxTab, now: Date): OutboxItem => {
   const { sendWindow, nudgeHours } = mergeSettings({
@@ -133,10 +151,7 @@ const toItem = (row: Row, tab: OutboxTab, now: Date): OutboxItem => {
     tab,
     clientName: row.client_name,
     what: whatOf(row),
-    amountDue: formatMoney(
-      toCents(row.amount_cents) - toCents(row.amount_paid_cents),
-      row.currency,
-    ),
+    amountDue: amountOf(row),
     tier: row.tier,
     sendTime: tab === "skipped" ? null : formatSendTime(shown, clientZone, row.own_time_zone),
     sendAtInput: localTimeInput(planned, clientZone),

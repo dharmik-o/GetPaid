@@ -247,6 +247,29 @@
               },
               "renameOutput": true,
               "outputKey": "Send reply card"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "sendMaintenance",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send maintenance card"
             }
           ]
         },
@@ -471,6 +494,107 @@
           "name": "Telegram bot"
         }
       }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Tell the client",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.tell }}"
+                    }
+                  },
+                  {
+                    "text": "Create invoice",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.invoice }}"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Snooze 7 days",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.snooze }}"
+                    }
+                  },
+                  {
+                    "text": "Mark done",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.data.done }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2d7a6c10-0313-4f3b-8a2e-000000000313",
+      "name": "Send maintenance card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        680
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
+      },
+      "notes": "To the freelancer only. The buttons are fixed here. Tell the client makes a draft for approval; no button sends anything to a client."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/telegram/delivered",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ maintenanceTaskId: $('Which step').item.json.taskId, messageId: $json.result.message_id }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "2d7a6c10-0314-4f3b-8a2e-000000000314",
+      "name": "Report the maintenance card",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        680
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "Saves Telegram's message id, so only this card's buttons work. Safe to re-run: only the first answer counts."
     }
   ],
   "connections": {
@@ -565,6 +689,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Send maintenance card",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -573,6 +704,17 @@
         [
           {
             "node": "Report the card",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send maintenance card": {
+      "main": [
+        [
+          {
+            "node": "Report the maintenance card",
             "type": "main",
             "index": 0
           }

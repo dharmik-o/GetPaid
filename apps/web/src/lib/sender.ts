@@ -7,10 +7,12 @@ import { GmailAuthExpired, GmailError, gmailClient, type GmailClient } from "./g
 import { loadGmailRefreshToken, markGmailNeedsReconnect } from "./gmail-account";
 import type { PdfFile } from "./invoice-pdfs";
 import { errorKind, logEvent } from "./log";
-import { loadReminderContext, type ReminderContext } from "./reminder-context";
+import { loadMaintenanceContext } from "./maintenance-context";
+import { loadReminderContext } from "./reminder-context";
 import { buildReminderEmail, toGmailRaw } from "./reminder-email";
 import { isInsideWindow, todayIn } from "./schedule";
 import type { ServiceDbRunner } from "./service-db";
+import type { ScheduleSettings } from "./settings";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
 
 // Server-only: sends approved reminders from the freelancer's own Gmail, on the invoice's thread,
@@ -46,8 +48,14 @@ const RUN_LIMIT = 50;
 /** Enough of the chain for Gmail and mail clients; the first and the latest matter most. */
 const REFERENCES_KEPT = 10;
 
+/** What a send is about: an invoice, whose PDF goes with it, or a maintenance task. */
+type Source = { kind: "invoice"; invoiceId: string } | { kind: "maintenance"; taskId: string };
+
 type Ready = {
-  ctx: ReminderContext;
+  source: Source;
+  tier: string;
+  freelancerName: string;
+  clientName: string;
   draft: StoredDraft;
   clientEmail: string;
   ownEmail: string;
@@ -60,6 +68,7 @@ type Ready = {
 type Step = { kind: "done" } | { kind: "held" } | { kind: "ready"; ready: Ready };
 
 type SendRow = {
+  maintenance_task_id: string | null;
   draft: unknown;
   client_email: string;
   own_email: string | null;
@@ -71,13 +80,16 @@ type SendRow = {
 
 const loadSendRow = async (db: Db, id: string): Promise<SendRow | undefined> => {
   const { rows } = await db.query<SendRow>(
-    `SELECT r.draft, r.send_blocked_reason, c.email AS client_email, u.gmail_email AS own_email,
-       u.gmail_status, i.gmail_thread_id, i.gmail_thread_subject
+    `SELECT r.maintenance_task_id::text, r.draft, r.send_blocked_reason, c.email AS client_email,
+       u.gmail_email AS own_email, u.gmail_status,
+       coalesce(i.gmail_thread_id, mt.gmail_thread_id) AS gmail_thread_id,
+       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject) AS gmail_thread_subject
      FROM public.reminders r
-     JOIN public.invoices i ON i.id = r.invoice_id
+     LEFT JOIN public.invoices i ON i.id = r.invoice_id
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
-     LEFT JOIN public.projects p ON p.id = m.project_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
      JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      JOIN public.users u ON u.id = r.user_id
      WHERE r.id = $1 AND r.approval_status = 'approved' AND r.sent_at IS NULL
@@ -122,12 +134,8 @@ const stop = async (db: Db, id: string, why: string): Promise<Step> => {
   return { kind: "done" };
 };
 
-const isSnoozed = (ctx: ReminderContext, now: Date): boolean =>
-  ctx.settings.snoozeUntil !== null && todayIn(now, ctx.client.timeZone) < ctx.settings.snoozeUntil;
-
-const isHeld = ({ invoice, client }: ReminderContext, now: Date): boolean =>
-  invoice.held ||
-  (invoice.pausedUntil !== null && todayIn(now, client.timeZone) < invoice.pausedUntil);
+const isSnoozed = (settings: ScheduleSettings, timeZone: string, now: Date): boolean =>
+  settings.snoozeUntil !== null && todayIn(now, timeZone) < settings.snoozeUntil;
 
 /** The whole chain on this invoice's thread, oldest first. */
 const loadReferences = async (db: Db, threadId: string | null): Promise<string[]> => {
@@ -143,23 +151,89 @@ const loadReferences = async (db: Db, threadId: string | null): Promise<string[]
     : [...all.slice(0, 1), ...all.slice(-(REFERENCES_KEPT - 1))];
 };
 
+/** The part that differs by source: a reason to stop or hold, or who and what it's about. */
+type Target =
+  | { stop: string }
+  | { hold: HoldReason }
+  | {
+      source: Source;
+      tier: string;
+      freelancerName: string;
+      clientName: string;
+      timeZone: string;
+      settings: ScheduleSettings;
+      draft: StoredDraft;
+    };
+
+const invoiceTarget = async (
+  db: Db,
+  id: string,
+  rawDraft: unknown,
+  now: Date,
+): Promise<Target | undefined> => {
+  const ctx = await loadReminderContext(db, id);
+  if (!ctx) return undefined;
+  const unpayable = notPayable(ctx);
+  if (unpayable) return { stop: unpayable };
+  const draft = storedDraftSchema.safeParse(rawDraft);
+  if (!draft.success) return { hold: "draft_invalid" };
+  if (!ctx.invoice.link || !draft.data.body.includes(ctx.invoice.link)) {
+    return { hold: "no_pay_link" };
+  }
+  const { invoice, client, settings } = ctx;
+  if (settings.paused || isSnoozed(settings, client.timeZone, now)) return { hold: "paused" };
+  const paused =
+    invoice.pausedUntil !== null && todayIn(now, client.timeZone) < invoice.pausedUntil;
+  if (invoice.held || paused) return { hold: "on_hold" };
+  return {
+    source: { kind: "invoice", invoiceId: invoice.id },
+    tier: ctx.tier,
+    freelancerName: ctx.freelancerName,
+    clientName: client.name,
+    timeZone: client.timeZone,
+    settings,
+    draft: draft.data,
+  };
+};
+
+const maintenanceTarget = async (
+  db: Db,
+  id: string,
+  rawDraft: unknown,
+  now: Date,
+): Promise<Target | undefined> => {
+  const job = await loadMaintenanceContext(db, id);
+  if (!job) return undefined;
+  if (!job.taskActive) return { stop: "the job was stopped" };
+  if (job.aboutDue !== job.nextDue) return { stop: "the job's date has changed" };
+  const draft = storedDraftSchema.safeParse(rawDraft);
+  if (!draft.success) return { hold: "draft_invalid" };
+  const { settings, client } = job;
+  if (settings.paused || isSnoozed(settings, client.timeZone, now)) return { hold: "paused" };
+  return {
+    source: { kind: "maintenance", taskId: job.taskId },
+    tier: "maintenance",
+    freelancerName: job.freelancerName,
+    clientName: client.name,
+    timeZone: client.timeZone,
+    settings,
+    draft: draft.data,
+  };
+};
+
 /** Every check before Gmail, then the claim, in one transaction as the freelancer (RLS). */
 const prepare = async (deps: SenderDeps, db: Db, id: string, now: Date): Promise<Step> => {
   const row = await loadSendRow(db, id);
-  const ctx = row ? await loadReminderContext(db, id) : undefined;
-  if (!row || !ctx) return { kind: "done" };
+  if (!row) return { kind: "done" };
   const previous = row.send_blocked_reason;
   const held = (reason: HoldReason) => hold(db, id, reason, previous);
 
-  const unpayable = notPayable(ctx);
-  if (unpayable) return stop(db, id, unpayable);
-  const draft = storedDraftSchema.safeParse(row.draft);
-  if (!draft.success) return held("draft_invalid");
-  if (!ctx.invoice.link || !draft.data.body.includes(ctx.invoice.link)) {
-    return held("no_pay_link");
-  }
-  if (ctx.settings.paused || isSnoozed(ctx, now)) return held("paused");
-  if (isHeld(ctx, now)) return held("on_hold");
+  const target = row.maintenance_task_id
+    ? await maintenanceTarget(db, id, row.draft, now)
+    : await invoiceTarget(db, id, row.draft, now);
+  if (!target) return { kind: "done" };
+  if ("stop" in target) return stop(db, id, target.stop);
+  if ("hold" in target) return held(target.hold);
   const oauth = deps.oauth();
   const refreshToken =
     oauth && row.gmail_status === "connected" && row.own_email
@@ -167,7 +241,7 @@ const prepare = async (deps: SenderDeps, db: Db, id: string, now: Date): Promise
       : undefined;
   if (!refreshToken || !row.own_email) return held("gmail_disconnected");
   if (!deps.allowlist().has(row.client_email.trim().toLowerCase())) return held("not_allowlisted");
-  if (!isInsideWindow(now, ctx.settings.sendWindow, ctx.client.timeZone)) {
+  if (!isInsideWindow(now, target.settings.sendWindow, target.timeZone)) {
     if (previous) {
       await db.query("UPDATE public.reminders SET send_blocked_reason = NULL WHERE id = $1", [id]);
     }
@@ -184,13 +258,16 @@ const prepare = async (deps: SenderDeps, db: Db, id: string, now: Date): Promise
   return {
     kind: "ready",
     ready: {
-      ctx,
-      draft: draft.data,
+      source: target.source,
+      tier: target.tier,
+      freelancerName: target.freelancerName,
+      clientName: target.clientName,
+      draft: target.draft,
       clientEmail: row.client_email,
       ownEmail: row.own_email,
       threadId: row.gmail_thread_id,
       // Gmail keeps a message on a thread only with the same subject.
-      subject: row.gmail_thread_subject ?? draft.data.subject,
+      subject: row.gmail_thread_subject ?? target.draft.subject,
       references: await loadReferences(db, row.gmail_thread_id),
       refreshToken,
     },
@@ -227,23 +304,34 @@ const recordSent = (
       "UPDATE public.reminders SET sent_at = $2, send_blocked_reason = NULL WHERE id = $1",
       [id, now],
     );
+    const { source } = ready;
+    // The table name is fixed by the source's kind, never from a request.
+    const table = source.kind === "invoice" ? "invoices" : "maintenance_tasks";
+    const sourceId = source.kind === "invoice" ? source.invoiceId : source.taskId;
     await db.query(
-      `UPDATE public.invoices
+      `UPDATE public.${table}
        SET gmail_thread_id = coalesce(gmail_thread_id, $2),
            gmail_thread_subject = coalesce(gmail_thread_subject, $3)
        WHERE id = $1`,
-      [ready.ctx.invoice.id, sent.threadId, ready.subject],
+      [sourceId, sent.threadId, ready.subject],
     );
     await db.query(
-      `INSERT INTO public.messages
-         (user_id, invoice_id, direction, body, thread_id, gmail_message_id, rfc_message_id)
-       VALUES ((SELECT auth.uid()), $1, 'out', $2, $3, $4, $5)`,
-      [ready.ctx.invoice.id, ready.draft.body, sent.threadId, sent.id, rfcMessageId],
+      `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, direction, body,
+         thread_id, gmail_message_id, rfc_message_id)
+       VALUES ((SELECT auth.uid()), $1, $2, 'out', $3, $4, $5, $6)`,
+      [
+        source.kind === "invoice" ? source.invoiceId : null,
+        source.kind === "maintenance" ? source.taskId : null,
+        ready.draft.body,
+        sent.threadId,
+        sent.id,
+        rfcMessageId,
+      ],
     );
     await db.query(
       `INSERT INTO public.events (user_id, entity, entity_id, type, payload)
        VALUES ((SELECT auth.uid()), 'reminder', $1, 'reminder.sent', $2)`,
-      [id, JSON.stringify({ tier: ready.ctx.tier, onThread: ready.threadId !== null })],
+      [id, JSON.stringify({ tier: ready.tier, onThread: ready.threadId !== null })],
     );
   });
 
@@ -273,22 +361,24 @@ const deliver = async (
     await release(deps, userId, id, "gmail_disconnected");
     return "held";
   }
-  let pdf: PdfFile | undefined;
-  try {
-    pdf = await deps.pdf(userId, ready.ctx.invoice.id);
-  } catch (error) {
-    logEvent("sender.pdf_failed", { reminderId: id, error: errorKind(error) });
-  }
-  if (!pdf) {
-    await release(deps, userId, id, "pdf_failed");
-    return "held";
+  let pdf: PdfFile | null = null;
+  if (ready.source.kind === "invoice") {
+    try {
+      pdf = (await deps.pdf(userId, ready.source.invoiceId)) ?? null;
+    } catch (error) {
+      logEvent("sender.pdf_failed", { reminderId: id, error: errorKind(error) });
+    }
+    if (!pdf) {
+      await release(deps, userId, id, "pdf_failed");
+      return "held";
+    }
   }
 
   const messageId = ownMessageId(ready.ownEmail);
   const raw = toGmailRaw(
     buildReminderEmail({
-      from: { name: ready.ctx.freelancerName, email: ready.ownEmail },
-      to: { name: ready.ctx.client.name, email: ready.clientEmail },
+      from: { name: ready.freelancerName, email: ready.ownEmail },
+      to: { name: ready.clientName, email: ready.clientEmail },
       subject: ready.subject,
       body: ready.draft.body,
       pdf,

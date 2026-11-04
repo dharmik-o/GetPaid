@@ -65,6 +65,9 @@ const deps = () => ({
   box: () => box,
   laws: TEST_LAWS,
   outboxUrl: () => OUTBOX,
+  paypal: () => {
+    throw new Error("These tests don't create invoices.");
+  },
 });
 
 const post = (url: string, body: unknown) =>

@@ -86,6 +86,7 @@ describe("03_approval_handler workflow", () => {
       "editText",
       "answer",
       "sendReply",
+      "sendMaintenance",
     ] satisfies TelegramOp["op"][]);
     expect(workflow.connections["Which step"]?.main).toHaveLength(routed?.length ?? 0);
   });
@@ -93,6 +94,22 @@ describe("03_approval_handler workflow", () => {
   it("reports a card back so it can be changed later", () => {
     expect(next("Send card")).toBe("Report the card");
     expect(node("Report the card")?.parameters.url).toMatch(/\/telegram\/delivered$/);
+  });
+
+  it("gives a maintenance card its four fixed buttons, and reports it back", () => {
+    const card = JSON.stringify(node("Send maintenance card")?.parameters);
+    for (const label of ["Tell the client", "Create invoice", "Snooze 7 days", "Mark done"]) {
+      expect(card).toContain(label);
+    }
+    expect(next("Send maintenance card")).toBe("Report the maintenance card");
+    expect(JSON.stringify(node("Report the maintenance card")?.parameters)).toContain(
+      "maintenanceTaskId",
+    );
+  });
+
+  it("can't send an email from a Telegram button: no step here talks to Gmail or the sender", () => {
+    expect(raw).not.toMatch(/gmail/i);
+    expect(raw).not.toContain("/api/internal/sender");
   });
 
   it("holds no token and starts inactive", () => {

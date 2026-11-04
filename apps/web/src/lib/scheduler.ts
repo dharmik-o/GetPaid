@@ -1,6 +1,7 @@
 import type { Db } from "./db";
 import { draftReminder, type DrafterDeps } from "./drafter";
 import { errorKind, logEvent } from "./log";
+import { planMaintenanceNotices } from "./maintenance-telegram";
 import { runRetainerInvoices, type RetainerInvoiceDeps } from "./retainer-invoices";
 import { nextSend, todayIn, type PastReminder, type Tier } from "./schedule";
 import type { ServiceDbRunner } from "./service-db";
@@ -170,10 +171,11 @@ const draftPlanned = async (deps: SchedulerDeps): Promise<number> => {
 
 export const runScheduler = async (
   deps: SchedulerDeps,
-): Promise<{ planned: number; drafted: number; invoiced: number }> => {
+): Promise<{ planned: number; drafted: number; invoiced: number; noticed: number }> => {
   const { invoiced } = await runRetainerInvoices(deps);
+  const noticed = await planMaintenanceNotices(deps.runAsService, deps.now());
   const planned = await planAll(deps, deps.now());
   const drafted = await draftPlanned(deps);
-  logEvent("scheduler.run", { planned, drafted, invoiced });
-  return { planned, drafted, invoiced };
+  logEvent("scheduler.run", { planned, drafted, invoiced, noticed });
+  return { planned, drafted, invoiced, noticed };
 };

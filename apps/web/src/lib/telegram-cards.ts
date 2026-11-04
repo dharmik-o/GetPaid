@@ -10,6 +10,7 @@ import {
   type TelegramOp,
 } from "./telegram-card";
 import { toCents } from "./db-values";
+import { maintenanceRun } from "./maintenance-telegram";
 import { alertText, type AlertKind } from "./retainer-alerts";
 import { primaryLabel } from "./reply-labels";
 import { loadRepliesById } from "./reply-review";
@@ -95,10 +96,11 @@ const sentNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
        u.time_zone AS own_zone
      FROM public.reminders r
      JOIN public.users u ON u.id = r.user_id
-     JOIN public.invoices i ON i.id = r.invoice_id
+     LEFT JOIN public.invoices i ON i.id = r.invoice_id
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
-     LEFT JOIN public.projects p ON p.id = m.project_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
      JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      WHERE r.sent_at IS NOT NULL AND r.telegram_sent_notified_at IS NULL
        AND r.telegram_message_id IS NOT NULL AND u.telegram_chat_id IS NOT NULL`,
@@ -282,6 +284,7 @@ export const telegramRun = async (
   ...(await replaceStale(db)),
   ...(await nudges(db, now)),
   ...(await cardsToSend(db, now, outboxUrl)),
+  ...(await maintenanceRun(db, now)),
 ];
 
 /** Telegram confirmed the card. Only the first answer counts, so a repeat changes nothing. */

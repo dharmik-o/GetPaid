@@ -19,6 +19,7 @@ const TIER_NAMES: Record<OutboxItem["tier"], string> = {
   tier1: "Tier 1",
   tier2: "Tier 2",
   tier3: "Tier 3: final notice",
+  maintenance: "Maintenance heads-up",
 };
 
 export type CardData = { approve: string; edit: string; skip: string };
@@ -29,6 +30,13 @@ export type TelegramOp =
   | { op: "sendText"; chatId: number; text: string }
   | { op: "editText"; chatId: number; messageId: number; text: string }
   | { op: "answer"; callbackQueryId: string; text: string }
+  | {
+      op: "sendMaintenance";
+      chatId: number;
+      taskId: string;
+      text: string;
+      data: { tell: string; invoice: string; snooze: string; done: string };
+    }
   | {
       op: "sendReply";
       chatId: number;
@@ -66,6 +74,19 @@ export const parseReplyData = (
   if (rest.length > 0 || !id || !isUuid(id)) return undefined;
   if (prefix === "ra") return { action: "apply", id };
   return prefix === "rr" ? { action: "resume", id } : undefined;
+};
+
+const MAINTENANCE_ACTIONS = { mt: "tell", mi: "invoice", ms: "snooze", md: "done" } as const;
+
+export type MaintenanceAction = (typeof MAINTENANCE_ACTIONS)[keyof typeof MAINTENANCE_ACTIONS];
+
+export const parseMaintenanceData = (
+  value: string,
+): { action: MaintenanceAction; id: string } | undefined => {
+  const [prefix, id, ...rest] = value.split(":");
+  if (rest.length > 0 || !id || !isUuid(id)) return undefined;
+  if (prefix !== "mt" && prefix !== "mi" && prefix !== "ms" && prefix !== "md") return undefined;
+  return { action: MAINTENANCE_ACTIONS[prefix], id };
 };
 
 export const outboxPointer = (outboxUrl: string | undefined): string =>

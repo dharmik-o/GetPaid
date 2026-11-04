@@ -8,6 +8,7 @@ import { redraftMessages } from "./draft-prompts";
 import { notPayable, reminderFacts } from "./drafter";
 import type { Law } from "./legal";
 import { logEvent } from "./log";
+import { loadMaintenanceContext } from "./maintenance-context";
 import { loadReminderContext } from "./reminder-context";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
 
@@ -28,7 +29,7 @@ export type RedraftOutcome =
   | { status: "failed" };
 
 type Ready = {
-  request: Extract<DraftRequest, { kind: "courtesy" | "tier1" | "tier2" | "tier3" }>;
+  request: DraftRequest;
   current: StoredDraft;
   connections: AiConnection[];
   oldMessageId: number | null;
@@ -37,17 +38,22 @@ type Ready = {
 const prepare = (deps: RedraftDeps, userId: string, id: string): Promise<Ready | undefined> =>
   deps.runAsUser(userId)(async (db) => {
     const ctx = await loadReminderContext(db, id);
-    if (ctx?.approvalStatus !== "waiting" || notPayable(ctx) || !ctx.invoice.link) return undefined;
-    const facts = reminderFacts(ctx, deps.now(), ctx.invoice.link, deps.laws);
+    const job = ctx ? undefined : await loadMaintenanceContext(db, id);
+    if (job?.approvalStatus !== "waiting" && ctx?.approvalStatus !== "waiting") return undefined;
+    if (ctx && (notPayable(ctx) || !ctx.invoice.link)) return undefined;
     const { rows } = await db.query<{ draft: unknown; telegram_message_id: string | null }>(
       "SELECT draft, telegram_message_id::text FROM public.reminders WHERE id = $1",
       [id],
     );
     const current = storedDraftSchema.safeParse(rows[0]?.draft);
     if (!current.success) return undefined;
-    const task = ctx.tier === "tier3" ? "tier3" : "draft";
+    const request: DraftRequest | undefined = ctx
+      ? { kind: ctx.tier, facts: reminderFacts(ctx, deps.now(), ctx.invoice.link ?? "", deps.laws) }
+      : job && { kind: "maintenance", facts: job.facts };
+    if (!request) return undefined;
+    const task = request.kind === "tier3" ? "tier3" : "draft";
     return {
-      request: { kind: ctx.tier, facts },
+      request,
       current: current.data,
       connections: await loadAiConnections(db, task, deps.box()),
       oldMessageId: rows[0]?.telegram_message_id ? Number(rows[0].telegram_message_id) : null,

@@ -409,3 +409,18 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A reply on a retainer invoice can't be split:** splits belong to milestones, and each cycle stands alone. The suggestion becomes "keep on hold", and you decide as usual.
 - **Added beyond the list: deleting a client is refused while auto-pay is live.** Otherwise PayPal would keep charging them with no record in the app. The message says to cancel the retainer first.
 - **The webhook handler gained `runAsUser`:** the follow-up after a verified event (creating that cycle's invoice) runs as the retainer's owner under RLS, not as the service role.
+
+### Maintenance and renewal reminders (4 Nov 2026)
+
+- **A heads-up is a row in `reminders`, with no invoice:** that's how it gets the normal approval, Outbox, Telegram card, edit, skip, send window, allowlist and sender for free, rather than a second path that could drift. A reminder now belongs to exactly one invoice or one task, enforced by a check. No button can send: Tell the client only makes a draft, and a test checks the workflow has no step that reaches Gmail or the sender.
+- **No PDF on a heads-up:** there's no invoice. The email builder's `pdf` stays a required argument, and null must be passed on purpose, so an invoice reminder still can't lose its attachment by accident.
+- **Replies to a heads-up aren't read:** Rule 7 and the spec cover invoice threads. The reply lands in your Gmail as normal. The sent message is recorded, for the timeline in M10.
+- **A heads-up stops if the job moves:** it quotes a date, so marking done or rescheduling skips one not yet sent, and the sender also stops one whose date no longer matches.
+- **Create invoice makes a small project of its own for each due date:** adding a milestone to the original project would break "milestones must equal the project total", and a new kind of invoice source would have to rebuild deposits, PDFs and reminders. Its title names the job and date, and it copies the original's terms and late-fee clause. It shows up under the client's projects, which is a small cost. A fixed-date payment term becomes due on receipt, since that date doesn't apply to repeat work.
+- **On Telegram, Create invoice is the whole amount:** a deposit needs a typed amount, so that's in the dashboard. The invoice has no email: PayPal sends nothing, and its reminders wait for approval as usual.
+- **Snooze is 7 days on both screens.** Reschedule, which needs a date, is in the dashboard only.
+- **Notices start at 09:00 in your own time zone:** these go to you, and an hourly scheduler would otherwise tell you at midnight. If it catches up past two lead days, you get one notice, not two.
+- **"Scheduled" dates roll forward:** marking a job done very late counts on from its original date until the result is in the future, so you aren't told at once about a date already gone.
+- **Double taps:** on Telegram a closed card's buttons do nothing. In the dashboard, Mark done sends the date on screen, and a second click is refused.
+- **To change a job's cost or repeat, stop it and add it again.** There's no edit form: the spec asks for snooze and reschedule, and that keeps this smaller. Say if you want one.
+- **New Telegram step `sendMaintenance`:** an existing step can't carry four buttons. The labels are fixed in the workflow, so nothing in the data can add one.

@@ -56,6 +56,9 @@ const relay = (update: unknown, authorization: string | null = `Bearer ${TOKEN}`
     box: () => box,
     laws: [],
     outboxUrl: () => undefined,
+  paypal: () => {
+    throw new Error("These tests don't create invoices.");
+  },
   }).post(
     new Request("http://127.0.0.1:3000/api/internal/telegram/update", {
       method: "POST",

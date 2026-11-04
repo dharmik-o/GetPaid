@@ -2,17 +2,18 @@ import { randomBytes } from "node:crypto";
 import type { PdfFile } from "./invoice-pdfs";
 
 // Server-only: the email a reminder goes out as (the M7 sender passes it to Gmail as `raw`).
-// Plain text, on the original invoice thread, with the invoice PDF always attached: the PDF is
-// a required argument, so a reminder can't be built without it. Header values can't carry a
-// line break, so a subject or name can't add headers.
+// Plain text, on the original thread, with the invoice PDF attached: the PDF is a required
+// argument, so a reminder can't be built without saying what's attached. Only a maintenance
+// heads-up, which has no invoice, passes null. Header values can't carry a line break, so a
+// subject or name can't add headers.
 
 export type ReminderEmail = {
   from: { name: string; email: string };
   to: { name: string; email: string };
   subject: string;
   body: string;
-  /** The invoice document: always attached. */
-  pdf: PdfFile;
+  /** The invoice document; null only for a maintenance heads-up, which has no invoice. */
+  pdf: PdfFile | null;
   /** The Message-ID of the thread's first email, to stay on the original thread. */
   inReplyTo?: string | null;
   /** The thread's Message-IDs, oldest first. The latest is the one this replies to. */
@@ -42,9 +43,21 @@ const base64Lines = (data: Buffer): string =>
 
 const messageId = (value: string): string => `<${oneLine(value).replace(/[<>\s]/g, "")}>`;
 
+const attachmentLines = (pdf: PdfFile | null, boundary: string): string[] => {
+  if (!pdf) return [];
+  const filename = pdf.filename.replace(/[^A-Za-z0-9._-]/g, "");
+  return [
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${filename}"`,
+    `Content-Disposition: attachment; filename="${filename}"`,
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64Lines(pdf.pdf),
+  ];
+};
+
 export const buildReminderEmail = (email: ReminderEmail): string => {
   const boundary = `fpr-${randomBytes(12).toString("hex")}`;
-  const filename = email.pdf.filename.replace(/[^A-Za-z0-9._-]/g, "");
   const chain = email.references ?? (email.inReplyTo ? [email.inReplyTo] : []);
   const latest = chain.at(-1);
   const thread = latest
@@ -65,12 +78,7 @@ export const buildReminderEmail = (email: ReminderEmail): string => {
     "Content-Transfer-Encoding: base64",
     "",
     base64Lines(Buffer.from(email.body, "utf8")),
-    `--${boundary}`,
-    `Content-Type: application/pdf; name="${filename}"`,
-    `Content-Disposition: attachment; filename="${filename}"`,
-    "Content-Transfer-Encoding: base64",
-    "",
-    base64Lines(email.pdf.pdf),
+    ...attachmentLines(email.pdf, boundary),
     `--${boundary}--`,
     "",
   ].join("\r\n");
