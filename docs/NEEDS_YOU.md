@@ -27,11 +27,13 @@ Things only you can do (values in your local env file, accounts or keys, install
   7. The n8n editor stays at http://localhost:5678.
 
 - **Live checks left (you're doing these in parallel).** Each needs your phone or a sandbox buyer:
-  1. **Telegram:** a real send approved by a tap (FPR-000008's went through the Outbox), Skip, and typing a change after Edit. `npm run telegram:test` makes a fake draft for the last two, and `npm run telegram:test -- status` shows what each tap did.
-  2. **A paid invoice:** open FPR-000008's pay link and pay it with a sandbox buyer. It should turn Paid in the dashboard, and any waiting reminder should stop.
-  3. **Maintenance buttons:** the card for your "renew task" reached Telegram at 16:01 UTC on 4 Nov 2026 (message 13), so it's on your phone now. Try Tell the client, then approve the draft: the client gets the email only then. Try Create invoice, Snooze and Mark done too.
-  4. **Auto-pay:** add an auto-pay retainer on the Live Gmail Test client. This changed since M8: the approval link no longer shows on the Retainers screen. Instead a draft appears in the Outbox and on Telegram, with the link as its only link. Approve it, open the link from the email, and approve with a sandbox buyer. It should turn Active. Cancel it from the sandbox buyer's account: Telegram should alert you. PayPal's simulator can't produce a charge failure that passes signature checks, so a failed charge stays tested with PayPal mocked.
+  1. **Telegram:** Skip, and typing a change after Edit. `npm run telegram:test` makes a fake draft for both, and `npm run telegram:test -- status` shows what each tap did.
+  2. **Maintenance buttons:** the card for your "renew task" reached Telegram at 16:01 UTC on 4 Nov 2026 (message 13). Try Tell the client, then approve the draft: the client gets the email only then. Try Create invoice, Snooze and Mark done too.
+  3. **Auto-pay approval:** add an auto-pay retainer on the Live Gmail Test client. A draft appears in the Outbox and on Telegram, with the link as its only link. Approve it, open the link from the email, and approve with a sandbox buyer. It should turn Active. Cancel it from the sandbox buyer's account: Telegram should alert you. PayPal's simulator can't produce a charge failure that passes signature checks, so a failed charge stays tested with PayPal mocked.
+  4. **A paid invoice:** open FPR-000008's pay link and pay it with a sandbox buyer. It should turn Paid in the dashboard, and any waiting reminder should stop.
   5. **Suspend on a real subscription:** once a sandbox buyer has approved one, tell me and leave it running. The sandbox refuses suspend on an unapproved subscription, so its path is the one part of the double-payment fix not yet run against PayPal. I can then suspend and reactivate it in a sandbox test.
+
+- **The sandbox buyer must be a US Personal account.** An Indian buyer gets "seller doesn't accept payments in your currency". Create or pick one in the PayPal developer dashboard under Sandbox > Accounts, and use it for every sandbox payment or approval, including the demo (`docs/DEMO.md`).
 
 - **Real reauthorize, on or after 9 Nov 2026.** `npm run hold:check -- keep` left authorization `1AY82822TV949110M` open for this. PayPal's 29-day limit on it runs out around 3 Dec 2026, so run it before then:
 
@@ -43,15 +45,15 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **Try a hold in the app.** On a project, set a milestone to Milestone hold, then press Start hold under Milestone holds. A draft appears in the Outbox and on Telegram, with PayPal's link as its only link. Approve it, approve the link with a sandbox buyer, and the hold turns Authorized with a Telegram message. Mark the milestone Delivered, then Accepted: that captures it, and the milestone turns Paid.
 
-- **Your call: charge dates during an auto-pay pause.** After a failed charge, auto-pay stays paused until that invoice is paid. Charge dates that pass during the pause aren't billed by PayPal, and I don't invoice them either, because PayPal's docs don't rule out billing missed cycles on reactivation, and that could charge twice. So a client who takes two months to pay skips those months unless you act. The alert tells you to check. If you'd like invoices for those dates, say so. It's a small change, but only safe once a real pause and reactivation shows what PayPal does.
-
 - **Real sign-in (before any deployment):** the dashboard acts as the seeded demo user in development and refuses to run in production (`apps/web/src/lib/auth.ts`). Before deploying, decide on sign-in (Supabase Auth with email magic links is the natural fit) and create the Supabase project and keys. This isn't in `docs/FEATURES.md`, so it's a scope decision for you. Nothing in M2–M9 is blocked.
 
 - **Laws for Tier 3 (`legal/statutes.json` is empty; the rules say I must ask before adding one):** the spec names four starting laws: UK Late Payment of Commercial Debts (Interest) Act 1998, EU Late Payment Directive 2011/7/EU, India MSMED Act 2006 (registered MSMEs only) and NYC Freelance Isn't Free Act. Each entry needs the exact citation sentence a notice may include, an official https source URL and the date you checked it (shape in `docs/DECISIONS.md`, M5 Legal gating). Approve them, or give me the wording, and I'll add them and run `npm run ai:prompts`. The India and NYC laws need a `condition`, so they'll never be cited automatically (the app can't check MSME registration or the city). Until then, a Tier 3 notice cites only the contract's late-fee clause, or nothing.
 
 - **Gmail's Testing mode ends the connection after 7 days.** Sends are then held, and you're told on Telegram and in the dashboard to press Reconnect Gmail.
 
-- **Your call: auto-accept.** The spec allows capture after the acceptance window only if the contract says so, and there's no field for that, so it isn't built: a hold is captured only when you mark the milestone Accepted. Tell me if you want it.
+## Later scope, not in the MVP
+
+- **Auto-accept:** capturing a hold after the acceptance window, when the contract allows it. Left out by your decision on 5 Nov 2026, so a hold is captured only when you mark the milestone Accepted. It would need a contract field first, and it moves money without you, so it's worth deciding carefully.
 
 ## Blocked commands, for your records
 
@@ -66,6 +68,7 @@ Nothing here is blocking work, and I didn't route around any of them.
 
 ## Done
 
+- **Answers to the M9 questions** (5 Nov 2026): the double-payment design stays as built, with the warning as backstop. Charge dates during an auto-pay pause stay alert-only. Approval email wording stays as it is. Dates and the currency check are fixed (`docs/DECISIONS.md`), and the Project page's phone overflow is part of M10.
 - **Real capture and void** (5 Nov 2026): you ran `npm run hold:check`, approved both orders with a sandbox buyer, and both passed. It first needed a fix (`892d524`): PayPal starts a hold order at `PAYER_ACTION_REQUIRED`, which the code took for approved. You then ran `-- keep`; the reauthorize it leaves open is under Open.
 - **Go-live and the real email** (4 Nov 2026): you ran `npm run n8n:go-live`, and all seven workflows are active. The FPR-000008 email reached your second inbox: you replied to it, Reply listener read the reply at 15:19 UTC and labelled it "promise", and you paused the invoice until 6 Nov from the card. Scheduler's first live run was at 16:00 UTC, and the new four-button card reached Telegram at 16:01.
 - **Answers to the M7 questions** (4 Nov 2026): any reply holds the invoice and you decide with a tap, as built.
