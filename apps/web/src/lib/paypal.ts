@@ -304,7 +304,87 @@ const instantOrNull = (time: string | undefined): Date | null => {
 const subscriptionPath = (id: string): string =>
   `/v1/billing/subscriptions/${encodeURIComponent(id)}`;
 
+// Milestone holds (Orders v2 and Payments v2) ----------------------------------------------------
+
+export type HoldOrderDraft = {
+  requestId: string;
+  amountCents: number;
+  currency: string;
+  /** What PayPal shows the client. */
+  description: string;
+};
+
+/**
+ * Where PayPal sends the client after they approve. Sandbox only, like everything here; a real
+ * deployment needs its own page. The approval itself reaches the app by webhook, not through this.
+ */
+const HOLD_RETURN_URL = "https://www.sandbox.paypal.com/myaccount/summary";
+const PAYPAL_DESCRIPTION_MAX = 127;
+
+const holdOrderBody = (draft: HoldOrderDraft) => ({
+  intent: "AUTHORIZE",
+  purchase_units: [
+    {
+      amount: paypalMoney(draft.amountCents, draft.currency),
+      description: draft.description.slice(0, PAYPAL_DESCRIPTION_MAX),
+    },
+  ],
+  payment_source: {
+    paypal: {
+      experience_context: {
+        shipping_preference: "NO_SHIPPING",
+        user_action: "CONTINUE",
+        return_url: HOLD_RETURN_URL,
+        cancel_url: HOLD_RETURN_URL,
+      },
+    },
+  },
+});
+
+const orderSchema = z.object({
+  id: z.string().min(1),
+  status: z.string().min(1),
+  links: z.array(z.object({ rel: z.string(), href: z.url() })).optional(),
+  purchase_units: z
+    .array(
+      z.object({
+        payments: z
+          .object({ authorizations: z.array(z.object({ id: z.string().min(1) })).optional() })
+          .optional(),
+      }),
+    )
+    .optional(),
+});
+
+const authorizationOf = (order: z.infer<typeof orderSchema>): string | null =>
+  order.purchase_units?.[0]?.payments?.authorizations?.[0]?.id ?? null;
+
+const statusSchema = z.object({ id: z.string().min(1), status: z.string().min(1) });
+const refundSchema = z.object({ amount: moneySchema });
+
+const authorizationPath = (id: string): string =>
+  `/v2/payments/authorizations/${encodeURIComponent(id)}`;
+
 export interface PaypalClient {
+  createHoldOrder(draft: HoldOrderDraft): Promise<{ id: string; approvalLink: string }>;
+  getOrder(id: string): Promise<{ status: string; authorizationId: string | null }>;
+  /** Places the hold, once the client has approved the order. */
+  authorizeOrder(id: string, requestId: string): Promise<{ authorizationId: string }>;
+  getAuthorization(id: string): Promise<{ status: string }>;
+  /** A fresh authorization, with a new id. The old one is finished. */
+  reauthorize(
+    id: string,
+    draft: { requestId: string; amountCents: number; currency: string },
+  ): Promise<{ authorizationId: string }>;
+  /** Takes the whole authorized amount. */
+  captureAuthorization(
+    id: string,
+    draft: { requestId: string; invoiceNumber: string },
+  ): Promise<{ id: string; status: string }>;
+  voidAuthorization(id: string): Promise<void>;
+  getCapture(id: string): Promise<{ status: string }>;
+  /** How much a refund gave back, from PayPal's copy. */
+  getRefund(id: string): Promise<{ cents: number }>;
   /** A product for a retainer: its plan needs one. */
   createProduct(draft: { requestId: string; name: string }): Promise<{ id: string }>;
   /** The fee and interval. */
@@ -432,6 +512,91 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
   };
 
   return {
+    createHoldOrder: async (draft) => {
+      const action = "create hold order";
+      const body = await call(action, "POST", "/v2/checkout/orders", {
+        body: holdOrderBody(draft),
+        requestId: draft.requestId,
+      });
+      const order = parse(orderSchema, action, body);
+      const link = order.links?.find((item) => item.rel === "payer-action" || item.rel === "approve");
+      if (!link) {
+        throw new Error("PayPal didn't return an approval link for the hold. Try again in a minute.");
+      }
+      return { id: order.id, approvalLink: link.href };
+    },
+
+    getOrder: async (id) => {
+      const action = "read order";
+      const order = parse(
+        orderSchema,
+        action,
+        await call(action, "GET", `/v2/checkout/orders/${encodeURIComponent(id)}`),
+      );
+      return { status: order.status, authorizationId: authorizationOf(order) };
+    },
+
+    authorizeOrder: async (id, requestId) => {
+      const action = "authorize order";
+      const body = await call(
+        action,
+        "POST",
+        `/v2/checkout/orders/${encodeURIComponent(id)}/authorize`,
+        { body: {}, requestId },
+      );
+      const authorizationId = authorizationOf(parse(orderSchema, action, body));
+      if (!authorizationId) {
+        throw new Error("PayPal authorized the order but gave no authorization. Check it in the sandbox.");
+      }
+      return { authorizationId };
+    },
+
+    getAuthorization: async (id) => {
+      const action = "read authorization";
+      return parse(statusSchema, action, await call(action, "GET", authorizationPath(id)));
+    },
+
+    reauthorize: async (id, draft) => {
+      const action = "reauthorize";
+      const body = await call(action, "POST", `${authorizationPath(id)}/reauthorize`, {
+        body: { amount: paypalMoney(draft.amountCents, draft.currency) },
+        requestId: draft.requestId,
+      });
+      return { authorizationId: parse(statusSchema, action, body).id };
+    },
+
+    captureAuthorization: async (id, draft) => {
+      const action = "capture authorization";
+      const body = await call(action, "POST", `${authorizationPath(id)}/capture`, {
+        body: { final_capture: true, invoice_id: draft.invoiceNumber },
+        requestId: draft.requestId,
+      });
+      return parse(statusSchema, action, body);
+    },
+
+    voidAuthorization: async (id) => {
+      await call("void authorization", "POST", `${authorizationPath(id)}/void`);
+    },
+
+    getCapture: async (id) => {
+      const action = "read capture";
+      return parse(
+        statusSchema,
+        action,
+        await call(action, "GET", `/v2/payments/captures/${encodeURIComponent(id)}`),
+      );
+    },
+
+    getRefund: async (id) => {
+      const action = "read refund";
+      const { amount } = parse(
+        refundSchema,
+        action,
+        await call(action, "GET", `/v2/payments/refunds/${encodeURIComponent(id)}`),
+      );
+      return { cents: fromPaypalValue(amount.value, amount.currency_code) };
+    },
+
     createProduct: async ({ requestId, name }) => {
       const action = "create product";
       const body = await call(action, "POST", "/v1/catalogs/products", {

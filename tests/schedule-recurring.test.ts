@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   maintenanceNextDue,
   maintenanceNoticeDue,
+  holdDeadlineTooFar,
+  holdWindow,
   maintenanceOccurrences,
   retainerCycleOn,
   retainerCyclesBetween,
@@ -55,6 +57,49 @@ describe("retainer cycles", () => {
     expect(retainerDueDate({ kind: "net", days: 14 }, "2026-11-02")).toBe("2026-11-16");
     expect(retainerDueDate({ kind: "on_receipt" }, "2026-11-02")).toBe("2026-11-02");
     expect(retainerDueDate({ kind: "date", date: "2020-01-01" }, "2026-11-02")).toBe("2026-11-02");
+  });
+});
+
+describe("hold windows", () => {
+  const AUTHORIZED = new Date("2026-12-01T12:00:00Z");
+  const after = (days: number, hours = 0) =>
+    new Date(AUTHORIZED.getTime() + (days * 24 + hours) * 60 * 60 * 1000);
+
+  it("is inside the honor period for 3 days", () => {
+    expect(holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt: null, now: after(3) })).toEqual({
+      pastHonor: false,
+      expired: false,
+    });
+    expect(
+      holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt: null, now: after(3, 1) }).pastHonor,
+    ).toBe(true);
+  });
+
+  it("restarts the honor period after a reauthorization", () => {
+    const reauthorizedAt = after(10);
+    expect(holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt, now: after(12) }).pastHonor).toBe(
+      false,
+    );
+    expect(holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt, now: after(14) }).pastHonor).toBe(
+      true,
+    );
+  });
+
+  it("expires 29 days after the original authorization, whatever was reauthorized", () => {
+    expect(
+      holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt: null, now: after(28, 23) }).expired,
+    ).toBe(false);
+    expect(holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt: null, now: after(29) }).expired).toBe(
+      true,
+    );
+    expect(
+      holdWindow({ authorizedAt: AUTHORIZED, reauthorizedAt: after(28), now: after(29) }).expired,
+    ).toBe(true);
+  });
+
+  it("warns when the deadline is more than 29 days after the hold", () => {
+    expect(holdDeadlineTooFar("2026-12-30", "2026-12-01")).toBe(false);
+    expect(holdDeadlineTooFar("2026-12-31", "2026-12-01")).toBe(true);
   });
 });
 

@@ -56,6 +56,7 @@ const THREAD_TABLES: Readonly<Record<Source["kind"], string>> = {
   invoice: "invoices",
   maintenance: "maintenance_tasks",
   auto_pay_approval: "retainers",
+  hold_approval: "milestone_holds",
 };
 
 const sourceId = (source: Source): string => {
@@ -66,6 +67,8 @@ const sourceId = (source: Source): string => {
       return source.taskId;
     case "auto_pay_approval":
       return source.retainerId;
+    case "hold_approval":
+      return source.holdId;
   }
 };
 
@@ -100,15 +103,17 @@ const loadSendRow = async (db: Db, id: string): Promise<SendRow | undefined> => 
   const { rows } = await db.query<SendRow>(
     `SELECT r.invoice_id IS NOT NULL AS has_invoice, r.draft, r.send_blocked_reason, c.email AS client_email,
        u.gmail_email AS own_email, u.gmail_status,
-       coalesce(i.gmail_thread_id, mt.gmail_thread_id, ar.gmail_thread_id) AS gmail_thread_id,
-       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject) AS gmail_thread_subject
+       coalesce(i.gmail_thread_id, mt.gmail_thread_id, ar.gmail_thread_id, h.gmail_thread_id) AS gmail_thread_id,
+       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject, h.gmail_thread_subject) AS gmail_thread_subject
      FROM public.reminders r
      LEFT JOIN public.invoices i ON i.id = r.invoice_id
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
      LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
      LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id)
+     LEFT JOIN public.milestone_holds h ON h.id = r.hold_id
+     LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id)
      JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
      JOIN public.users u ON u.id = r.user_id
      WHERE r.id = $1 AND r.approval_status = 'approved' AND r.sent_at IS NULL
@@ -334,13 +339,14 @@ const recordSent = (
       [sourceId(source), sent.threadId, ready.subject],
     );
     await db.query(
-      `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, retainer_id,
+      `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, retainer_id, hold_id,
          direction, body, thread_id, gmail_message_id, rfc_message_id)
-       VALUES ((SELECT auth.uid()), $1, $2, $3, 'out', $4, $5, $6, $7)`,
+       VALUES ((SELECT auth.uid()), $1, $2, $3, $4, 'out', $5, $6, $7, $8)`,
       [
         source.kind === "invoice" ? source.invoiceId : null,
         source.kind === "maintenance" ? source.taskId : null,
         source.kind === "auto_pay_approval" ? source.retainerId : null,
+        source.kind === "hold_approval" ? source.holdId : null,
         ready.draft.body,
         sent.threadId,
         sent.id,

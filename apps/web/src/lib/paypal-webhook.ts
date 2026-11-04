@@ -3,6 +3,7 @@ import type { Db } from "./db";
 import { toCents } from "./db-values";
 import { jsonResponse, serverError } from "./http";
 import type { InvoiceStatus } from "./invoices";
+import { applyHoldEvent } from "./hold-webhook";
 import { errorKind, logEvent } from "./log";
 import type { PaypalClient, PaypalInvoice, WebhookHeaders } from "./paypal";
 import { releaseHoldIfPaid } from "./retainer-hold";
@@ -55,7 +56,7 @@ const INVOICE_EVENTS = new Set([
 ]);
 
 const idResource = z.object({ id: z.string().min(1) });
-const refundResource = z.object({ invoice_id: z.string().min(1) });
+const refundResource = z.object({ id: z.string().optional(), invoice_id: z.string().min(1) });
 const disputeResource = z.object({
   disputed_transactions: z.array(z.object({ invoice_number: z.string().optional() })),
 });
@@ -89,6 +90,7 @@ type LocalInvoice = {
   milestone_id: string | null;
   retainer_id: string | null;
   paypal_invoice_id: string | null;
+  paypal_order_id: string | null;
   status: InvoiceStatus;
   amount_paid_cents: string;
   milestone_status_before: string | null;
@@ -103,7 +105,7 @@ const findInvoice = async (
   // The column name comes from the fixed Target type, never from the request.
   const column = target.by === "paypal_invoice_id" ? "paypal_invoice_id" : "invoice_number";
   const { rows } = await db.query<LocalInvoice>(
-    `SELECT id::text, user_id::text, milestone_id::text, retainer_id::text, paypal_invoice_id, status,
+    `SELECT id::text, user_id::text, milestone_id::text, retainer_id::text, paypal_invoice_id, paypal_order_id, status,
        amount_paid_cents::text, milestone_status_before, installment_plan_id::text
      FROM public.invoices WHERE ${column} = $1${lock ? " FOR UPDATE" : ""}`,
     [target.value],
@@ -244,6 +246,33 @@ const changeFromPaypal = (invoice: LocalInvoice, remote: PaypalInvoice): Change 
   amountPaidCents: Math.max(0, remote.paidCents - remote.refundedCents),
 });
 
+/**
+ * A refund of a captured hold. There's no PayPal invoice to read, so the amount comes from PayPal's
+ * own copy of the refund, and each refund counts once, however often it's delivered.
+ */
+const applyHoldRefund = async (
+  deps: Deps,
+  paypal: PaypalClient,
+  target: Target,
+  event: WebhookEvent,
+): Promise<Outcome> => {
+  const refundId = refundResource.safeParse(event.resource).data?.id;
+  if (!refundId) return "ignored";
+  const { cents } = await paypal.getRefund(refundId);
+  return deps.runAsService(async (db) => {
+    const invoice = await findInvoice(db, target, true);
+    if (!invoice) return "ignored";
+    if (!(await claimEvent(db, invoice, { ...event, id: `refund:${refundId}` }))) {
+      return "duplicate";
+    }
+    const change: Change = {
+      status: "refunded",
+      amountPaidCents: Math.max(0, toCents(invoice.amount_paid_cents) - cents),
+    };
+    return (await applyChange(db, invoice, change, event)) ? "applied" : "unchanged";
+  });
+};
+
 /** Never fails the webhook: the money is recorded, and the scheduler finishes reactivating. */
 const reactivateAfterPayment = async (
   deps: Deps,
@@ -266,10 +295,16 @@ const applyEvent = async (
   if (subscriptionId) {
     return applyRetainerEvent({ ...deps, paypal: () => paypal }, paypal, event, subscriptionId);
   }
+  const holdOutcome = await applyHoldEvent({ ...deps, paypal: () => paypal }, paypal, event);
+  if (holdOutcome) return holdOutcome;
   const target = targetOf(event);
   if (!target) return "ignored";
   const found = await deps.runAsService((db) => findInvoice(db, target));
   if (!found) return "ignored";
+
+  if (found.paypal_order_id && event.event_type === "PAYMENT.CAPTURE.REFUNDED") {
+    return applyHoldRefund(deps, paypal, target, event);
+  }
 
   // Read PayPal's copy outside any transaction.
   const remote =

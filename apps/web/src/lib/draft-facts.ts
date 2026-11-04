@@ -58,9 +58,22 @@ export type AutoPayFacts = {
   approvalLink: string;
 };
 
+/** Asking a client to authorize a milestone hold. */
+export type HoldFacts = {
+  freelancerName: string;
+  clientName: string;
+  projectTitle: string;
+  milestoneName: string;
+  /** "USD 1,500.00". */
+  amount: string;
+  /** PayPal's approval page: the email's only link. */
+  approvalLink: string;
+};
+
 export type DraftRequest =
   | { kind: Tier; facts: ReminderFacts }
   | { kind: "maintenance"; facts: MaintenanceFacts }
-  | { kind: "auto_pay_approval"; facts: AutoPayFacts };
+  | { kind: "auto_pay_approval"; facts: AutoPayFacts }
+  | { kind: "hold_approval"; facts: HoldFacts };
 
 export type DraftKind = DraftRequest["kind"];

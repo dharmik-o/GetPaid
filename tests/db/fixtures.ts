@@ -16,6 +16,7 @@ export const OWNED_TABLES = [
   "events",
   "installment_plans",
   "retainer_alerts",
+  "milestone_holds",
 ] as const;
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
@@ -78,4 +79,6 @@ export const seedOwnerSql = ({ label, userId: u, rows: r }: Owner): string => `
       '[{"amountCents": 30000, "dueDate": null}, {"amountCents": 60000, "dueDate": null}]', 'deposit');
   INSERT INTO public.retainer_alerts (id, user_id, retainer_id, kind, telegram_notified_at)
     VALUES ('${r.retainer_alerts}', '${u}', '${r.retainers}', 'cancelled', now());
+  INSERT INTO public.milestone_holds (id, user_id, milestone_id, amount_cents, currency, status)
+    VALUES ('${r.milestone_holds}', '${u}', '${r.milestones}', 90000, 'USD', 'voided');
 `;

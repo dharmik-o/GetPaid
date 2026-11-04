@@ -11,6 +11,7 @@ import {
 } from "./telegram-card";
 import { toCents } from "./db-values";
 import { maintenanceRun } from "./maintenance-telegram";
+import { holdNoticeText, type HoldNoticeKind } from "./milestone-holds";
 import { alertText, type AlertKind } from "./retainer-alerts";
 import { primaryLabel } from "./reply-labels";
 import { loadRepliesById } from "./reply-review";
@@ -101,7 +102,9 @@ const sentNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
      LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
      LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id)
+     LEFT JOIN public.milestone_holds h ON h.id = r.hold_id
+     LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id)
      JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
      WHERE r.sent_at IS NOT NULL AND r.telegram_sent_notified_at IS NULL
        AND r.telegram_message_id IS NOT NULL AND u.telegram_chat_id IS NOT NULL`,
@@ -166,6 +169,43 @@ const retainerAlerts = async (db: Db, now: Date): Promise<TelegramOp[]> => {
     text: alertText(row.kind, {
       name: row.name,
       clientName: row.client_name,
+      amountCents: toCents(row.amount_cents),
+      currency: row.currency,
+    }),
+  }));
+};
+
+/** What's happened to a hold, once. Built from the database. */
+const holdNotices = async (db: Db): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    notice_kind: HoldNoticeKind;
+    chat_id: string;
+    amount_cents: string;
+    currency: string;
+    milestone_name: string;
+    client_name: string;
+  }>(
+    `SELECT h.id::text, h.notice_kind, u.telegram_chat_id::text AS chat_id, h.amount_cents::text,
+       h.currency, m.name AS milestone_name, c.name AS client_name
+     FROM public.milestone_holds h
+     JOIN public.users u ON u.id = h.user_id
+     JOIN public.milestones m ON m.id = h.milestone_id
+     JOIN public.projects p ON p.id = m.project_id
+     JOIN public.clients c ON c.id = p.client_id
+     WHERE h.notice_kind IS NOT NULL AND u.telegram_chat_id IS NOT NULL
+     LIMIT 50`,
+  );
+  if (rows.length === 0) return [];
+  await db.query("UPDATE public.milestone_holds SET notice_kind = NULL WHERE id = ANY($1::uuid[])", [
+    rows.map((row) => row.id),
+  ]);
+  return rows.map((row) => ({
+    op: "sendText",
+    chatId: Number(row.chat_id),
+    text: holdNoticeText(row.notice_kind, {
+      clientName: row.client_name,
+      milestoneName: row.milestone_name,
       amountCents: toCents(row.amount_cents),
       currency: row.currency,
     }),
@@ -279,6 +319,7 @@ export const telegramRun = async (
 ): Promise<TelegramOp[]> => [
   ...(await reconnectNotices(db, now)),
   ...(await retainerAlerts(db, now)),
+  ...(await holdNotices(db)),
   ...(await replyCards(db, now)),
   ...(await sentNotices(db, now)),
   ...(await closeHandled(db, now)),

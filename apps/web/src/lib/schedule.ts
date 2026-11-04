@@ -323,6 +323,31 @@ export const maintenanceOccurrences = (
   }
 };
 
+const HOLD_HONOR_DAYS = 3;
+const HOLD_MAX_DAYS = 29;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where a PayPal authorization stands. Capture is most reliable within 3 days of the latest
+ * authorization. The 29 days always count from the original one.
+ */
+export const holdWindow = ({
+  authorizedAt,
+  reauthorizedAt,
+  now,
+}: {
+  authorizedAt: Date;
+  reauthorizedAt: Date | null;
+  now: Date;
+}): { pastHonor: boolean; expired: boolean } => ({
+  pastHonor: now.getTime() - (reauthorizedAt ?? authorizedAt).getTime() > HOLD_HONOR_DAYS * DAY_MS,
+  expired: now.getTime() - authorizedAt.getTime() >= HOLD_MAX_DAYS * DAY_MS,
+});
+
+/** The deadline is more than 29 days after the hold would start, so it could expire first. */
+export const holdDeadlineTooFar = (deadline: string, holdStart: string): boolean =>
+  deadline > addDays(holdStart, HOLD_MAX_DAYS);
+
 /** The Monday of a calendar date's week. */
 export const startOfWeekDate = (iso: string): string =>
   isoDateOf(calendarDate(iso).startOf("week"));

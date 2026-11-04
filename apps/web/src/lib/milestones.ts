@@ -11,6 +11,7 @@ import {
   statusLabel,
   type MilestoneStatus,
 } from "./milestone-status";
+import { LIVE_HOLD_SQL } from "./milestone-holds";
 import { getProject, type Project } from "./projects";
 import { settingsOverrideSchema, type SettingsOverride } from "./settings";
 import { validateSettings } from "./settings-validation";
@@ -100,16 +101,21 @@ type MilestoneRow = {
   settings: unknown;
   status: string;
   open_invoice: boolean;
+  live_hold: boolean;
 };
 
-type StoredMilestone = Omit<Milestone, "cents"> & { locked: boolean };
+type StoredMilestone = Omit<Milestone, "cents"> & { locked: boolean; liveHold: boolean };
 
 const SELECT_MILESTONES = `
   SELECT m.id::text, m.position, m.name, m.deliverable, m.amount_cents::text, m.percent_bp,
     m.deadline::text, m.acceptance_window_days, m.payment_mode, m.settings, m.status,
     EXISTS (
       SELECT 1 FROM public.invoices i WHERE i.milestone_id = m.id AND i.status <> 'cancelled'
-    ) AS open_invoice
+    ) AS open_invoice,
+    EXISTS (
+      SELECT 1 FROM public.milestone_holds h
+      WHERE h.milestone_id = m.id AND h.status IN (${LIVE_HOLD_SQL})
+    ) AS live_hold
   FROM public.milestones m`;
 
 const toStored = (row: MilestoneRow): StoredMilestone => {
@@ -127,7 +133,8 @@ const toStored = (row: MilestoneRow): StoredMilestone => {
     settings: settingsOverrideSchema.parse(row.settings),
     status,
     // An invoice exists: its amount is fixed and the milestone can't be deleted (that would delete the invoice).
-    locked: hasInvoice(status) || row.open_invoice,
+    locked: hasInvoice(status) || row.open_invoice || row.live_hold,
+    liveHold: row.live_hold,
   };
 };
 
@@ -201,6 +208,14 @@ const lockIssues = (items: Item[], stored: StoredMilestone[]): FieldIssue[] => {
     const existing = byId.get(item.id);
     const at = `milestones.${String(index)}`;
     if (!existing) return [{ field: `${at}.id`, message: "isn't a milestone of this project" }];
+    if (existing.liveHold && item.paymentMode !== existing.paymentMode) {
+      return [
+        {
+          field: `${at}.paymentMode`,
+          message: "can't change while a hold is in progress. Void the hold first.",
+        },
+      ];
+    }
     const sameShare =
       (existing.amountCents ?? undefined) === item.amountCents &&
       (existing.percentBp ?? undefined) === item.percentBp;
@@ -217,7 +232,9 @@ const lockIssues = (items: Item[], stored: StoredMilestone[]): FieldIssue[] => {
     .filter((m) => m.locked && !kept.has(m.id))
     .map((m) => ({
       field: "milestones",
-      message: `${m.name} has an invoice, so it can't be removed. Cancel the invoice first.`,
+      message: m.liveHold
+        ? `${m.name} has a hold in progress, so it can't be removed. Void the hold first.`
+        : `${m.name} has an invoice, so it can't be removed. Cancel the invoice first.`,
     }));
   return [...itemIssues, ...removed];
 };

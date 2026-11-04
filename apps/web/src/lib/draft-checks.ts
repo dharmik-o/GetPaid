@@ -58,6 +58,14 @@ const quotedNames = (request: DraftRequest): string[] => {
   if (request.kind === "auto_pay_approval") {
     return [facts.freelancerName, facts.clientName, request.facts.retainerName];
   }
+  if (request.kind === "hold_approval") {
+    return [
+      facts.freelancerName,
+      facts.clientName,
+      request.facts.projectTitle,
+      request.facts.milestoneName,
+    ];
+  }
   if (request.kind === "maintenance") {
     return [request.facts.freelancerName, request.facts.clientName, request.facts.projectTitle, request.facts.task];
   }
@@ -88,7 +96,7 @@ export const draftProblems = (
   const problems: string[] = [];
   const text = `${draft.subject}\n${draft.body}`;
   if (/[\r\n]/.test(draft.subject)) problems.push("the subject has a line break");
-  if (request.kind === "auto_pay_approval") {
+  if (request.kind === "auto_pay_approval" || request.kind === "hold_approval") {
     const { approvalLink } = request.facts;
     if (!draft.body.includes(approvalLink)) {
       problems.push("the body doesn't include the approval link");
@@ -120,7 +128,9 @@ export const draftProblems = (
   const legal = legalProblem(text, {
     citation: request.kind === "tier3" ? request.facts.citation : null,
     contractTerms:
-      request.kind === "maintenance" || request.kind === "auto_pay_approval"
+      request.kind === "maintenance" ||
+      request.kind === "auto_pay_approval" ||
+      request.kind === "hold_approval"
         ? null
         : request.facts.contractTerms,
     laws,

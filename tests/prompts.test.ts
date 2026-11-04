@@ -16,6 +16,17 @@ const REQUESTS: DraftRequest[] = [
   { kind: "tier3", facts: reminderFacts({ daysOverdue: 25 }) },
   { kind: "maintenance", facts: maintenanceFacts() },
   { kind: "auto_pay_approval", facts: autoPayFacts() },
+  {
+    kind: "hold_approval",
+    facts: {
+      freelancerName: "Alex Rivera",
+      clientName: "Sam Lee",
+      projectTitle: "Website redesign",
+      milestoneName: "Build",
+      amount: "USD 1,500.00",
+      approvalLink: "https://www.sandbox.paypal.com/checkoutnow?token=TEST",
+    },
+  },
 ];
 
 /** The email-draft prompts; prompts/invoice_text.md is tested in tests/invoice-text.test.ts. */
@@ -113,7 +124,11 @@ describe("draftTemplate", () => {
     expect(text).toContain("It must be the only link.");
   });
 
-  it.each(REQUESTS.filter((r) => r.kind !== "maintenance" && r.kind !== "auto_pay_approval"))(
+  it.each(
+    REQUESTS.filter(
+      (r) => r.kind !== "maintenance" && r.kind !== "auto_pay_approval" && r.kind !== "hold_approval",
+    ),
+  )(
     "$kind carries the pay link and the amount",
     (request) => {
       const { body } = draftTemplate(request);

@@ -485,3 +485,20 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ### M4's Done-when line (4 Nov 2026, your decision after M8)
 
 - **Reworded to match what ran:** the line said "Claude plus Ollama by hand". You ran Test connection by hand with Ollama (`llama3.2`) only, so it now says that. A run with Claude is an optional item in `docs/NEEDS_YOU.md`. Cloud models are still covered by mock models in tests.
+
+## M9 Milestone holds
+
+### Holds (4 Nov 2026)
+
+- **A table of its own, `milestone_holds`:** the spec's data model pointed at `invoices.paypal_order_id`, but a hold isn't owed money while it's held: as an invoice row it would get reminders, count in balances and show as open. Once captured, the money is recorded as a paid invoice with `paypal_order_id` set, so balances, refunds, disputes and the M10 metrics treat it like any other payment.
+- **The approval link is an email draft,** following your decision on auto-pay: same path, same "only link" check, and it stops if the hold is voided or already authorized. The link doesn't show on the screen.
+- **Capture is on Accepted, with no separate button:** marking the milestone Accepted is what captures, as the spec says. Only a person can mark it, and no client text or webhook can. The acceptance stands whatever PayPal says. A failed capture is reported, the hold stays in place and the scheduler retries each hour, telling you once. **Auto-accept after the acceptance window isn't built:** the spec only allows it if the contract says so, and there's no field for that. Worth deciding, as it moves money without you.
+- **Reauthorize only when capturing, not on a timer:** the spec says "before capturing". The honor period counts from the latest authorization, and the 29 days always from the original. If PayPal refuses the reauthorization, it still captures, since the hold is valid for 29 days and capture is only less reliable after day 3.
+- **A pending capture isn't called paid:** the milestone stays Accepted until PayPal confirms it. A denied one ends the hold, with nothing taken.
+- **Started only at Planned or In progress,** since the point is authorizing before the work. If you want to invoice it after all, void the hold and change the milestone's payment mode.
+- **While a hold is live,** its milestone's amount and mode can't change, it can't be removed, and its client can't be deleted, so money can't be left held with no record here.
+- **A hold voided before approval has nothing to void at PayPal:** an unapproved order just lapses. If the client approves it later, it's never authorized, as the status decides.
+- **Only a paid or voided path ends a hold by hand.** An expired or denied hold can be started again.
+- **After the client approves, PayPal sends them to its own sandbox summary page:** the approval reaches the app by webhook, and a real deployment needs its own page. Noted for sign-in and deployment.
+- **Refund of a captured hold:** there's no PayPal invoice to read, so the amount comes from PayPal's own copy of the refund, and each refund counts once, by its id.
+- **Why the box isn't ticked:** the Done-when line asks for sandbox tests of capture, reauthorize and void. The sandbox refused the buyer-free route (`PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING`), so a buyer has to approve, and real reauthorization needs 4 days. `npm run hold:check` is ready, and I've marked this clearly rather than ticking it on mocks.

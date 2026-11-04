@@ -65,7 +65,34 @@ export type FakeSubscription = {
   body: Record<string, unknown>;
 };
 
+export type FakeOrder = {
+  id: string;
+  status: "CREATED" | "APPROVED" | "COMPLETED";
+  body: Record<string, unknown>;
+  authorizationId: string | null;
+};
+
+export type FakeAuthorization = {
+  id: string;
+  orderId: string;
+  status: "CREATED" | "CAPTURED" | "VOIDED" | "EXPIRED";
+  value: string;
+  currency: string;
+};
+
+export type FakeCapture = { id: string; status: string; authorizationId: string; value: string };
+
 export const createFakePaypal = () => {
+  const orders = new Map<string, FakeOrder>();
+  const authorizations = new Map<string, FakeAuthorization>();
+  const captures = new Map<string, FakeCapture>();
+  const refunds = new Map<string, { value: string; currency: string }>();
+  /** Answers to set for the next calls: what a test wants PayPal to do. */
+  const behaviour = {
+    refuseReauthorize: false,
+    captureStatus: "COMPLETED",
+    refuseCapture: false,
+  };
   const products = new Map<string, Record<string, unknown>>();
   const plans = new Map<string, Record<string, unknown>>();
   const subscriptions = new Map<string, FakeSubscription>();
@@ -147,7 +174,160 @@ export const createFakePaypal = () => {
     ],
   });
 
+  const orderJson = (order: FakeOrder) => {
+    const units = order.body.purchase_units as { amount: { value: string } }[];
+    return {
+      id: order.id,
+      status: order.status,
+      purchase_units: order.authorizationId
+        ? [
+            {
+              ...units[0],
+              payments: { authorizations: [{ id: order.authorizationId, status: "CREATED" }] },
+            },
+          ]
+        : units,
+      links:
+        order.status === "CREATED"
+          ? [
+              {
+                rel: "payer-action",
+                href: `https://www.sandbox.paypal.com/checkoutnow?token=${order.id}`,
+              },
+            ]
+          : [],
+    };
+  };
+
   const handlers: HttpHandler[] = [
+    http.post(`${PAYPAL_SANDBOX_BASE}/v2/checkout/orders`, async ({ request }) => {
+      await record(request);
+      if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+      const { id, isNew } = idFor(request, "ORDER");
+      if (isNew) {
+        orders.set(id, {
+          id,
+          status: "CREATED",
+          body: (await request.json()) as Record<string, unknown>,
+          authorizationId: null,
+        });
+      }
+      const order = orders.get(id);
+      return order
+        ? HttpResponse.json(orderJson(order), { status: 201 })
+        : new HttpResponse(null, { status: 500 });
+    }),
+
+    http.get(`${PAYPAL_SANDBOX_BASE}/v2/checkout/orders/:id`, async ({ request, params }) => {
+      await record(request);
+      const order = orders.get(String(params.id));
+      return order
+        ? HttpResponse.json(orderJson(order))
+        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND", debug_id: "f" }, { status: 404 });
+    }),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v2/checkout/orders/:id/authorize`,
+      async ({ request, params }) => {
+        await record(request);
+        const order = orders.get(String(params.id));
+        if (!order) return HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+        if (order.status === "COMPLETED") return HttpResponse.json(orderJson(order), { status: 201 });
+        if (order.status !== "APPROVED") return unprocessable("ORDER_NOT_APPROVED");
+        const id = `AUTH-FAKE-${String(nextId++).padStart(4, "0")}`;
+        const unit = (order.body.purchase_units as { amount: { value: string; currency_code: string } }[])[0];
+        authorizations.set(id, {
+          id,
+          orderId: order.id,
+          status: "CREATED",
+          value: unit?.amount.value ?? "0.00",
+          currency: unit?.amount.currency_code ?? "USD",
+        });
+        order.status = "COMPLETED";
+        order.authorizationId = id;
+        return HttpResponse.json(orderJson(order), { status: 201 });
+      },
+    ),
+
+    http.get(`${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id`, async ({ request, params }) => {
+      await record(request);
+      const found = authorizations.get(String(params.id));
+      return found
+        ? HttpResponse.json({ id: found.id, status: found.status })
+        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+    }),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id/reauthorize`,
+      async ({ request, params }) => {
+        await record(request);
+        const found = authorizations.get(String(params.id));
+        if (!found) return HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+        if (behaviour.refuseReauthorize) return unprocessable("REAUTHORIZE_NOT_ALLOWED");
+        const id = `AUTH-FAKE-${String(nextId++).padStart(4, "0")}`;
+        authorizations.set(id, { ...found, id, status: "CREATED" });
+        found.status = "VOIDED";
+        return HttpResponse.json({ id, status: "CREATED" }, { status: 201 });
+      },
+    ),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id/capture`,
+      async ({ request, params }) => {
+        await record(request);
+        const found = authorizations.get(String(params.id));
+        if (!found) return HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+        const key = `CAPTURE:${request.headers.get("paypal-request-id") ?? ""}`;
+        const seen = byRequestId.get(key);
+        const again = seen ? captures.get(seen) : undefined;
+        if (again) return HttpResponse.json({ id: again.id, status: again.status }, { status: 201 });
+        if (behaviour.refuseCapture) return unprocessable("AUTHORIZATION_DENIED");
+        if (found.status !== "CREATED") return unprocessable("AUTHORIZATION_ALREADY_CAPTURED");
+        const id = `CAP-FAKE-${String(nextId++).padStart(4, "0")}`;
+        byRequestId.set(key, id);
+        found.status = "CAPTURED";
+        captures.set(id, {
+          id,
+          status: behaviour.captureStatus,
+          authorizationId: found.id,
+          value: found.value,
+        });
+        return HttpResponse.json({ id, status: behaviour.captureStatus }, { status: 201 });
+      },
+    ),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id/void`,
+      async ({ request, params }) => {
+        await record(request);
+        const found = authorizations.get(String(params.id));
+        if (!found) return HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+        if (found.status === "CAPTURED") return unprocessable("PREVIOUSLY_CAPTURED");
+        found.status = "VOIDED";
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
+    http.get(`${PAYPAL_SANDBOX_BASE}/v2/payments/captures/:id`, async ({ request, params }) => {
+      await record(request);
+      const found = captures.get(String(params.id));
+      return found
+        ? HttpResponse.json({ id: found.id, status: found.status })
+        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+    }),
+
+    http.get(`${PAYPAL_SANDBOX_BASE}/v2/payments/refunds/:id`, async ({ request, params }) => {
+      await record(request);
+      const found = refunds.get(String(params.id));
+      return found
+        ? HttpResponse.json({
+            id: params.id,
+            status: "COMPLETED",
+            amount: { value: found.value, currency_code: found.currency },
+          })
+        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+    }),
+
     http.post(`${PAYPAL_SANDBOX_BASE}/v1/catalogs/products`, async ({ request }) => {
       await record(request);
       if (!authorized(request)) return new HttpResponse(null, { status: 401 });
@@ -324,6 +504,17 @@ export const createFakePaypal = () => {
     products,
     plans,
     subscriptions,
+    orders,
+    authorizations,
+    captures,
+    refunds,
+    behaviour,
+    /** Simulates the client approving the order on PayPal's page. */
+    approveOrder(id: string) {
+      const order = orders.get(id);
+      if (!order) throw new Error(`No fake order ${id}`);
+      order.status = "APPROVED";
+    },
     /** Simulates PayPal moving a subscription along (client approval, failures, a retry). */
     setSubscription(
       id: string,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { HoldPanel } from "@/components/HoldPanel";
 import { InvoicePanel } from "@/components/InvoicePanel";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
@@ -7,11 +8,12 @@ import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
 import { listActivePlansForProject } from "@/lib/installment-plans";
 import { listInvoicesForProject } from "@/lib/invoices";
+import { listHoldsForProject } from "@/lib/milestone-holds";
 import { listMilestones } from "@/lib/milestones";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { listTemplates } from "@/lib/invoice-templates";
 import { runAsCurrentUser } from "@/lib/request-user";
-import { todayIn } from "@/lib/schedule";
+import { holdDeadlineTooFar, todayIn } from "@/lib/schedule";
 import { describeSchedule } from "@/lib/schedule-preview";
 
 // One project: details, schedule, the optional milestone plan (step 3) and its invoices.
@@ -28,7 +30,8 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { project, clients, milestones, invoices, plans, templates } = await runAsCurrentUser(
+  const now = new Date();
+  const { project, clients, milestones, invoices, plans, templates, holds } = await runAsCurrentUser(
     async (db) => {
       const found = await getProject(db, id);
       return {
@@ -38,12 +41,15 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         invoices: found ? await listInvoicesForProject(db, found.id) : [],
         plans: found ? await listActivePlansForProject(db, found.id) : [],
         templates: await listTemplates(db),
+        holds: found ? await listHoldsForProject(db, found.id, now) : [],
       };
     },
   );
   if (!project) notFound();
 
   const schedule = { ...project.inherited, ...project.settings };
+  const today = todayIn(now, project.clientTimeZone);
+  const holdMilestones = milestones.filter((m) => m.paymentMode === "hold");
 
   return (
     <div className="page">
@@ -93,12 +99,29 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         />
       </section>
 
+      {holdMilestones.length > 0 ? (
+        <section className="card" aria-labelledby="holds">
+          <h2 id="holds">Milestone holds</h2>
+          <HoldPanel
+            currency={project.currency}
+            rows={holdMilestones.map((m) => ({
+              milestoneId: m.id,
+              name: m.name,
+              cents: m.cents,
+              status: m.status,
+              deadlineTooFar: holdDeadlineTooFar(m.deadline, today),
+              hold: holds.find((hold) => hold.milestoneId === m.id) ?? null,
+            }))}
+          />
+        </section>
+      ) : null}
+
       <section className="card" aria-labelledby="invoices">
         <h2 id="invoices">Invoices</h2>
         <InvoicePanel
           templates={templates.map(({ id: templateId, name }) => ({ id: templateId, name }))}
           currency={project.currency}
-          today={todayIn(new Date(), project.clientTimeZone)}
+          today={today}
           rows={milestones.map((m) => {
             const plan = plans.find((p) => p.milestoneId === m.id);
             return {

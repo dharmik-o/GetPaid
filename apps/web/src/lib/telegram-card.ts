@@ -21,6 +21,7 @@ const TIER_NAMES: Record<OutboxItem["tier"], string> = {
   tier3: "Tier 3: final notice",
   maintenance: "Maintenance heads-up",
   auto_pay_approval: "Auto-pay approval",
+  hold_approval: "Hold approval",
 };
 
 export type CardData = { approve: string; edit: string; skip: string };

@@ -1,5 +1,6 @@
 import type { Db } from "./db";
 import { draftReminder, type DrafterDeps } from "./drafter";
+import { runHolds } from "./hold-flow";
 import { errorKind, logEvent } from "./log";
 import { planMaintenanceNotices } from "./maintenance-telegram";
 import { continueHolds } from "./retainer-hold";
@@ -174,6 +175,7 @@ export const runScheduler = async (
   deps: SchedulerDeps,
 ): Promise<{ planned: number; drafted: number; invoiced: number; noticed: number }> => {
   await continueHolds(deps);
+  await runHolds(deps);
   const { invoiced } = await runRetainerInvoices(deps);
   const noticed = await planMaintenanceNotices(deps.runAsService, deps.now());
   const planned = await planAll(deps, deps.now());

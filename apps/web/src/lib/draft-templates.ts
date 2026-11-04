@@ -1,5 +1,11 @@
 import type { Draft } from "./ai-schemas";
-import type { AutoPayFacts, DraftRequest, MaintenanceFacts, ReminderFacts } from "./draft-facts";
+import type {
+  AutoPayFacts,
+  DraftRequest,
+  HoldFacts,
+  MaintenanceFacts,
+  ReminderFacts,
+} from "./draft-facts";
 
 // The fixed fallback for each kind of draft: used when no model gives a valid answer, so a
 // reminder still gets a correct draft. Built only from the facts. Pure.
@@ -101,6 +107,19 @@ const autoPayApproval = (f: AutoPayFacts): Draft => ({
   ),
 });
 
+const holdApproval = (f: HoldFacts): Draft => ({
+  subject: subject(`Please authorize a hold: ${f.milestoneName} on ${f.projectTitle}`),
+  body: letter(
+    f.clientName,
+    [
+      `Before I start on ${f.milestoneName} for ${f.projectTitle}, please authorize ${f.amount} through PayPal.`,
+      `This only holds the money: PayPal doesn't take it now. It's taken once you accept the work, and if the milestone is cancelled the hold is released. You can do that here:\n${f.approvalLink}`,
+      "Reply if you have any questions.",
+    ],
+    f.freelancerName,
+  ),
+});
+
 export const draftTemplate = (request: DraftRequest): Draft => {
   switch (request.kind) {
     case "courtesy":
@@ -115,5 +134,7 @@ export const draftTemplate = (request: DraftRequest): Draft => {
       return maintenance(request.facts);
     case "auto_pay_approval":
       return autoPayApproval(request.facts);
+    case "hold_approval":
+      return holdApproval(request.facts);
   }
 };

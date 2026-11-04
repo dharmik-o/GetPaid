@@ -12,6 +12,7 @@ export const PROMPT_FOR: Readonly<Record<DraftKind, PromptName>> = {
   tier3: "tier3_final_notice",
   maintenance: "maintenance_heads_up",
   auto_pay_approval: "auto_pay_approval",
+  hold_approval: "hold_approval",
 };
 
 /** Only Tier 3 is ever shown a citation. */
@@ -19,6 +20,7 @@ const factsFor = (request: DraftRequest): object => {
   if (
     request.kind === "maintenance" ||
     request.kind === "auto_pay_approval" ||
+    request.kind === "hold_approval" ||
     request.kind === "tier3"
   ) {
     return request.facts;

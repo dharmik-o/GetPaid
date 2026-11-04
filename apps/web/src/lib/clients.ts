@@ -1,3 +1,4 @@
+import { LIVE_HOLD_SQL } from "./milestone-holds";
 import { z } from "zod";
 import { countryName, defaultTimeZone, isCountryCode, isValidTimeZone } from "./countries";
 import type { Db } from "./db";
@@ -217,7 +218,7 @@ export const updateClient = async (
 };
 
 /** Deletes the client with its projects, invoices and messages (foreign keys cascade). */
-export type DeleteResult = "deleted" | "not_found" | "has_auto_pay";
+export type DeleteResult = "deleted" | "not_found" | "has_auto_pay" | "has_hold";
 
 /** Deleting a client must not leave PayPal charging them with no record of it here. */
 export const deleteClient = async (db: Db, id: string): Promise<DeleteResult> => {
@@ -228,6 +229,14 @@ export const deleteClient = async (db: Db, id: string): Promise<DeleteResult> =>
     [id],
   );
   if (rows.length > 0) return "has_auto_pay";
+  const { rows: holds } = await db.query(
+    `SELECT 1 FROM public.milestone_holds h
+     JOIN public.milestones m ON m.id = h.milestone_id
+     JOIN public.projects p ON p.id = m.project_id
+     WHERE p.client_id = $1 AND h.status IN (${LIVE_HOLD_SQL})`,
+    [id],
+  );
+  if (holds.length > 0) return "has_hold";
   const { rowCount } = await db.query("DELETE FROM public.clients WHERE id = $1", [id]);
   return rowCount > 0 ? "deleted" : "not_found";
 };

@@ -6,7 +6,15 @@ import { z } from "zod";
 export const storedDraftSchema = z.strictObject({
   subject: z.string().min(1).max(200),
   body: z.string().min(1).max(20_000),
-  kind: z.enum(["courtesy", "tier1", "tier2", "tier3", "maintenance", "auto_pay_approval"]),
+  kind: z.enum([
+    "courtesy",
+    "tier1",
+    "tier2",
+    "tier3",
+    "maintenance",
+    "auto_pay_approval",
+    "hold_approval",
+  ]),
   /** "model": an AI answer that passed every check; "template": the fixed fallback. */
   via: z.enum(["model", "template"]),
   model: z.string().nullable(),

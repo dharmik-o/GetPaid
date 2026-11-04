@@ -79,7 +79,7 @@ const openInvoices = (row: InvoiceRowData) => row.invoices.filter((i) => i.statu
 
 /** Why a milestone can't be invoiced yet, or undefined when it can. */
 const blockedReason = (row: InvoiceRowData): string | undefined => {
-  if (row.paymentMode === "hold") return "Milestone holds are paid by authorization, not invoice.";
+  if (row.paymentMode === "hold") return "Paid by a hold, not an invoice: see Milestone holds.";
   if (!["planned", "in_progress", "delivered", "accepted"].includes(row.status)) {
     return `${statusLabel(row.status)}: no new invoice needed.`;
   }

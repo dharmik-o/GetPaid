@@ -76,6 +76,15 @@ export const clientHandlers = ({ runAsUser }: Deps) => ({
     try {
       const result = await runAsUser((db) => deleteClient(db, id));
       if (result === "not_found") return notFound(CLIENT);
+      if (result === "has_hold") {
+        return jsonResponse(
+          {
+            error:
+              "This client has a milestone hold in progress, so their money could stay held. Void the hold on the project page first, then delete the client.",
+          },
+          409,
+        );
+      }
       if (result === "has_auto_pay") {
         return jsonResponse(
           {

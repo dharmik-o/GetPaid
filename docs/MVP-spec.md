@@ -98,7 +98,9 @@ PayPal's partial payments aren't offered in every country, so the app never uses
 - **Cancelling:** an installment plan is cancelled as a whole, and only while nothing on it is paid. Once something is paid, only the unpaid remainder can be split again.
 - **Reminders and tiers** run per installment. A reminder for installment 2 never mentions installment 3 as overdue unless it is.
 
-PayPal authorizations hold funds for up to 29 days, and capture is most reliable within the first 3 days. After that, the app reauthorizes before capturing. The app warns when a milestone deadline is more than 29 days after the hold.
+PayPal authorizations hold funds for up to 29 days, and capture is most reliable within the first 3 days. After that, the app reauthorizes before capturing, and if PayPal refuses that, it still captures while the hold lasts. The app warns when a milestone deadline is more than 29 days after the hold.
+
+**How a hold runs:** the freelancer starts it on a Planned or In progress milestone. The AI drafts an email with PayPal's approval link as its only link, which goes through the normal approval. When the client approves, the app authorizes and tells the freelancer. Marking the milestone Accepted captures the whole amount, and the money is recorded as a paid invoice. Voiding releases the money. A live hold locks its milestone's amount and mode, and its client can't be deleted.
 
 **Milestone lifecycle:** Planned, In progress, Delivered, Accepted, Invoiced, then Paid. A milestone can also become Partially paid (some installments paid), Overdue or Disputed.
 
@@ -247,7 +249,7 @@ Each milestone, installment or retainer cycle gets one PayPal invoice, and the s
 | --- | --- | --- |
 | Invoice a milestone | `POST /v2/invoicing/invoices`, then `/send` | Created once and reused in all reminders |
 | Deposit or installments | One invoice per installment, with the same create and send calls | Never PayPal partial payments (`partial_payment`, `allow_partial_payment`, `minimum_amount_due`): they aren't offered in every country. `detail.note` carries the installment line |
-| Milestone hold | `POST /v2/checkout/orders` with `intent: AUTHORIZE` | Capture on acceptance; reauthorize after day 3; void if cancelled |
+| Milestone hold | `POST /v2/checkout/orders` with `intent: AUTHORIZE`, `/authorize`, then `/v2/payments/authorizations/{id}/capture`, `/reauthorize` or `/void` | Capture on acceptance; reauthorize after day 3; void if cancelled. Listens for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.AUTHORIZATION.VOIDED` and capture events, verified like every webhook |
 | Cancel an invoice | `POST /v2/invoicing/invoices/{id}/cancel` | When a milestone is dropped |
 | Payment status | Webhooks | `INVOICING.INVOICE.PAID`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED` |
 | Trust the webhook | `POST /v1/notifications/verify-webhook-signature` | Reject anything unverified |
@@ -283,7 +285,7 @@ PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal
 
 ## Data model
 
-Fourteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature, and `retainer_alerts` with retainers). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
+Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature, `retainer_alerts` with retainers, and `milestone_holds` with holds). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
 
 | Table | Key fields |
 | --- | --- |
@@ -293,13 +295,14 @@ Fourteen tables cover the MVP (`invoice_templates` arrives with the Invoice temp
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status |
+| milestone_holds | milestone_id, amount, currency, status (creating / pending_approval / authorized / capturing / captured / voided / expired / failed), paypal_order_id, authorization_id, authorized_at, reauthorized_at, capture_id, invoice_id, request ids, approval_link, notice_kind |
 | retainer_alerts | user_id, retainer_id, kind (payment_failed / suspended / cancelled / recovered / paid_twice / activated_after_cancel), telegram_notified_at, dismissed_at. The wording is made from the database when it's shown. |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status, snoozed_until, last_notice_on, last_done_on, Telegram card fields, job_project_id, job_due_on, Gmail thread fields |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
 | invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
 | invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
-| reminders | invoice_id, maintenance_task_id or retainer_id (a heads-up or an auto-pay approval email has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
-| messages | invoice_id, maintenance_task_id or retainer_id, direction (in / out), body, AI classification, thread_id |
+| reminders | invoice_id, maintenance_task_id, retainer_id or hold_id (a heads-up or an approval email has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
+| messages | invoice_id, maintenance_task_id, retainer_id or hold_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |
 
 ## Architecture and tech stack

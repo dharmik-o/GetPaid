@@ -78,7 +78,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
   - Installments branch: drafts a split of the unpaid remainder (amounts and due dates) for the freelancer to approve. On approval, in one step, the open unpaid invoices are cancelled and the installment invoices are created (`created_from: client_request`). An invoice with money on it is never cancelled.
   - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, no reply text can change status or amount, and an approved split replaces the open invoice with installments while a paid invoice is never cancelled.
-  - Note: labelled correctly with the mock model, as the rule asks. With a real local model (`llama3.2`), 13 to 14 of 16 labels were right over two runs; a wrong one can only mislead a suggestion, since nothing changes without you. Gmail is mocked in tests: reading a real reply needs your OAuth client.
+  - Note: labelled correctly with the mock model, as the rule asks. With a real local model (`llama3.2`), 13 to 14 of 16 labels were right over two runs; a wrong one can only mislead a suggestion, since nothing changes without you. Gmail is mocked in tests, and a real reply was read and labelled on 4 Nov 2026.
 
 ## M8 Retainers and maintenance [Retainers and maintenance reminders]
 
@@ -87,7 +87,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Note: product, plan and subscription creation ran against the real sandbox. Webhook behaviour is tested with PayPal mocked: PayPal's simulator can't produce a charge failure that passes signature checks, so a real failed charge hasn't run.
 - [x] **Maintenance and renewal reminders:** repeat every N months, lead days (14 and 1 by default), Telegram buttons (tell the client, create invoice, snooze, mark done).
   - Done when: mark done sets the next date (from done or from scheduled, per the setting), and a heads-up to the client goes through approval.
-  - Note: runs against real routes in tests, with Telegram, Gmail and PayPal mocked, and the screen ran in a real browser and Postgres. The card's Telegram buttons haven't run live: "Approval handler" in n8n needs the updated workflow first (see `docs/NEEDS_YOU.md`).
+  - Note: runs against real routes in tests, with Telegram, Gmail and PayPal mocked, and the screen ran in a real browser and Postgres. A real card reached Telegram on 4 Nov 2026. Tapping its buttons is on the live-check list in `docs/NEEDS_YOU.md`.
 - [x] **Upcoming list** (dashboard home): the next 90 days of maintenance, renewals and retainer charges, with expected income.
   - Note: amounts come from the database only, with one total per currency, never converted.
 
@@ -95,6 +95,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 - [ ] **Hold:** authorize at milestone start, capture on acceptance, reauthorize after day 3, void on cancel; warn when the deadline is more than 29 days after the hold.
   - Done when: sandbox tests cover capture, reauthorize and void.
+  - Status: built, but not ticked, because that check hasn't passed yet. The sandbox can't authorize without a buyer approving, and this account refuses the buyer-free card route, so `npm run hold:check` is for you to run (see `docs/NEEDS_YOU.md`). What has run: all the behaviour with PayPal mocked, and in the real sandbox the order, its approval link, a repeated request id, the refusal to authorize before approval, and capture, reauthorize and void reaching PayPal's API. A real reauthorize also needs 4 days to pass.
 
 ## M10 Dashboard and demo [Hackathon demo plan, Success metrics]
 

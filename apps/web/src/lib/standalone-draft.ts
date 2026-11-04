@@ -10,14 +10,16 @@ import { mergeSettings, type ScheduleSettings } from "./settings";
 // is about, read as its owner (RLS). Every value comes from the database, already formatted.
 
 export type StandaloneSource =
-  { kind: "maintenance"; taskId: string } | { kind: "auto_pay_approval"; retainerId: string };
+  | { kind: "maintenance"; taskId: string }
+  | { kind: "auto_pay_approval"; retainerId: string }
+  | { kind: "hold_approval"; holdId: string };
 
 export type StandaloneContext = {
   reminderId: string;
   approvalStatus: "waiting" | "approved" | "skipped";
   hasDraft: boolean;
   source: StandaloneSource;
-  tier: "maintenance" | "auto_pay_approval";
+  tier: "maintenance" | "auto_pay_approval" | "hold_approval";
   request: DraftRequest;
   /** The one link the email must carry, or null when it has none. */
   requiredLink: string | null;
@@ -110,13 +112,86 @@ const maintenanceStop = (taskActive: boolean, aboutDue: string | null, nextDue: 
   return aboutDue === nextDue ? undefined : "the job's date has changed";
 };
 
+type HoldEmailRow = {
+  hold_id: string;
+  approval_status: StandaloneContext["approvalStatus"];
+  has_draft: boolean;
+  status: string;
+  link: string | null;
+  amount_cents: string;
+  currency: string;
+  milestone_name: string;
+  milestone_settings: unknown;
+  title: string;
+  project_settings: unknown;
+  client_name: string;
+  time_zone: string;
+  client_settings: unknown;
+  freelancer_name: string;
+  account_settings: unknown;
+};
+
+const loadHoldContext = async (
+  db: Db,
+  reminderId: string,
+): Promise<StandaloneContext | undefined> => {
+  const { rows } = await db.query<HoldEmailRow>(
+    `SELECT h.id::text AS hold_id, r.approval_status, r.draft IS NOT NULL AS has_draft, h.status,
+       h.approval_link AS link, h.amount_cents::text, h.currency, m.name AS milestone_name,
+       m.settings AS milestone_settings, p.title, p.settings AS project_settings,
+       c.name AS client_name, c.time_zone, c.settings AS client_settings,
+       u.name AS freelancer_name, u.default_settings AS account_settings
+     FROM public.reminders r
+     JOIN public.milestone_holds h ON h.id = r.hold_id
+     JOIN public.milestones m ON m.id = h.milestone_id
+     JOIN public.projects p ON p.id = m.project_id
+     JOIN public.clients c ON c.id = p.client_id
+     JOIN public.users u ON u.id = r.user_id
+     WHERE r.id = $1`,
+    [reminderId],
+  );
+  const row = rows[0];
+  if (!row) return undefined;
+  const waiting = row.status === "pending_approval" && row.link !== null;
+  return {
+    reminderId,
+    approvalStatus: row.approval_status,
+    hasDraft: row.has_draft,
+    source: { kind: "hold_approval", holdId: row.hold_id },
+    tier: "hold_approval",
+    request: {
+      kind: "hold_approval",
+      facts: {
+        freelancerName: row.freelancer_name,
+        clientName: row.client_name,
+        projectTitle: row.title,
+        milestoneName: row.milestone_name,
+        amount: formatMoney(toCents(row.amount_cents), row.currency),
+        approvalLink: row.link ?? "",
+      },
+    },
+    requiredLink: row.link,
+    stopReason: waiting ? undefined : "the hold is no longer waiting for the client",
+    client: { name: row.client_name, timeZone: row.time_zone },
+    freelancerName: row.freelancer_name,
+    settings: mergeSettings({
+      account: row.account_settings,
+      client: row.client_settings,
+      project: row.project_settings,
+      milestone: row.milestone_settings,
+    }),
+  };
+};
+
 /** The email with no invoice behind it, or undefined if this reminder has an invoice. */
 export const loadStandaloneContext = async (
   db: Db,
   reminderId: string,
 ): Promise<StandaloneContext | undefined> => {
   const job = await loadMaintenanceContext(db, reminderId);
-  if (!job) return loadApprovalContext(db, reminderId);
+  if (!job) {
+    return (await loadApprovalContext(db, reminderId)) ?? loadHoldContext(db, reminderId);
+  }
   return {
     reminderId,
     approvalStatus: job.approvalStatus,
