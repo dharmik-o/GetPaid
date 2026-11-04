@@ -1,4 +1,5 @@
 import type { Db } from "./db";
+import { formatSendTime } from "./format";
 import { listForTelegram } from "./outbox";
 import {
   ALREADY_HANDLED_TEXT,
@@ -57,7 +58,8 @@ const closeHandled = async (db: Db, now: Date): Promise<TelegramOp[]> => {
   const { rows } = await db.query<{ id: string; chat_id: string; message_id: string }>(
     `SELECT r.id::text, u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id
      FROM public.reminders r JOIN public.users u ON u.id = r.user_id
-     WHERE r.approval_status <> 'waiting' AND r.telegram_message_id IS NOT NULL
+     WHERE r.approval_status <> 'waiting' AND r.sent_at IS NULL
+       AND r.telegram_message_id IS NOT NULL
        AND r.telegram_card_closed_at IS NULL AND u.telegram_chat_id IS NOT NULL`,
   );
   if (rows.length === 0) return [];
@@ -71,6 +73,58 @@ const closeHandled = async (db: Db, now: Date): Promise<TelegramOp[]> => {
     messageId: Number(row.message_id),
     text: ALREADY_HANDLED_TEXT,
   }));
+};
+
+/** A real send happened: the card says so, whatever it said before. Once per reminder. */
+const sentNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    sent_at: Date | string;
+    chat_id: string;
+    message_id: string;
+    client_zone: string;
+    own_zone: string;
+  }>(
+    `SELECT r.id::text, r.sent_at, u.telegram_chat_id::text AS chat_id,
+       r.telegram_message_id::text AS message_id, c.time_zone AS client_zone,
+       u.time_zone AS own_zone
+     FROM public.reminders r
+     JOIN public.users u ON u.id = r.user_id
+     JOIN public.invoices i ON i.id = r.invoice_id
+     LEFT JOIN public.milestones m ON m.id = i.milestone_id
+     LEFT JOIN public.projects p ON p.id = m.project_id
+     LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
+     WHERE r.sent_at IS NOT NULL AND r.telegram_sent_notified_at IS NULL
+       AND r.telegram_message_id IS NOT NULL AND u.telegram_chat_id IS NOT NULL`,
+  );
+  if (rows.length === 0) return [];
+  await db.query(
+    `UPDATE public.reminders SET telegram_sent_notified_at = $1, telegram_card_closed_at = $1
+     WHERE id = ANY($2::uuid[])`,
+    [now.toISOString(), rows.map((row) => row.id)],
+  );
+  return rows.map((row) => ({
+    op: "editText",
+    chatId: Number(row.chat_id),
+    messageId: Number(row.message_id),
+    text: `Sent ✓ ${formatSendTime(new Date(row.sent_at), row.client_zone, row.own_zone)}`,
+  }));
+};
+
+const RECONNECT_TEXT =
+  "Reconnect Gmail: Google ended the connection, so your approved reminders are held, not lost. Open Settings > Integrations in the dashboard and press Reconnect Gmail. They go out once you do.";
+
+/** Google ended the connection: one message, until it's reconnected and ends again. */
+const reconnectNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{ chat_id: string }>(
+    `UPDATE public.users SET gmail_reconnect_notified_at = $1
+     WHERE gmail_status = 'needs_reconnect' AND gmail_reconnect_notified_at IS NULL
+       AND telegram_chat_id IS NOT NULL
+     RETURNING telegram_chat_id::text AS chat_id`,
+    [now.toISOString()],
+  );
+  return rows.map((row) => ({ op: "sendText", chatId: Number(row.chat_id), text: RECONNECT_TEXT }));
 };
 
 /** Cards showing old wording or an old time: closed here, and sent again by `cardsToSend`. */
@@ -135,6 +189,8 @@ export const telegramRun = async (
   now: Date,
   outboxUrl: string | undefined,
 ): Promise<TelegramOp[]> => [
+  ...(await reconnectNotices(db, now)),
+  ...(await sentNotices(db, now)),
   ...(await closeHandled(db, now)),
   ...(await replaceStale(db)),
   ...(await nudges(db, now)),

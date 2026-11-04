@@ -10,6 +10,7 @@ import {
   approveDraft,
   editDraft,
   rescheduleDraft,
+  retrySend,
   skipDraft,
   type ActionResult,
 } from "./outbox-actions";
@@ -26,6 +27,7 @@ const DRAFT = "Draft";
 const actionSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("approve") }),
   z.strictObject({ action: z.literal("skip") }),
+  z.strictObject({ action: z.literal("retry_send") }),
   z.strictObject({ action: z.literal("edit"), ...draftSchema.shape }),
   z.strictObject({
     action: z.literal("reschedule"),
@@ -58,6 +60,8 @@ export const outboxHandlers = ({ runAsUser, now, laws }: Deps) => {
           return approveDraft(db, id);
         case "skip":
           return skipDraft(db, id);
+        case "retry_send":
+          return retrySend(db, id);
         case "edit":
           return editDraft(db, id, action, { now: now(), laws });
         case "reschedule":

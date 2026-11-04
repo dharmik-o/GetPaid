@@ -2,6 +2,7 @@ import type { Db } from "./db";
 import { toCents } from "./db-values";
 import { formatMoney, formatSendTime } from "./format";
 import { effectiveSendAt, localTimeInput, type Tier } from "./schedule";
+import type { HoldReason } from "./sender";
 import { mergeSettings, type SendWindow } from "./settings";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
 
@@ -30,6 +31,10 @@ export type OutboxItem = {
   /** null: the stored draft fails the schema, so it can only be skipped. */
   draft: StoredDraft | null;
   approvedVia: "outbox" | "telegram" | null;
+  /** Why an approved draft isn't going out; it's held, never dropped. */
+  blockedReason: HoldReason | null;
+  /** Follow-ups keep the thread's subject, whatever the draft says. Null until the first send. */
+  threadSubject: string | null;
 };
 
 const CONDITIONS: Record<OutboxTab, string> = {
@@ -60,6 +65,8 @@ type Row = {
   sent_at: Date | string | null;
   draft: unknown;
   approved_via: OutboxItem["approvedVia"];
+  send_blocked_reason: HoldReason | null;
+  gmail_thread_subject: string | null;
   invoice_number: string;
   amount_cents: unknown;
   amount_paid_cents: unknown;
@@ -81,6 +88,7 @@ type Row = {
 
 const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
+    r.send_blocked_reason, i.gmail_thread_subject,
     u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id, r.telegram_card_sent_at AS card_sent_at,
     i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.link,
     i.installment_number, i.installment_count,
@@ -138,6 +146,8 @@ const toItem = (row: Row, tab: OutboxTab, now: Date): OutboxItem => {
     payLink: row.link,
     draft: draft.success ? draft.data : null,
     approvedVia: row.approved_via,
+    blockedReason: row.send_blocked_reason,
+    threadSubject: row.gmail_thread_subject,
   };
 };
 

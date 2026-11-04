@@ -65,3 +65,31 @@ describe("buildReminderEmail", () => {
     expect(toGmailRaw("a+b/c")).toBe(Buffer.from("a+b/c").toString("base64url"));
   });
 });
+
+describe("threading headers", () => {
+  const base = {
+    from: { name: "F", email: "f@example.test" },
+    to: { name: "C", email: "c@example.test" },
+    subject: "S",
+    body: "B",
+    pdf: { pdf: Buffer.from("x"), filename: "i.pdf" },
+  };
+
+  it("replies to the latest and references the whole chain, oldest first", () => {
+    const mime = buildReminderEmail({ ...base, references: ["<a@x>", "<b@x>", "<c@x>"] });
+    expect(mime).toContain("In-Reply-To: <c@x>");
+    expect(mime).toContain("References: <a@x>\r\n <b@x>\r\n <c@x>");
+  });
+
+  it("has no threading headers on the first email, and carries its own Message-ID", () => {
+    const mime = buildReminderEmail({ ...base, references: [], messageId: "<own@x>" });
+    expect(mime).not.toContain("In-Reply-To");
+    expect(mime).not.toContain("References");
+    expect(mime).toContain("Message-ID: <own@x>");
+  });
+
+  it("a Message-ID can't add a header", () => {
+    const mime = buildReminderEmail({ ...base, references: ["<a@x>\r\nBcc: evil@example.test"] });
+    expect(mime).not.toMatch(/^Bcc:/m);
+  });
+});

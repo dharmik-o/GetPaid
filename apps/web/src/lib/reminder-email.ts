@@ -15,6 +15,10 @@ export type ReminderEmail = {
   pdf: PdfFile;
   /** The Message-ID of the thread's first email, to stay on the original thread. */
   inReplyTo?: string | null;
+  /** The thread's Message-IDs, oldest first. The latest is the one this replies to. */
+  references?: readonly string[];
+  /** This email's own Message-ID. */
+  messageId?: string;
 };
 
 const LINE = 76;
@@ -41,13 +45,17 @@ const messageId = (value: string): string => `<${oneLine(value).replace(/[<>\s]/
 export const buildReminderEmail = (email: ReminderEmail): string => {
   const boundary = `fpr-${randomBytes(12).toString("hex")}`;
   const filename = email.pdf.filename.replace(/[^A-Za-z0-9._-]/g, "");
-  const thread = email.inReplyTo
-    ? [`In-Reply-To: ${messageId(email.inReplyTo)}`, `References: ${messageId(email.inReplyTo)}`]
+  const chain = email.references ?? (email.inReplyTo ? [email.inReplyTo] : []);
+  const latest = chain.at(-1);
+  const thread = latest
+    ? [`In-Reply-To: ${messageId(latest)}`, `References: ${chain.map(messageId).join("\r\n ")}`]
     : [];
+  const own = email.messageId ? [`Message-ID: ${messageId(email.messageId)}`] : [];
   return [
     `From: ${address(email.from)}`,
     `To: ${address(email.to)}`,
     `Subject: ${encodeWord(oneLine(email.subject))}`,
+    ...own,
     ...thread,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,

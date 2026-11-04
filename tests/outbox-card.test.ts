@@ -43,6 +43,8 @@ const base: OutboxItem = {
   payLink: PAY_LINK,
   draft,
   approvedVia: null,
+  blockedReason: null,
+  threadSubject: null,
 };
 
 const render = (overrides: Partial<OutboxItem> = {}) =>
@@ -106,6 +108,25 @@ describe("OutboxCard", () => {
     expect(render({ tier: "tier3", draft: { ...draft, notLegalAdvice: true } })).toContain(
       "not legal advice",
     );
+  });
+
+  it("says why an approved draft is held", () => {
+    const html = render({ tab: "scheduled", blockedReason: "not_allowlisted" });
+    expect(html).toContain("DEV_EMAIL_ALLOWLIST");
+    expect(html).not.toContain("Send again");
+  });
+
+  it("offers Send again only when nobody knows how a send ended", () => {
+    const html = render({ tab: "scheduled", blockedReason: "unknown_outcome" });
+    expect(html).toContain("Check your Sent mail");
+    expect(html).toContain("Send again");
+    expect(html).toContain("Stop this send");
+  });
+
+  it("shows the thread's subject on a follow-up, and doesn't let it change", () => {
+    const html = render({ threadSubject: "The original subject" });
+    expect(html).toContain("The original subject");
+    expect(html).not.toContain(draft.subject);
   });
 
   it("marks a draft you edited", () => {

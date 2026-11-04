@@ -19,6 +19,18 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **The protect-files hook blocked another command of mine (4 Nov 2026):** while finding out why n8n had an http webhook address, one check named the env file, and I'd also planned to read `docker compose config`, which would have shown its values indirectly. I dropped both and read only the running container's own `WEBHOOK_URL`. Nothing is blocked.
 
+- **Google OAuth client for Gmail (needed before any real send or reply check):**
+  1. Open https://console.cloud.google.com/ and create a project, or pick one (for example "Payment Recovery").
+  2. Go to **APIs & Services > Library**, search for **Gmail API**, and press **Enable**.
+  3. Go to **APIs & Services > OAuth consent screen** (shown as **Google Auth Platform** on newer consoles). Pick **External**, fill in the app name and your email, and save.
+  4. On **Data access** (or **Scopes**), add `https://www.googleapis.com/auth/gmail.send` and `https://www.googleapis.com/auth/gmail.readonly`.
+  5. On **Audience** (or **Test users**), leave it in **Testing**, and add the Gmail address you'll send from as a test user.
+  6. Go to **Clients** (or **Credentials > Create credentials > OAuth client ID**). Pick **Web application**, and add this exact **Authorized redirect URI**: `http://localhost:3000/api/integrations/gmail/callback`.
+  7. Copy the client ID and secret into your local env file as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+  8. Set `DEV_EMAIL_ALLOWLIST` to the addresses a dev send may go to, comma-separated, such as a second inbox of your own. Empty means nothing sends. Don't list a client you don't mean to email.
+  9. Restart the dev server, then press **Connect Gmail** in Settings > Integrations. Google warns the app isn't verified, which is expected in Testing: choose **Advanced > Go to app**.
+  10. Testing mode ends the connection after 7 days. When it does, sends are held and you're told on Telegram and in the dashboard to reconnect.
+
 ## Done
 
 - **n8n token, Telegram bot and tunnel** (4 Nov 2026): you set `INTERNAL_API_TOKEN`, `TELEGRAM_BOT_USERNAME` and `WEBHOOK_URL`, and created the n8n credentials. What n8n needed to finish, which I did: "AI router", "Drafter" and "Approval handler" were still inactive, Approval handler still pointed at placeholder credentials, and the container still had the old http address. I pointed Approval handler at your credentials (they're named `Header Auth account` and `Telegram account` in n8n), published the three workflows, and recreated n8n. A quick tunnel gets a new address when it restarts: update `WEBHOOK_URL`, then run `docker compose up -d n8n`.

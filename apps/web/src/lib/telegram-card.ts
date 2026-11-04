@@ -69,7 +69,7 @@ export const cardText = (
     `Sends after approval: ${item.sendTime ?? "not scheduled"}`,
     ...(draft.notLegalAdvice ? ["A final notice is not legal advice. Read it closely."] : []),
     "",
-    `Subject: ${draft.subject}`,
+    `Subject: ${item.threadSubject ?? draft.subject}`,
     "",
     "",
   ].join("\n");

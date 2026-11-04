@@ -40,7 +40,8 @@ export class GmailError extends Error {
     );
     this.name = "GmailError";
     this.status = status;
-    this.outcomeUnknown = status === null || status >= 500;
+    // Only a send can have taken effect: a failed token or read changed nothing.
+    this.outcomeUnknown = what === "send" && (status === null || status >= 500);
   }
 }
 

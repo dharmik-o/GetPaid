@@ -30,6 +30,21 @@ const SEND_LABEL: Record<OutboxItem["tab"], string> = {
   skipped: "",
 };
 
+const HOLD_TEXT: Record<NonNullable<OutboxItem["blockedReason"]>, string> = {
+  gmail_disconnected:
+    "Held: Gmail isn't connected. Reconnect it in Settings > Integrations and this goes out.",
+  not_allowlisted:
+    "Held: this client's address isn't in DEV_EMAIL_ALLOWLIST, so a dev send is refused.",
+  draft_invalid: "Held: this draft failed its checks, so it can't be sent. Stop this send.",
+  no_pay_link: "Held: this draft doesn't carry the invoice's pay link. Stop this send.",
+  paused: "Held: this schedule is paused or snoozed. It goes out when that ends.",
+  on_hold: "Held: the client replied, so this invoice is on hold until you decide.",
+  send_failed: "Gmail refused this send. It will try again shortly.",
+  pdf_failed: "Held: the invoice PDF couldn't be made. It will try again shortly.",
+  unknown_outcome:
+    "We couldn't confirm this went out. Check your Sent mail in Gmail, then send it again or stop it.",
+};
+
 type Mode = "view" | "edit" | "reschedule";
 
 const windowText = ({ days, start, end }: OutboxItem["window"]): string =>
@@ -59,7 +74,7 @@ const useDraftAction = (id: string) => {
 const Message = ({ item }: { item: OutboxItem }) =>
   item.draft ? (
     <>
-      <p className="outbox-subject">{item.draft.subject}</p>
+      <p className="outbox-subject">{item.threadSubject ?? item.draft.subject}</p>
       <p className="outbox-body">{item.draft.body}</p>
     </>
   ) : (
@@ -119,7 +134,8 @@ const EditForm = ({
       <label htmlFor={`subject-${item.id}`}>Subject</label>
       <input
         id={`subject-${item.id}`}
-        value={subject}
+        value={item.threadSubject ?? subject}
+        disabled={item.threadSubject !== null}
         maxLength={200}
         onChange={(event) => {
           setSubject(event.target.value);
@@ -134,6 +150,11 @@ const EditForm = ({
           setBody(event.target.value);
         }}
       />
+      {item.threadSubject ? (
+        <p className="field-hint">
+          A follow-up keeps the thread&apos;s subject, so it stays on the thread.
+        </p>
+      ) : null}
       <p className="field-hint">
         Keep the pay link. Links, amounts and legal wording are checked the same way as the
         AI&apos;s.
@@ -234,6 +255,18 @@ const Buttons = ({
           </button>
         </>
       ) : null}
+      {item.blockedReason === "unknown_outcome" ? (
+        <button
+          className="button"
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void act({ action: "retry_send" });
+          }}
+        >
+          Send again
+        </button>
+      ) : null}
       {item.draft ? (
         <button
           className="button button-secondary"
@@ -279,6 +312,11 @@ export const OutboxCard = ({ item }: { item: OutboxItem }) => {
         <span className="chip">{TIER_LABELS[item.tier]}</span>
         {item.sendTime ? `${SEND_LABEL[item.tab]}: ${item.sendTime}` : "Skipped: not sent"}
       </p>
+      {item.blockedReason ? (
+        <p className="banner banner-warning" role="status">
+          {HOLD_TEXT[item.blockedReason]}
+        </p>
+      ) : null}
       {error ? (
         <p className="banner banner-error" role="alert">
           {error}

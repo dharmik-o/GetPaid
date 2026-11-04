@@ -1,1 +1,76 @@
-{ "name": "Sender: sends approved emails from Gmail on the invoice thread", "nodes": [], "connections": {} }
+{
+  "name": "Sender: sends approved emails from Gmail on the invoice thread",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "2d7a6c10-0401-4f3b-8a2e-000000000401",
+      "name": "Every minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/sender/run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 300000
+        }
+      },
+      "id": "2d7a6c10-0402-4f3b-8a2e-000000000402",
+      "name": "Send in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "The app checks approval, the send window, the dev allowlist and the pay link, then sends through Gmail. Safe to re-run: a claimed or sent reminder isn't touched again. Telegram's Sent card comes from Approval handler's one-minute run."
+    }
+  ],
+  "connections": {
+    "Every minute": {
+      "main": [
+        [
+          {
+            "node": "Send in the app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

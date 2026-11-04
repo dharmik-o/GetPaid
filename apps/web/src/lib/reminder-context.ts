@@ -21,6 +21,8 @@ export type ReminderContext = {
     dueDate: string;
     link: string | null;
     installment: { number: number; count: number } | null;
+    /** A client's reply put this invoice on hold, or it's paused until a date. */
+    onHold: boolean;
   };
   /** null for a retainer invoice (drafted from M8). */
   milestone: { name: string; deliverable: string | null } | null;
@@ -104,6 +106,7 @@ export const loadReminderContext = async (
       dueDate: row.due_date,
       link: row.link,
       installment,
+      onHold: false,
     },
     milestone:
       row.milestone_name === null

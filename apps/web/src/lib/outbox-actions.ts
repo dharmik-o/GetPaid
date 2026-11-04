@@ -58,6 +58,9 @@ const cannotSend = (ctx: ReminderContext, draft: StoredDraft): string | undefine
   return undefined;
 };
 
+/** A claimed send can't be changed under the sender, unless nobody knows how it ended. */
+const NOT_ON_ITS_WAY = "(send_attempted_at IS NULL OR send_blocked_reason = 'unknown_outcome')";
+
 export type DecidedVia = "outbox" | "telegram";
 
 export const approveDraft = async (
@@ -93,7 +96,7 @@ export const skipDraft = async (
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
      WHERE id = $1 AND draft IS NOT NULL AND sent_at IS NULL
-       AND approval_status IN ('waiting', 'approved')`,
+       AND approval_status IN ('waiting', 'approved') AND ${NOT_ON_ITS_WAY}`,
     [id],
   );
   if (rowCount === 0) return (await loadState(db, id)) ? ALREADY_HANDLED : NOT_FOUND;
@@ -145,6 +148,23 @@ export const editDraft = async (
   return OK;
 };
 
+/** The freelancer checked their Sent mail after an unknown outcome, and wants it sent. */
+export const retrySend = async (db: Db, id: string): Promise<ActionResult> => {
+  const { rowCount } = await db.query(
+    `UPDATE public.reminders SET send_attempted_at = NULL, send_blocked_reason = NULL
+     WHERE id = $1 AND approval_status = 'approved' AND sent_at IS NULL
+       AND send_blocked_reason = 'unknown_outcome'`,
+    [id],
+  );
+  if (rowCount === 0) {
+    return (await loadState(db, id))
+      ? conflict("This send isn't waiting on a decision. Refresh to see where it is now.")
+      : NOT_FOUND;
+  }
+  await record(db, id, "reminder.send_retried", { via: "outbox" });
+  return OK;
+};
+
 /** Moves a draft that hasn't gone out; its approval stays as it was. */
 export const rescheduleDraft = async (
   db: Db,
@@ -164,7 +184,8 @@ export const rescheduleDraft = async (
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET scheduled_at = $2,
        telegram_card_stale = telegram_message_id IS NOT NULL AND approval_status = 'waiting'
-     WHERE id = $1 AND sent_at IS NULL AND approval_status IN ('waiting', 'approved')`,
+     WHERE id = $1 AND sent_at IS NULL AND approval_status IN ('waiting', 'approved')
+       AND ${NOT_ON_ITS_WAY}`,
     [id, sendAt.toISOString()],
   );
   if (rowCount === 0) return ALREADY_HANDLED;

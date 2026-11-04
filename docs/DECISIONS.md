@@ -312,3 +312,24 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Rule 7, Least access. Question:** the rule said "read on invoice threads only", but Google has no scope limited to some threads. **Choice:** the scopes are `gmail.send` and `gmail.readonly`, and the limit moves into code: the app reads only threads whose IDs it stored when sending, covered by tests, and never lists or searches the mailbox. **Why:** the reply listener can't read anything without a read scope, so the old wording couldn't be met as written. The Google token itself can read the whole mailbox, which makes encrypting it and the code limit the protection.
 - **Rule 8, Sandbox only. Question:** the rule banned real email from dev, but sending can't be proved without one. **Choice:** PayPal live stays banned and tests never send real email. In dev, real Gmail sends go only to addresses in `DEV_EMAIL_ALLOWLIST`, which is empty by default, meaning nothing sends. Anything else is refused and logged. **Why:** it allows a real end-to-end check while a mistake can only reach an address the user listed.
 - **Updated:** `CLAUDE.md` (rules 7 and 8, and the Stack line), and `docs/MVP-spec.md` (Stack table and Security section).
+
+### Connect Gmail (4 Nov 2026)
+
+- **Fixed by the user:** Settings > Integrations, the redirect URI `http://localhost:3000/api/integrations/gmail/callback`, offline access, the env names, and the refresh token encrypted with `lib/crypto.ts`.
+- **The state:** 256 random bits, 10 minutes, one use, and only its hash is stored on the user. It's used up only when it matches, so a stray request can't cancel a connection in progress. A found bug: the first version used it up on any callback.
+- **`prompt=consent` on every connect:** Google gives a refresh token only on consent, and a reconnect after the 7-day expiry needs a new one.
+- **The address comes from `profile`:** that needs no extra scope, and it's what the `From` header must match.
+- **Both scopes must be granted:** Google lets a user untick one. Without `gmail.readonly` the reply listener would fail later and silently, so it's refused at connect.
+- **The client has no list or search:** it can send, read the profile, read one of our messages by ID, and read one thread by ID. A test reads the source and fails if any other Gmail path appears.
+
+### Sender (4 Nov 2026)
+
+- **A claim before Gmail, released only on a certain failure:** `send_attempted_at` is committed before the call. A clear refusal (4xx, 429, token failure) can't have sent anything, so it's released and retried. No answer, or a 5xx, might have gone out, so it's held as `unknown_outcome` and never repeated by itself. Gmail has no idempotency key, and the rules forbid searching the mailbox to check, so a person decides: the card offers Send again and Stop this send. A claim older than 15 minutes means the process died before recording, and is flagged the same way.
+- **Nothing is dropped:** every hold keeps the reminder approved, with a reason on its card. The one exception is an invoice that can no longer be paid, which is stopped: a reminder for a paid invoice must not go out, whatever happens later.
+- **Order of checks:** a reason worth acting on comes before the window, so the card says "Gmail isn't connected" at night too, rather than nothing until morning.
+- **The allowlist applies everywhere, not just in dev:** the app refuses to run in production until real sign-in exists, so there's no production path to exempt yet. When there is, that's a change to rule 8 for you to approve. Empty means nothing sends. A refusal is logged once per reminder, without the address.
+- **`invalid_grant` drops the token:** it's dead. Status becomes `needs_reconnect`, sends hold, and the next Telegram run says so once. Reconnecting clears that, and held reminders go on the next run.
+- **Thread, subject and headers:** the first send has no `threadId`, and stores what Gmail returns, plus the subject. Every follow-up sends that `threadId` and subject, `In-Reply-To` the latest message on the thread, and `References` the chain (first plus latest nine). Gmail requires the matching subject to keep a message on a thread, so the Outbox shows the thread's subject on a follow-up, and its field is read-only.
+- **Message-ID:** we set our own and then ask Gmail for what it recorded, since Gmail's is what replies refer to. If that lookup fails, the mail has still gone, so ours is stored rather than risking a repeat.
+- **Telegram stays in Approval handler:** `04_sender` has no Telegram nodes. The one-minute run reads `sent_at` and edits the card to "Sent ✓ <time>", replacing whatever it said. It runs before the "already handled" step, so a sent card goes straight to Sent.
+- **A hold column isn't read yet:** `onHold` is wired through and stays false until the reply listener adds it.

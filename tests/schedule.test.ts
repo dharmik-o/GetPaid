@@ -5,6 +5,7 @@ import {
   daysOverdue,
   effectiveSendAt,
   invoiceDates,
+  isInsideWindow,
   localTimeInput,
   nextSend,
   nextWindowSlot,
@@ -476,6 +477,18 @@ describe("Outbox send times", () => {
     const now = at("2026-11-20T15:00:00Z");
     expect(rescheduledSendAt("2026-11-20T09:59", now, WINDOW, NY)).toBeUndefined();
     expect(rescheduledSendAt("2026-13-40T10:00", now, WINDOW, NY)).toBeUndefined();
+  });
+
+  it("knows whether an instant is inside the window, in the client's zone", () => {
+    // Monday 23 Nov in New York.
+    expect(isInsideWindow(at("2026-11-23T14:00:00Z"), WINDOW, NY)).toBe(true);
+    expect(isInsideWindow(at("2026-11-23T13:59:59Z"), WINDOW, NY)).toBe(false);
+    expect(isInsideWindow(at("2026-11-23T22:00:00Z"), WINDOW, NY)).toBe(false);
+    // The Saturday before.
+    expect(isInsideWindow(at("2026-11-21T15:00:00Z"), WINDOW, NY)).toBe(false);
+    // 10:00 UTC is inside the window for a client in London, but not in New York.
+    expect(isInsideWindow(at("2026-11-23T10:00:00Z"), WINDOW, "Europe/London")).toBe(true);
+    expect(isInsideWindow(at("2026-11-23T10:00:00Z"), WINDOW, NY)).toBe(false);
   });
 
   it("gives an instant back as the input's value in the client's zone", () => {

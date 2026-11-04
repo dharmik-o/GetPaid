@@ -38,6 +38,8 @@ const item: OutboxItem = {
   payLink: PAY_LINK,
   draft,
   approvedVia: null,
+  blockedReason: null,
+  threadSubject: null,
 };
 
 const OUTBOX = "https://app.example.test/outbox";

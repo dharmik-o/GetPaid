@@ -34,6 +34,8 @@ export const createFakeGmail = () => {
     grantedScope: SCOPES_GRANTED,
     giveRefreshToken: true,
     sendFailure: undefined as number | "network" | undefined,
+    tokenDown: false,
+    messageLookupFails: false,
   };
 
   const headerValue = (raw: string, name: string): string | undefined => {
@@ -61,6 +63,7 @@ export const createFakeGmail = () => {
     http.post(GOOGLE_TOKEN_URL, async ({ request }) => {
       const form = new URLSearchParams(await request.text());
       state.requests.push(`POST token ${form.get("grant_type") ?? ""}`);
+      if (state.tokenDown) return HttpResponse.error();
       if (state.tokenError) return HttpResponse.json({ error: state.tokenError }, { status: 400 });
       if (form.get("grant_type") === "authorization_code") {
         if (form.get("code") !== FAKE_CODE) {
@@ -119,6 +122,7 @@ export const createFakeGmail = () => {
 
       const message = /^\/messages\/([^/]+)$/.exec(path);
       if (request.method === "GET" && message?.[1]) {
+        if (state.messageLookupFails) return HttpResponse.error();
         const found = state.sent.find((mail) => mail.id === message[1]);
         if (!found) return HttpResponse.json({ error: { message: "not found" } }, { status: 404 });
         return HttpResponse.json({

@@ -109,6 +109,10 @@ export const nextWindowSlot = (from: Date, window: SendWindow, timeZone: string)
   throw new Error("The send window has no open days. Pick at least one day in the schedule.");
 };
 
+/** Whether this instant is inside the send window, in the client's zone. */
+export const isInsideWindow = (now: Date, window: SendWindow, timeZone: string): boolean =>
+  nextWindowSlot(now, window, timeZone).getTime() === now.getTime();
+
 /** When a planned reminder can really go out: never in the past, always inside the window. */
 export const effectiveSendAt = (
   scheduledAt: Date,
