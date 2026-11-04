@@ -9,6 +9,7 @@ describe("DEFAULT_SETTINGS", () => {
       graceDays: 0,
       interval: { kind: "every", days: 3 },
       maxPerTier: 2,
+      nudgeHours: 24,
       tierBoundaries: { tier1: 1, tier2: 8, tier3: 22 },
       sendWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" },
       lateFee: null,

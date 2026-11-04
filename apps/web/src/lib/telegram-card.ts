@@ -10,6 +10,10 @@ export const TELEGRAM_TEXT_LIMIT = 4096;
 
 export const ALREADY_HANDLED_TEXT = "Already handled in dashboard";
 
+export const CARD_REPLACED_TEXT = "Replaced by the new draft below.";
+
+export const CARD_OUT_OF_DATE_TEXT = "This card is out of date. Use the newer one.";
+
 const TIER_NAMES: Record<OutboxItem["tier"], string> = {
   courtesy: "Courtesy",
   tier1: "Tier 1",

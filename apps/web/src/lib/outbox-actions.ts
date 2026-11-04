@@ -136,7 +136,8 @@ export const editDraft = async (
   const { subject, body } = edit;
   const updated: StoredDraft = { ...current.data, subject, body, editedAt: now.toISOString() };
   const { rowCount } = await db.query(
-    "UPDATE public.reminders SET draft = $2 WHERE id = $1 AND approval_status = 'waiting'",
+    `UPDATE public.reminders SET draft = $2, telegram_card_stale = telegram_message_id IS NOT NULL
+     WHERE id = $1 AND approval_status = 'waiting'`,
     [id, JSON.stringify(updated)],
   );
   if (rowCount === 0) return ALREADY_HANDLED;
@@ -161,7 +162,8 @@ export const rescheduleDraft = async (
     return { status: "invalid", message: "Pick a date and time in the future, then save again." };
   }
   const { rowCount } = await db.query(
-    `UPDATE public.reminders SET scheduled_at = $2
+    `UPDATE public.reminders SET scheduled_at = $2,
+       telegram_card_stale = telegram_message_id IS NOT NULL AND approval_status = 'waiting'
      WHERE id = $1 AND sent_at IS NULL AND approval_status IN ('waiting', 'approved')`,
     [id, sendAt.toISOString()],
   );

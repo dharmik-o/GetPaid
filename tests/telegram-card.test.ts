@@ -34,6 +34,7 @@ const item: OutboxItem = {
   sendAtInput: "2026-12-23T10:00",
   clientTimeZone: "America/New_York",
   window: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" },
+  nudgeHours: 24,
   payLink: PAY_LINK,
   draft,
   approvedVia: null,

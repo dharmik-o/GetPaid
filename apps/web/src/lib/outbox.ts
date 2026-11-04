@@ -25,6 +25,7 @@ export type OutboxItem = {
   sendAtInput: string;
   clientTimeZone: string;
   window: SendWindow;
+  nudgeHours: number;
   payLink: string | null;
   /** null: the stored draft fails the schema, so it can only be skipped. */
   draft: StoredDraft | null;
@@ -54,6 +55,7 @@ type Row = {
   approval_status: "waiting" | "approved" | "skipped";
   chat_id: string | null;
   message_id: string | null;
+  card_sent_at: Date | string | null;
   scheduled_at: Date | string;
   sent_at: Date | string | null;
   draft: unknown;
@@ -79,7 +81,7 @@ type Row = {
 
 const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
-    u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id,
+    u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id, r.telegram_card_sent_at AS card_sent_at,
     i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.link,
     i.installment_number, i.installment_count,
     m.name AS milestone_name, m.settings AS milestone_settings,
@@ -108,7 +110,7 @@ const whatOf = (row: Row): string =>
     .join(" · ");
 
 const toItem = (row: Row, tab: OutboxTab, now: Date): OutboxItem => {
-  const { sendWindow } = mergeSettings({
+  const { sendWindow, nudgeHours } = mergeSettings({
     account: row.account_settings,
     client: row.client_settings,
     project: row.project_settings,
@@ -132,6 +134,7 @@ const toItem = (row: Row, tab: OutboxTab, now: Date): OutboxItem => {
     sendAtInput: localTimeInput(planned, clientZone),
     clientTimeZone: clientZone,
     window: sendWindow,
+    nudgeHours,
     payLink: row.link,
     draft: draft.success ? draft.data : null,
     approvedVia: row.approved_via,
@@ -161,7 +164,12 @@ export const loadOutboxItem = async (
   return row ? toItem(row, tabOf(row), now) : undefined;
 };
 
-export type TelegramRow = { item: OutboxItem; chatId: number | null; messageId: number | null };
+export type TelegramRow = {
+  item: OutboxItem;
+  chatId: number | null;
+  messageId: number | null;
+  cardSentAt: Date | null;
+};
 
 const toNumber = (value: string | null): number | null => (value === null ? null : Number(value));
 
@@ -183,6 +191,7 @@ export const listForTelegram = async (
     item: toItem(row, tabOf(row), now),
     chatId: toNumber(row.chat_id),
     messageId: toNumber(row.message_id),
+    cardSentAt: row.card_sent_at ? new Date(row.card_sent_at) : null,
   }));
 };
 

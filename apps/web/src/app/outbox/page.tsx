@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { OutboxCard } from "@/components/OutboxCard";
+import { OutboxLive } from "@/components/OutboxLive";
 import { listOutbox, outboxCounts, OUTBOX_TABS, type OutboxTab } from "@/lib/outbox";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -33,6 +34,7 @@ const OutboxPage = async ({ searchParams }: Props) => {
   }));
   return (
     <div className="page">
+      <OutboxLive />
       <div className="page-header">
         <h1>Outbox</h1>
       </div>

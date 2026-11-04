@@ -105,6 +105,11 @@ const settingsShape = {
   lateFee: lateFeeSchema.nullable(),
   /** Tier 3 always needs approval, whatever this says. */
   approvalMode: z.enum(["approve_all", "auto_send_tier1"]),
+  /** One Telegram nudge this long after a card goes unanswered. The draft stays held after it. */
+  nudgeHours: z
+    .int("must be whole hours")
+    .min(1, "must be at least 1 hour")
+    .max(168, "must be 168 hours (a week) or fewer"),
   paused: z.boolean(),
   /** A date in the client's time zone; null = not snoozed. */
   snoozeUntil: isoDate.nullable(),
@@ -142,6 +147,7 @@ export const DEFAULT_SETTINGS: Readonly<ScheduleSettings> = deepFreeze({
   sendWindow: { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" },
   lateFee: null,
   approvalMode: "approve_all",
+  nudgeHours: 24,
   paused: false,
   snoozeUntil: null,
 });

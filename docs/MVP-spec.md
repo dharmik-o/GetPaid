@@ -46,6 +46,7 @@ Every timing rule is set by the freelancer. Settings are layered: account defaul
 | Client time zone | Used for the send window | From the client's country | Manual pick |
 | Late fee | Fee the reminders may mention | None | % per month or flat amount, only if the contract has one |
 | Approval mode | Which messages need a tap before sending | Approve all | Auto-send Tier 1; Tier 3 always needs approval |
+| Approval nudge | When to remind the freelancer about an unanswered draft, once | 24 hours | 1 to 168 hours |
 | Pause or snooze | Stop reminders for a client or project | Off | Pause, or snooze until a date |
 | Currency | Invoice currency | USD | Any PayPal-supported currency |
 
@@ -187,6 +188,7 @@ Freelancers review every message in one of two places, and the two stay in sync:
 - Drafts longer than 4096 characters (Telegram's limit) are sent as a preview with a link to the Outbox.
 - Buttons work only from the linked chat ID. Taps from any other chat are ignored.
 - Once a draft is handled anywhere, its Telegram card changes to "Already handled in dashboard" and its buttons stop working.
+- A card's buttons work only while it shows the current wording and send time. A change in the dashboard or a redraft replaces the card.
 - An unanswered draft gets one nudge after 24 hours (default, editable), then stays held. It's never sent on its own.
 
 **Cost:** the Telegram Bot API is free, with no subscription or per-message fees. The only cost is hosting n8n. WhatsApp can be added later if users ask for it, but its business API charges per message.

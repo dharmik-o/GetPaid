@@ -321,6 +321,27 @@ export const ScheduleForm = ({
       </Group>
 
       <Group
+        title="Nudge me about an unanswered draft"
+        changed={changed("nudgeHours")}
+        onReset={reset("nudgeHours")}
+        error={errorFor("nudgeHours")}
+      >
+        <label className="inline">
+          Once, after{" "}
+          <input
+            type="number"
+            min={1}
+            max={168}
+            value={Number.isNaN(effective.nudgeHours) ? "" : effective.nudgeHours}
+            onChange={(e) => {
+              set("nudgeHours", toInt(e.target.value));
+            }}
+          />{" "}
+          hours on Telegram. The draft stays held and never sends on its own.
+        </label>
+      </Group>
+
+      <Group
         title="Tiers start on day overdue"
         changed={changed("tierBoundaries")}
         onReset={reset("tierBoundaries")}

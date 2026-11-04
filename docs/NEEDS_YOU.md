@@ -23,7 +23,7 @@ Things only you can do (values in your local env file, accounts or keys, install
   2. Put the username in your local env file as `TELEGRAM_BOT_USERNAME`, and make sure `INTERNAL_API_TOKEN` is set (see the AI router item above). Restart the dev server.
   3. In n8n (http://localhost:5678), create a Telegram credential named `Telegram bot` with the token. The token goes only there.
   4. Telegram needs a public HTTPS URL. Start a tunnel (`cloudflared tunnel --url http://localhost:5678`), put its address in your local env file as `WEBHOOK_URL`, and run `docker compose up -d n8n`. A new tunnel address means repeating this.
-  5. Activate "Approval handler" in n8n. I'll import it once the M6 cards are in it.
+  5. In n8n, open "Approval handler" (already imported, inactive), pick the `Telegram bot` and `App internal API token` credentials on its nodes, and activate it.
   6. Optional: set `APP_PUBLIC_URL` so messages link to the Outbox.
   7. Tell me how the first real card goes. Tapping Approve, Edit and Skip is what proves the workflow's Telegram nodes, which I can't run without your bot.
 - **Two commands were refused while I checked the Outbox (M6), for you to know:** nothing is blocked and I didn't route around either one.

@@ -91,7 +91,8 @@ export const redraftReminder = async (
     // A new card follows, so the old one's id and hand-over time are cleared with the wording.
     const { rowCount } = await db.query(
       `UPDATE public.reminders
-       SET draft = $2, telegram_message_id = NULL, telegram_card_sent_at = NULL
+       SET draft = $2, telegram_message_id = NULL, telegram_card_sent_at = NULL,
+         telegram_card_stale = false, telegram_nudged_at = NULL
        WHERE id = $1 AND approval_status = 'waiting'`,
       [reminderId, JSON.stringify(draft)],
     );

@@ -64,7 +64,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Note: runs end to end against a relayed update on real Postgres. A real Telegram delivery hasn't run yet: it needs your bot and a public URL (see `docs/NEEDS_YOU.md`).
 - [x] **Telegram cards** (n8n `03_approval_handler`): Approve / Edit / Skip; a plain-word edit triggers a redraft; drafts over 4096 characters are previewed with a link.
   - Note: the app's side runs against real routes, Postgres and a local model. The workflow's Telegram nodes haven't run yet: that needs your bot (see `docs/NEEDS_YOU.md`).
-- [ ] **Sync:** handled in one place means expired in the other; taps from other chats are ignored; one nudge after 24 hours, then held.
+- [x] **Sync:** handled in one place means expired in the other; taps from other chats are ignored; one nudge after 24 hours, then held.
   - Done when: integration tests cover approving in each place, a double approve, a foreign chat ID, and the timeout.
 
 ## M7 Sending and replies [Escalation engine]

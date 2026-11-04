@@ -3,7 +3,7 @@ import type { UserDbRunner } from "./db";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, noContent, readJson, serverError } from "./http";
 import { refuseUnlessInternal } from "./internal-auth";
-import { cardsToSend, recordCardDelivered } from "./telegram-cards";
+import { recordCardDelivered, telegramRun } from "./telegram-cards";
 import { disconnectTelegram, startTelegramLink } from "./telegram-link";
 import { handleTelegramUpdate, updateSchema, type UpdateDeps } from "./telegram-updates";
 
@@ -86,7 +86,7 @@ export const telegramCardHandlers = (
     const refused = refuseUnlessInternal(request, deps.token(), "telegram.pending_rejected");
     if (refused) return refused;
     try {
-      const ops = await deps.runAsService((db) => cardsToSend(db, deps.now(), deps.outboxUrl()));
+      const ops = await deps.runAsService((db) => telegramRun(db, deps.now(), deps.outboxUrl()));
       return jsonResponse({ ops });
     } catch (error) {
       return serverError("telegram.pending_failed", error);

@@ -171,8 +171,9 @@ beforeEach(async () => {
   );
   await handle.db.query(
     `UPDATE public.reminders SET approval_status = 'waiting', approved_via = NULL, sent_at = NULL,
-       scheduled_at = '2026-12-23T15:00:00Z', draft = $1, telegram_message_id = NULL,
-       telegram_card_sent_at = NULL`,
+       scheduled_at = '2026-12-23T15:00:00Z', draft = $1, telegram_message_id = 501,
+       telegram_card_sent_at = NULL, telegram_card_stale = false, telegram_nudged_at = NULL,
+       telegram_card_closed_at = NULL`,
     [JSON.stringify(DRAFT)],
   );
   await handle.db.query(
@@ -183,6 +184,10 @@ beforeEach(async () => {
 });
 
 describe("sending cards", () => {
+  beforeEach(async () => {
+    await handle.db.query("UPDATE public.reminders SET telegram_message_id = NULL");
+  });
+
   it("offers one card per waiting draft, to its owner's chat, with its three buttons", async () => {
     const ops = await pending();
     const mine = ops.find((op) => op.reminderId === REMINDER);

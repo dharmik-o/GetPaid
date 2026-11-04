@@ -8,6 +8,8 @@ import type { ServiceDbRunner } from "./service-db";
 import { storedDraftSchema } from "./stored-draft";
 import {
   ALREADY_HANDLED_TEXT,
+  CARD_OUT_OF_DATE_TEXT,
+  CARD_REPLACED_TEXT,
   outboxPointer,
   parseCardData,
   type CardAction,
@@ -105,6 +107,31 @@ const runAction = (db: Db, action: CardAction, id: string): Promise<ActionResult
   }
 };
 
+/**
+ * A button works only on the card that shows the current wording, so nobody approves text they
+ * weren't shown. Handled drafts pass, and get the usual "already handled" answer.
+ */
+const isOutOfDate = async (db: Db, id: string, messageId: number): Promise<boolean> => {
+  const { rows } = await db.query<{
+    approval_status: string;
+    telegram_message_id: string | null;
+    telegram_card_stale: boolean;
+  }>(
+    `SELECT approval_status, telegram_message_id::text, telegram_card_stale
+     FROM public.reminders WHERE id = $1`,
+    [id],
+  );
+  const row = rows[0];
+  if (row?.approval_status !== "waiting") return false;
+  return row.telegram_card_stale || row.telegram_message_id !== String(messageId);
+};
+
+const markCardClosed = (db: Db, id: string, now: Date) =>
+  db.query("UPDATE public.reminders SET telegram_card_closed_at = $2 WHERE id = $1", [
+    id,
+    now.toISOString(),
+  ]);
+
 const answer = (callbackQueryId: string, text: string): TelegramOp => ({
   op: "answer",
   callbackQueryId,
@@ -145,8 +172,27 @@ const handleTap = async (
   const parsed = parseCardData(tap.data ?? "");
   if (!parsed) return [answer(tap.id, "That button isn't recognised.")];
   const { action, id } = parsed;
-  const result = await deps.runAsUser(user.id)((db) => runAction(db, action, id));
-  logEvent("telegram.tap", { reminderId: id, action, status: result.status });
+  const result = await deps.runAsUser(user.id)(
+    async (db): Promise<ActionResult | "out_of_date"> => {
+      if (await isOutOfDate(db, id, messageId)) return "out_of_date";
+      const acted = await runAction(db, action, id);
+      if (action !== "edit" && (acted.status === "ok" || acted === ALREADY_HANDLED)) {
+        await markCardClosed(db, id, deps.now());
+      }
+      return acted;
+    },
+  );
+  logEvent("telegram.tap", {
+    reminderId: id,
+    action,
+    status: result === "out_of_date" ? result : result.status,
+  });
+  if (result === "out_of_date") {
+    return [
+      answer(tap.id, CARD_OUT_OF_DATE_TEXT),
+      { op: "editText", chatId, messageId, text: CARD_OUT_OF_DATE_TEXT },
+    ];
+  }
   switch (result.status) {
     case "ok":
       return [
@@ -201,7 +247,7 @@ const handleFeedback = async (
                 op: "editText",
                 chatId,
                 messageId: outcome.oldMessageId,
-                text: "Replaced by the new draft below.",
+                text: CARD_REPLACED_TEXT,
               },
             ];
       return [...close, ...cards];
