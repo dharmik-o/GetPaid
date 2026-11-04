@@ -7,6 +7,6 @@ INSERT INTO auth.users (id, email)
 VALUES ('00000000-0000-4000-8000-000000000001', 'demo.freelancer@example.test')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.users (id, name, email)
-VALUES ('00000000-0000-4000-8000-000000000001', 'Demo Freelancer', 'demo.freelancer@example.test')
+INSERT INTO public.users (id, name, email, time_zone)
+VALUES ('00000000-0000-4000-8000-000000000001', 'Demo Freelancer', 'demo.freelancer@example.test', 'Asia/Kolkata')
 ON CONFLICT (id) DO NOTHING;

@@ -59,7 +59,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M6 Approvals [Reviewing drafts: Outbox and Telegram]
 
-- [ ] **Outbox page:** filters (Waiting / Scheduled / Sent / Skipped); approve, edit, skip, reschedule.
+- [x] **Outbox page:** filters (Waiting / Scheduled / Sent / Skipped); approve, edit, skip, reschedule.
 - [ ] **Connect Telegram:** one-time code deep link that saves the chat ID.
 - [ ] **Telegram cards** (n8n `03_approval_handler`): Approve / Edit / Skip; a plain-word edit triggers a redraft; drafts over 4096 characters are previewed with a link.
 - [ ] **Sync:** handled in one place means expired in the other; taps from other chats are ignored; one nudge after 24 hours, then held.

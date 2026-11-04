@@ -17,6 +17,8 @@ export const storedDraftSchema = z.strictObject({
   /** Tier 3 drafts show a "not legal advice" note to the freelancer. */
   notLegalAdvice: z.boolean(),
   draftedAt: z.iso.datetime(),
+  /** Set when the freelancer changed the wording; `via` and `model` still say how it began. */
+  editedAt: z.iso.datetime().optional(),
 });
 
 export type StoredDraft = z.infer<typeof storedDraftSchema>;

@@ -6,6 +6,7 @@ import {
   formatFullDay,
   formatMoney,
   formatPaymentTerms,
+  formatSendTime,
 } from "@/lib/format";
 
 /** Intl puts a no-break space between the code and the amount. */
@@ -81,5 +82,16 @@ describe("formatPaymentTerms", () => {
     expect(formatPaymentTerms({ kind: "on_receipt" })).toBe("Due on receipt");
     expect(formatPaymentTerms({ kind: "net", days: 14 })).toBe("Net 14");
     expect(formatPaymentTerms({ kind: "date", date: "2026-11-18" })).toBe("Due by 18 Nov 2026");
+  });
+});
+
+describe("formatSendTime", () => {
+  it("names both zones, the client's first", () => {
+    const text = plain(
+      formatSendTime(new Date("2026-11-24T15:00:00Z"), "America/New_York", "Asia/Kolkata"),
+    );
+    expect(text).toContain("10:00 client time (America/New_York)");
+    expect(text).toContain("20:30 yours (Asia/Kolkata)");
+    expect(text.indexOf("client time")).toBeLessThan(text.indexOf("yours"));
   });
 });

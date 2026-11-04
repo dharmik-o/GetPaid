@@ -561,3 +561,83 @@ label.inline {
   font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
   font-size: 12px;
 }
+
+/* Outbox ---------------------------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.tabs a {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tabs a[aria-current="page"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.outbox-card {
+  margin-bottom: var(--space-4);
+}
+
+.outbox-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.outbox-head h2,
+.outbox-head p {
+  margin: 0;
+}
+
+.outbox-subject {
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.outbox-body {
+  margin-top: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.count-badge {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.outbox-card .actions {
+  flex-wrap: wrap;
+}
+
+.outbox-card .actions .button {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .outbox-card .actions .button:first-child {
+    flex-basis: 100%;
+  }
+}

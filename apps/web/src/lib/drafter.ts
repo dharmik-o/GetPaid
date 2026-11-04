@@ -37,7 +37,7 @@ export type DrafterDeps = {
 const PAYABLE = new Set(["sent", "partially_paid"]);
 const CONTRACT_TERMS_MAX = 2000;
 
-const notPayable = (ctx: ReminderContext): string | undefined => {
+export const notPayable = (ctx: ReminderContext): string | undefined => {
   const { invoice } = ctx;
   if (!PAYABLE.has(invoice.status)) return `the invoice is ${invoice.status.replace("_", " ")}`;
   if (invoice.amountCents - invoice.amountPaidCents <= 0) return "nothing is left to pay";

@@ -107,3 +107,10 @@ export const isValidTimeZone = (zone: string): boolean =>
 
 /** Every IANA zone this runtime knows, for clients outside their country's usual zones. */
 export const allTimeZones = (): string[] => Intl.supportedValuesOf("timeZone");
+
+/**
+ * The freelancer's own zone choices: every country's zones under today's names (the runtime's
+ * list can have Asia/Calcutta and no Asia/Kolkata), plus UTC, which new accounts start on.
+ */
+export const ownTimeZoneChoices = (): string[] =>
+  [...new Set(["UTC", ...COUNTRIES.flatMap((country) => country.timeZones)])].sort();

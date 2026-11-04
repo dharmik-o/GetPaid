@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type NavItem = { href: string; label: string; onPhone: boolean };
 
@@ -18,9 +19,35 @@ const NAV: NavItem[] = [
 const isActive = (pathname: string, href: string): boolean =>
   href === "/" ? pathname === "/" : pathname.startsWith(href.replace(/\/new$/, ""));
 
+const BADGE_REFRESH_MS = 30_000;
+
+/** Drafts waiting for review. A failed check keeps the last count: the badge is only a hint. */
+const useWaitingCount = (pathname: string): number => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await fetch("/api/outbox/summary");
+        if (response.ok) setCount(((await response.json()) as { waiting: number }).waiting);
+      } catch {
+        // Offline: keep the last count until the next check.
+      }
+    };
+    void load();
+    const timer = setInterval(() => {
+      void load();
+    }, BADGE_REFRESH_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [pathname]);
+  return count;
+};
+
 /** Left sidebar; on phones it becomes a bottom bar (see globals.css). */
 export const Sidebar = () => {
   const pathname = usePathname();
+  const waiting = useWaitingCount(pathname);
   return (
     <nav className="sidebar" aria-label="Main">
       <div className="sidebar-brand">Payment Recovery</div>
@@ -32,6 +59,12 @@ export const Sidebar = () => {
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
             >
               {item.label}
+              {item.href === "/outbox" && waiting > 0 ? (
+                <span className="count-badge">
+                  {waiting}
+                  <span className="visually-hidden"> waiting</span>
+                </span>
+              ) : null}
             </Link>
           </li>
         ))}

@@ -1,13 +1,27 @@
 import Link from "next/link";
+import { TimeZoneForm } from "@/components/TimeZoneForm";
+import { getOwnTimeZone } from "@/lib/account";
+import { ownTimeZoneChoices } from "@/lib/countries";
+import { runAsCurrentUser } from "@/lib/request-user";
 
-// Settings hub. The AI settings (M4) and invoice templates (M5) exist; account schedule defaults and integrations come
-// later, so they're marked as such.
+// Settings hub. The AI settings (M4), invoice templates (M5) and your time zone (M6) exist;
+// account schedule defaults and integrations come later, so they're marked as such.
 
-const SettingsPage = () => (
+export const dynamic = "force-dynamic";
+
+const SettingsPage = async () => (
   <div className="page">
     <div className="page-header">
       <h1>Settings</h1>
     </div>
+    <section className="card" aria-labelledby="settings-time-zone">
+      <h2 id="settings-time-zone">Time zone</h2>
+      <p>The Outbox shows each send time in your client&apos;s zone and in this one.</p>
+      <TimeZoneForm
+        current={await runAsCurrentUser((db) => getOwnTimeZone(db))}
+        zones={ownTimeZoneChoices()}
+      />
+    </section>
     <section className="card" aria-labelledby="settings-ai">
       <h2 id="settings-ai">AI model</h2>
       <p>Pick a cloud or local model, enter its key, and test the connection.</p>

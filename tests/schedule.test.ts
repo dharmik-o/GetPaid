@@ -3,9 +3,12 @@ import { mergeSettings, type ReminderInterval, type SettingsOverride } from "@/l
 import {
   computeDueDate,
   daysOverdue,
+  effectiveSendAt,
   invoiceDates,
+  localTimeInput,
   nextSend,
   nextWindowSlot,
+  rescheduledSendAt,
   type NextSendInput,
   type PastReminder,
 } from "@/lib/schedule";
@@ -438,5 +441,44 @@ describe("daysOverdue", () => {
 
   it("isn't thrown off by a DST change (New York, 1 Nov 2026)", () => {
     expect(daysOverdue("2026-10-31", new Date("2026-11-02T12:00:00Z"), "America/New_York")).toBe(2);
+  });
+});
+
+describe("Outbox send times", () => {
+  const WINDOW = { days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" };
+
+  it("never shows a send time in the past or outside the window", () => {
+    // Planned for last Friday; it's Saturday in New York, so the next opening is Monday 09:00.
+    expect(
+      effectiveSendAt(at("2026-11-20T15:00:00Z"), at("2026-11-21T15:00:00Z"), WINDOW, NY),
+    ).toEqual(at("2026-11-23T14:00:00Z"));
+  });
+
+  it("keeps a future time that's inside the window", () => {
+    const planned = at("2026-11-23T16:00:00Z");
+    expect(effectiveSendAt(planned, at("2026-11-21T15:00:00Z"), WINDOW, NY)).toEqual(planned);
+  });
+
+  it("reads a picked time in the client's zone, across a DST change", () => {
+    // 2 Nov 2026 is the Monday after clocks went back: 10:00 New York is 15:00Z, not 14:00Z.
+    expect(rescheduledSendAt("2026-11-02T10:00", at("2026-10-30T12:00:00Z"), WINDOW, NY)).toEqual(
+      at("2026-11-02T15:00:00Z"),
+    );
+  });
+
+  it("moves a picked time outside the window to the next opening", () => {
+    expect(rescheduledSendAt("2026-11-21T10:00", at("2026-11-20T12:00:00Z"), WINDOW, NY)).toEqual(
+      at("2026-11-23T14:00:00Z"),
+    );
+  });
+
+  it("refuses a picked time in the past, or that isn't real", () => {
+    const now = at("2026-11-20T15:00:00Z");
+    expect(rescheduledSendAt("2026-11-20T09:59", now, WINDOW, NY)).toBeUndefined();
+    expect(rescheduledSendAt("2026-13-40T10:00", now, WINDOW, NY)).toBeUndefined();
+  });
+
+  it("gives an instant back as the input's value in the client's zone", () => {
+    expect(localTimeInput(at("2026-11-23T14:00:00Z"), NY)).toBe("2026-11-23T09:00");
   });
 });

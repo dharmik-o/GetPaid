@@ -5,8 +5,26 @@ import {
   defaultTimeZone,
   isCountryCode,
   isValidTimeZone,
+  ownTimeZoneChoices,
   timeZonesFor,
 } from "@/lib/countries";
+
+describe("ownTimeZoneChoices", () => {
+  it("uses today's names, which the runtime's own list may not", () => {
+    expect(ownTimeZoneChoices()).toContain("Asia/Kolkata");
+    expect(ownTimeZoneChoices()).not.toContain("Asia/Calcutta");
+  });
+
+  it("offers UTC, which a new account starts on", () => {
+    expect(ownTimeZoneChoices()).toContain("UTC");
+  });
+
+  it("lists each zone once, in order, and every one is valid", () => {
+    const zones = ownTimeZoneChoices();
+    expect(zones).toEqual([...new Set(zones)].sort());
+    expect(zones.every(isValidTimeZone)).toBe(true);
+  });
+});
 
 describe("countries", () => {
   it("lists countries by name with ISO codes", () => {

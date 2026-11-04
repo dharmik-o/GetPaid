@@ -61,6 +61,11 @@ export const formatDateTime = (instant: Date, timeZone: string): string =>
     timeZone,
   }).format(instant);
 
+/** A send time in both zones, each named: the client's first, as the send window is theirs. */
+export const formatSendTime = (instant: Date, clientZone: string, ownZone: string): string =>
+  `${formatDateTime(instant, clientZone)} client time (${clientZone}), ` +
+  `${formatDateTime(instant, ownZone)} yours (${ownZone})`;
+
 /** "18 Nov 2026" for a calendar date (`YYYY-MM-DD`), with no time zone shift. For documents. */
 export const formatFullDay = (isoDate: string): string =>
   new Intl.DateTimeFormat("en-GB", {

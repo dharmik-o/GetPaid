@@ -5,7 +5,6 @@ Things only you can do (values in your local env file, accounts or keys, install
 ## Open
 
 - **Live PayPal webhooks need a public HTTPS URL:** PayPal can't call `localhost`. To watch a sandbox payment arrive (demo step 2), expose n8n with a tunnel (for example `cloudflared tunnel --url http://localhost:5678`). Then set the sandbox app's webhook URL to `https://<tunnel>/webhook/paypal` with the invoicing, capture-refund and dispute events, put its id in `PAYPAL_WEBHOOK_ID`, and activate "PayPal webhook" in n8n (already imported, inactive). Needs your accounts and a tool installed on your PC.
-- **Restart your dev server:** the `next dev` you have running (PID 948, port 3000) started before `msw` was installed, and its compile workers now crash on some routes ("Jest worker encountered 2 child process exceptions"). A restart (`npm run dev`) fixes it. The new Invoices card on the project page hasn't been viewed in a browser yet because of this.
 
 - **Real sign-in (before any deployment):** the dashboard acts as the seeded demo user in development and refuses to run in production (`apps/web/src/lib/auth.ts`). Before deploying, decide on sign-in (Supabase Auth with email magic links is the natural fit) and create the Supabase project and keys. This isn't in `docs/FEATURES.md`, so it's a scope decision for you. Nothing in M2–M9 is blocked.
 - **Playwright browser (for the M10 E2E test):** run `npx playwright install chromium` once on your PC. Until then I check screens with the Microsoft Edge that ships with Windows.
@@ -18,6 +17,10 @@ Things only you can do (values in your local env file, accounts or keys, install
   A second, unrelated block at the end of M4: a shell command that appended two lines to my own memory index (outside the repo) was refused because the text mentioned the env file's name. No env file was involved. I wrote those lines with the file-edit tool instead. Tell me if you'd rather I treat any block like that as a stop.
 
 - **Laws for Tier 3 (`legal/statutes.json` is empty; the rules say I must ask before adding one):** the spec names four starting laws: UK Late Payment of Commercial Debts (Interest) Act 1998, EU Late Payment Directive 2011/7/EU, India MSMED Act 2006 (registered MSMEs only) and NYC Freelance Isn't Free Act. Each entry needs the exact citation sentence a notice may include, an official https source URL and the date you checked it (shape in `docs/DECISIONS.md`, M5 Legal gating). Approve them, or give me the wording, and I'll add them and run `npm run ai:prompts`. The India and NYC laws need a `condition`, so they'll never be cited automatically (the app can't check MSME registration or the city). Until then, a Tier 3 notice cites only the contract's late-fee clause, or nothing.
+
+- **Two commands were refused while I checked the Outbox (M6), for you to know:** nothing is blocked and I didn't route around either one.
+  1. Clearing the Next.js build cache with `rm -rf apps/web/.next`, when the dev server was reloading every page in a loop (`HMR hash mismatch`). A plain restart of the dev server fixed the loop. If you ever see that loop, restart first.
+  2. Running a small PowerShell script with `-ExecutionPolicy Bypass` to list processes and their start times. I used `tasklist` and `netstat` instead.
 
 ## Done
 

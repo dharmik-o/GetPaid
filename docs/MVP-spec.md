@@ -170,7 +170,7 @@ Freelancers review every message in one of two places, and the two stay in sync:
 **Dashboard Outbox**
 
 - Each draft shows the client, invoice or milestone, amount, tier, send time (in the client's and the freelancer's time zones), and the full message with its PayPal link.
-- **Actions:** Approve, Edit, Skip, Reschedule.
+- **Actions:** Approve, Edit, Skip, Reschedule. An approved draft that hasn't gone out can still be rescheduled or stopped.
 - **Filters:** Waiting, Scheduled, Sent, Skipped.
 - Sent messages move into the client's history, next to their replies and payments.
 
@@ -284,7 +284,7 @@ Thirteen tables cover the MVP (`invoice_templates` arrives with the Invoice temp
 
 | Table | Key fields |
 | --- | --- |
-| users | id, name, email, Gmail token (encrypted), PayPal account, Telegram chat ID, default settings, default_template_id, business_name, address, logo (embedded image) |
+| users | id, name, email, time_zone, Gmail token (encrypted), PayPal account, Telegram chat ID, default settings, default_template_id, business_name, address, logo (embedded image) |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
 | clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |

@@ -109,6 +109,34 @@ export const nextWindowSlot = (from: Date, window: SendWindow, timeZone: string)
   throw new Error("The send window has no open days. Pick at least one day in the schedule.");
 };
 
+/** When a planned reminder can really go out: never in the past, always inside the window. */
+export const effectiveSendAt = (
+  scheduledAt: Date,
+  now: Date,
+  window: SendWindow,
+  timeZone: string,
+): Date => nextWindowSlot(laterOf(scheduledAt, now), window, timeZone);
+
+/**
+ * A time the freelancer picked, read in the client's zone (`YYYY-MM-DDTHH:mm`) and moved to the
+ * next opening of the send window. Undefined if it isn't a real time or isn't in the future.
+ */
+export const rescheduledSendAt = (
+  localTime: string,
+  now: Date,
+  window: SendWindow,
+  timeZone: string,
+): Date | undefined => {
+  assertTimeZone(timeZone);
+  const local = DateTime.fromISO(localTime, { zone: timeZone });
+  if (!local.isValid || local.toJSDate() <= now) return undefined;
+  return nextWindowSlot(local.toJSDate(), window, timeZone);
+};
+
+/** An instant as a `datetime-local` value (`YYYY-MM-DDTHH:mm`) in the given zone. */
+export const localTimeInput = (instant: Date, timeZone: string): string =>
+  DateTime.fromJSDate(instant, { zone: timeZone }).toFormat("yyyy-MM-dd'T'HH:mm");
+
 type Plan = {
   settings: ScheduleSettings;
   dueDate: string;
