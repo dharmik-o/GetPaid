@@ -274,6 +274,7 @@ test.describe("adding from a list", () => {
     await page.goto("/retainers", { waitUntil: "networkidle" });
     await expect(page.locator(".empty")).toContainText("No retainers yet");
     await page.locator(".empty").getByRole("link", { name: "Add retainer" }).click();
+    await expect(page.locator("#retainer-currency-note")).toBeVisible();
     await page.getByLabel("Name").fill("Monthly care plan");
     await page.getByLabel("Amount").fill("200.00");
     await page.getByRole("button", { name: "Add retainer" }).click();

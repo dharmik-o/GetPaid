@@ -581,3 +581,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Tables use separate borders,** so their rounded corners show. Collapsed borders ignore them.
 - **Checkboxes and radios keep the browser's drawing,** coloured with the accent. Their own edges are already visible, and redrawing them would be a lot of CSS for no gain.
 - **Tested on every page,** in both themes at both widths, by `tests/e2e/theme.spec.ts`: fields at 3:1 and readable text, panels at 1.5:1 against their own fill. That's lower than the token's 1.6:1 because a panel can sit on a tinted fill.
+
+### Why INR isn't in the currency dropdown (5 Nov 2026)
+
+- **The reason:** PayPal can't receive rupee payments, so an invoice in INR isn't possible. PayPal's supported-currencies list, which `PAYPAL_CURRENCIES` comes from (updated 10 Jul 2026), has no INR. A freelancer in India bills in the client's currency, and PayPal converts to INR when they withdraw.
+- **Why say so on screen:** a freelancer in India looks for INR first, and without a reason its absence looks like a bug.
+- **Where it goes:** under all three currency dropdowns (project, retainer, maintenance job), in your wording, from one component, `CurrencyNote`. It's tied to the dropdown with `aria-describedby`, so screen readers read it too.
+- **No spec change.** The spec already says "any PayPal-supported currency", and this only explains that on screen.

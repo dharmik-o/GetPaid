@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
+import { CurrencyNote } from "@/components/CurrencyNote";
 import { ScheduleForm } from "@/components/ScheduleForm";
 import { formatAmountInput, parseAmount, PAYPAL_CURRENCIES } from "@/lib/currencies";
 import type { ScheduleSettings, SettingsOverride } from "@/lib/settings";
@@ -175,40 +176,44 @@ export const ProjectForm = ({ clients, initialClientId, initial, cancelHref }: P
         {errorFor("title")}
       </div>
 
-      <div className="field-row">
-        <div className="field">
-          <label htmlFor="total">{LABELS.totalCents}</label>
-          <input
-            id="total"
-            inputMode="decimal"
-            placeholder="3000.00"
-            value={total}
-            onChange={(e) => {
-              setTotal(e.target.value);
-            }}
-            {...invalid("totalCents")}
-          />
-          {errorFor("totalCents")}
+      <div>
+        <div className="field-row">
+          <div className="field">
+            <label htmlFor="total">{LABELS.totalCents}</label>
+            <input
+              id="total"
+              inputMode="decimal"
+              placeholder="3000.00"
+              value={total}
+              onChange={(e) => {
+                setTotal(e.target.value);
+              }}
+              {...invalid("totalCents")}
+            />
+            {errorFor("totalCents")}
+          </div>
+          <div className="field">
+            <label htmlFor="currency">{LABELS.currency}</label>
+            <select
+              id="currency"
+              value={currency}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+              }}
+              {...invalid("currency")}
+              aria-describedby={errors.currency ? "currency-error currency-note" : "currency-note"}
+            >
+              {PAYPAL_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code}: {c.name}
+                  {c.inCountryOnly ? " (in-country PayPal accounts only)" : ""}
+                </option>
+              ))}
+            </select>
+            {errorFor("currency")}
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="currency">{LABELS.currency}</label>
-          <select
-            id="currency"
-            value={currency}
-            onChange={(e) => {
-              setCurrency(e.target.value);
-            }}
-            {...invalid("currency")}
-          >
-            {PAYPAL_CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code}: {c.name}
-                {c.inCountryOnly ? " (in-country PayPal accounts only)" : ""}
-              </option>
-            ))}
-          </select>
-          {errorFor("currency")}
-        </div>
+        <CurrencyNote id="currency-note" />
       </div>
 
       <div className="field">

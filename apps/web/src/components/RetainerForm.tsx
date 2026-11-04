@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
+import { CurrencyNote } from "@/components/CurrencyNote";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount, PAYPAL_CURRENCIES } from "@/lib/currencies";
 
@@ -145,6 +146,7 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
         <select
           id="retainer-currency"
           value={currency}
+          aria-describedby="retainer-currency-note"
           onChange={(event) => {
             setCurrency(event.target.value);
           }}
@@ -155,6 +157,7 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
             </option>
           ))}
         </select>
+        <CurrencyNote id="retainer-currency-note" />
       </div>
       <div className="field">
         <label htmlFor="retainer-count">Repeat every</label>

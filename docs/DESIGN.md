@@ -36,6 +36,7 @@ Starter design rules for the dashboard in `apps/web`. If you make mockups later 
 - **ScheduleForm:** grouped fields with the defaults shown, inline validation, and a live preview line ("First reminder: 18 Nov, then every 3 days").
 - **MilestoneEditor:** rows with name, amount or %, deadline, mode; a running total that must equal the project total.
 - **Timeline:** newest first; icons for sent, reply, payment, status change; an AI label on classified replies.
+- **CurrencyNote:** one line under every currency dropdown, saying why INR isn't there. On the project form, Total and Currency share a row, so the note runs under the whole row.
 - **UpcomingList:** grouped by week; each row shows the type (maintenance / renewal / retainer), client, date and amount.
 
 ## Visual tokens
