@@ -19,6 +19,10 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **The protect-files hook blocked another command of mine (4 Nov 2026):** while finding out why n8n had an http webhook address, one check named the env file, and I'd also planned to read `docker compose config`, which would have shown its values indirectly. I dropped both and read only the running container's own `WEBHOOK_URL`. Nothing is blocked.
 
+- **Restart your dev server:** it's holding an old copy of `env.ts`, so Connect Gmail answers 500 until it restarts. New env names also load on restart. The route itself is right.
+- **Telegram live check:** your chat isn't linked yet, which is why no card has arrived. In Settings > Integrations, press **Connect Telegram**, open the link and press **Start**. A card for the test draft arrives within about a minute. Then try Approve, Edit and Skip, and tell me what happens. If pressing Start does nothing, the webhook isn't reaching n8n: tell me that instead. To remove the test draft afterwards, tell me "remove the test draft". It's under a fake project, "Telegram test (fake)", and no email can go out for it, though the scheduler would plan another for it if you skip it while Scheduler is active.
+- **After Gmail works, turn on the rest:** "Scheduler", "Sender" and "Reply listener" are imported into n8n, inactive, with your credentials. Activate them, or tell me and I will. Scheduler starts real AI drafts for any unpaid invoice, so remove the test draft first.
+- **Check a real send and reply, once Gmail is connected:** put a second inbox of your own in `DEV_EMAIL_ALLOWLIST`, make a client with that address, approve a reminder, and reply to it from that inbox. I can't run this without your OAuth client, and it's what proves the Gmail side.
 - **Google OAuth client for Gmail (needed before any real send or reply check):**
   1. Open https://console.cloud.google.com/ and create a project, or pick one (for example "Payment Recovery").
   2. Go to **APIs & Services > Library**, search for **Gmail API**, and press **Enable**.

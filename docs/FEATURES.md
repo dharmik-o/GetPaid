@@ -78,7 +78,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
   - Installments branch: drafts a split of the unpaid remainder (amounts and due dates) for the freelancer to approve. On approval, in one step, the open unpaid invoices are cancelled and the installment invoices are created (`created_from: client_request`). An invoice with money on it is never cancelled.
   - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, no reply text can change status or amount, and an approved split replaces the open invoice with installments while a paid invoice is never cancelled.
-  - Note: labelled correctly with the mock model, as the rule asks. With a real local model (`llama3.2`), 14 of 16 labels were right; a wrong one can only mislead a suggestion, since nothing changes without you. Gmail is mocked in tests: reading a real reply needs your OAuth client.
+  - Note: labelled correctly with the mock model, as the rule asks. With a real local model (`llama3.2`), 13 to 14 of 16 labels were right over two runs; a wrong one can only mislead a suggestion, since nothing changes without you. Gmail is mocked in tests: reading a real reply needs your OAuth client.
 
 ## M8 Retainers and maintenance [Retainers and maintenance reminders]
 
