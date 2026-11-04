@@ -289,7 +289,7 @@ Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 
 | Table | Key fields |
 | --- | --- |
-| users | id, name, email, time_zone, Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image) |
+| users | id, name, email, time_zone, usual_days_late (self-reported baseline for days saved), Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image) |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
 | clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |
@@ -299,7 +299,7 @@ Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 | retainer_alerts | user_id, retainer_id, kind (payment_failed / suspended / cancelled / recovered / paid_twice / activated_after_cancel), telegram_notified_at, dismissed_at. The wording is made from the database when it's shown. |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status, snoozed_until, last_notice_on, last_done_on, Telegram card fields, job_project_id, job_due_on, Gmail thread fields |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
-| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
+| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, paid_at, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
 | invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
 | reminders | invoice_id, maintenance_task_id, retainer_id or hold_id (a heads-up or an approval email has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
 | messages | invoice_id, maintenance_task_id, retainer_id or hold_id, direction (in / out), body, AI classification, thread_id |
@@ -402,6 +402,9 @@ Targets are set after a pilot. These are the measures to track from day one.
 | Draft quality | % of drafts approved without edits |
 | Reply sorting accuracy | Freelancer corrections on a sample of sorted replies |
 | Time saved | Self-reported hours per month spent chasing payments |
+| Days saved | The freelancer's own figure for how late clients usually paid, minus the median days late. Not shown until they give that figure |
+
+An installment that replaced an overdue invoice counts from that invoice's due date and first reminder. An unpaid invoice still inside its 30 days isn't counted against the recovery rate yet. Disputed money isn't counted as recovered.
 
 ## Phase 2: calendar and client notes (not in the MVP)
 

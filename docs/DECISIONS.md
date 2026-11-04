@@ -527,3 +527,11 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Only listed event types show.** `lib/timeline.ts` has the words for each one, and anything else stays hidden, so a new event type can't leak internal detail onto the page. Left out on purpose: `reminder.drafted`, `paypal.webhook` and account events such as `gmail.connected`, which aren't evidence about a client.
 - **A sent email comes from its `reminder.sent` event and draft,** not from the `messages` row, so one send isn't listed twice and its tier can be named. Its text is behind a toggle to keep the page short.
 - **A reply shows the client's words as plain text,** with the AI's reading marked "AI suggestion", because it's a suggestion and not a fact.
+
+### Metrics (5 Nov 2026)
+
+- **Days saved needs a baseline, and I didn't invent one.** The spec's demo closes on "days saved", and its metrics table measures days late "before vs. after using the app", but nothing records the before. So there's a new optional setting, "How late clients usually pay you", and days saved is that figure minus the median days late. With no figure, Home asks for it instead of showing a number. It's self-reported, like the spec's Time saved. The demo seed sets 30, and the tile says what it's compared against.
+- **`invoices.paid_at` is set by a database trigger,** so the three paths that record a payment (webhook, hold capture, the retainer check) can't miss it. The first date stands through a refund. Invoices paid before this migration take the date of their `invoice.paid` event, or their last change if there isn't one.
+- **A split invoice counts from the invoice it replaced.** Installment 1 is due the day of the split, so by its own date a 14-day-late payment would look on time. Only a split on the client's request does this; a planned installment keeps its own date.
+- **Recovery rate leaves out what can't be judged yet:** an unpaid invoice inside its 30 days isn't counted against it, and the counts show beside the percentage. Disputed money isn't counted as recovered, because it may go back.
+- **Home now leads with Needs attention,** as `docs/DESIGN.md` asks: drafts waiting, then overdue invoices.

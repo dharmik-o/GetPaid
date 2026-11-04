@@ -100,7 +100,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 ## M10 Dashboard and demo [Hackathon demo plan, Success metrics]
 
 - [x] **Client timeline:** messages, replies, payments and events (the evidence timeline).
-- [ ] **Metrics:** amount recovered, days late per invoice, recovery rate.
+- [x] **Metrics:** amount recovered, days late per invoice, recovery rate.
 - [ ] **Demo clock** (`DEMO_CLOCK_OFFSET_DAYS`, dev only) and seed data for the $3,000 website project.
 - [ ] **E2E:** a Playwright test runs the 8 demo steps end to end.
 

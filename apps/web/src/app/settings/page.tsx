@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TimeZoneForm } from "@/components/TimeZoneForm";
-import { getOwnTimeZone } from "@/lib/account";
+import { UsualDelayForm } from "@/components/UsualDelayForm";
+import { getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
 import { ownTimeZoneChoices } from "@/lib/countries";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -21,6 +22,11 @@ const SettingsPage = async () => (
         current={await runAsCurrentUser((db) => getOwnTimeZone(db))}
         zones={ownTimeZoneChoices()}
       />
+    </section>
+    <section className="card" aria-labelledby="settings-usual-delay">
+      <h2 id="settings-usual-delay">How late clients usually pay you</h2>
+      <p>Days saved on Home compares against this. Leave it empty if you&apos;d rather not say.</p>
+      <UsualDelayForm current={await runAsCurrentUser((db) => getUsualDaysLate(db))} />
     </section>
     <section className="card" aria-labelledby="settings-ai">
       <h2 id="settings-ai">AI model</h2>
