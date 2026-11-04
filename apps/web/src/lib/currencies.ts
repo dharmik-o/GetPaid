@@ -39,6 +39,41 @@ export const PAYPAL_CURRENCIES: readonly Currency[] = [
   inCountryOnly: inCountryOnly === true,
 }));
 
+/**
+ * What each written symbol can mean. Ambiguous ones list every PayPal currency that uses them, and
+ * a prefix narrows one down. The rest are checked against Intl in tests. INR isn't a PayPal
+ * currency, but a contract's late-fee clause can still name it.
+ */
+export const CURRENCY_SYMBOLS: Readonly<Record<string, readonly string[]>> = {
+  $: ["AUD", "CAD", "HKD", "MXN", "NZD", "SGD", "TWD", "USD"],
+  US$: ["USD"],
+  A$: ["AUD"],
+  AU$: ["AUD"],
+  C$: ["CAD"],
+  CA$: ["CAD"],
+  HK$: ["HKD"],
+  MX$: ["MXN"],
+  NZ$: ["NZD"],
+  S$: ["SGD"],
+  SG$: ["SGD"],
+  NT$: ["TWD"],
+  R$: ["BRL"],
+  "€": ["EUR"],
+  "£": ["GBP"],
+  "¥": ["CNY", "JPY"],
+  "CN¥": ["CNY"],
+  "JP¥": ["JPY"],
+  "₪": ["ILS"],
+  "₱": ["PHP"],
+  "฿": ["THB"],
+  "₹": ["INR"],
+  kr: ["DKK", "NOK", "SEK"],
+  Kč: ["CZK"],
+  Ft: ["HUF"],
+  zł: ["PLN"],
+  RM: ["MYR"],
+};
+
 const CODES = new Set(PAYPAL_CURRENCIES.map((currency) => currency.code));
 
 export const isPaypalCurrency = (code: string): boolean => CODES.has(code);

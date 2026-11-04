@@ -514,3 +514,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 
 - **The same rule in both places:** a date you typed yourself is allowed, in a Telegram edit or a hand edit in the Outbox. A date the AI adds that isn't in the facts or your words is still refused. This replaces the earlier split, where a new date typed in the Outbox was refused.
 - **Only dates changed:** a hand edit still can't add an amount or a link, and legal gating still applies to it. A date typed into a Tier 3 notice isn't checked either, so that one rests on you reading it.
+
+### Currency check (5 Nov 2026, your decision after M9)
+
+- **An amount now has to match in currency as well as number.** A code matches only itself. A symbol matches the currencies that use it: `$` passes for USD, CAD, AUD, NZD, SGD, HKD, MXN and TWD, and never for EUR, GBP or BRL (which writes `R$`). A prefix narrows it, so `CA$` isn't accepted on a USD invoice. The table is `CURRENCY_SYMBOLS` in `lib/currencies.ts`, and a test checks it against how `Intl` writes all 24 PayPal currencies.
+- **More forms now count as amounts,** because they used to slip past the check entirely: `1,500€`, `USD1,500`, `RM500`, `1,500 kr` and any Unicode currency symbol such as `₩`. An unknown symbol only matches itself, so `₩1,500` is refused on a USD invoice.
+- **"Due 15 Dec 2026 USD 1,500.00" no longer reads 2026 as an amount,** which would have refused a correct draft.
+- **Not covered:** amounts in words ("1,500 dollars", "fifteen hundred euros") still aren't recognised, as before. You'd see them before approving.

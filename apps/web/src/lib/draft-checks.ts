@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { draftSchema, type Draft } from "./ai-schemas";
+import { CURRENCY_SYMBOLS } from "./currencies";
 import { unknownDates } from "./draft-dates";
 import type { DraftRequest } from "./draft-facts";
 import { legalProblem, type Law } from "./legal";
@@ -15,14 +16,21 @@ const urlsIn = (text: string): string[] =>
   [...text.matchAll(URL_PATTERN)].map(([url]) => url.replace(/[.,;:!?]+$/, ""));
 
 const CURRENCY_CODES = new Set(Intl.supportedValuesOf("currency"));
-const SYMBOLS = "$€£¥₹";
-/** A number that isn't the tail of a word or code (FPR-000042). */
-const NUMBER = String.raw`(?<![\w-])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?`;
-/** Between a code and its number: a space at most, never a line break. */
+/** Between a unit and its number: a space at most, never a line break. */
 const GAP = `[ ${String.fromCharCode(0xa0)}]?`;
+const LETTER_SYMBOLS = Object.keys(CURRENCY_SYMBOLS)
+  .filter((symbol) => /^\p{L}+$/u.test(symbol))
+  .join("|");
+const UNIT_BEFORE = String.raw`(?:[A-Z]{1,3})?\p{Sc}|\b[A-Z]{3}|\b(?:${LETTER_SYMBOLS})`;
+const UNIT_AFTER = String.raw`\p{Sc}|[A-Z]{3}\b|(?:${LETTER_SYMBOLS})(?![\p{L}\p{N}])`;
+/**
+ * A number with a unit on either side. With no unit before, it can't be the tail of a word or code
+ * (FPR-000042). A unit after it can't start the next amount ("2026 USD 1,500" is one amount).
+ */
 const AMOUNT_PATTERN = new RegExp(
-  String.raw`(?:\b([A-Z]{3})${GAP}|([${SYMBOLS}])${GAP})${NUMBER}|${NUMBER}${GAP}([A-Z]{3})\b`,
-  "g",
+  String.raw`(?:(${UNIT_BEFORE})${GAP}|(?<![\w-]))(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?` +
+    String.raw`(?:${GAP}(${UNIT_AFTER})(?!${GAP}\d))?`,
+  "gu",
 );
 
 /** "1,500.00" and "1500" are the same amount: digits only, trailing zero decimals dropped. */
@@ -32,17 +40,34 @@ const amountKey = (whole: string, fraction: string | undefined): string => {
   return decimals ? `${digits}.${decimals}` : digits;
 };
 
-/** Money amounts in a text (with a currency code or symbol), as comparable keys. URLs skipped. */
-export const amountsIn = (text: string): string[] => {
-  const keys: string[] = [];
+/** Three capitals that aren't a currency code are just a word ("INV 2026"). */
+const isUnit = (text: string | undefined): text is string =>
+  text !== undefined && (!/^[A-Z]{3}$/.test(text) || CURRENCY_CODES.has(text));
+
+export type Money = { unit: string; amount: string; written: string };
+
+/** Money amounts in a text, with the code or symbol they're written in. URLs skipped. */
+export const moneyIn = (text: string): Money[] => {
+  const found: Money[] = [];
   for (const match of text.replace(URL_PATTERN, " ").matchAll(AMOUNT_PATTERN)) {
-    const [, codeBefore, symbol, whole, fraction, wholeAfter, fractionAfter, codeAfter] = match;
-    const code = codeBefore ?? codeAfter;
-    if (!symbol && !(code && CURRENCY_CODES.has(code))) continue;
-    const amount = whole ?? wholeAfter;
-    if (amount) keys.push(amountKey(amount, whole ? fraction : fractionAfter));
+    const [written, before, whole, fraction, after] = match;
+    const unit = [before, after].find(isUnit);
+    if (unit && whole) found.push({ unit, amount: amountKey(whole, fraction), written });
   }
-  return keys;
+  return found;
+};
+
+/** The currencies a unit can mean: "USD$" is USD, "X$" is any $, and an unknown symbol only itself. */
+const currenciesOf = (unit: string): readonly string[] => {
+  if (CURRENCY_CODES.has(unit)) return [unit];
+  const beforeSymbol = unit.slice(0, -1);
+  if (CURRENCY_CODES.has(beforeSymbol)) return [beforeSymbol];
+  return CURRENCY_SYMBOLS[unit] ?? CURRENCY_SYMBOLS[unit.slice(-1)] ?? [unit];
+};
+
+const sameCurrency = (a: Money, b: Money): boolean => {
+  const others = currenciesOf(b.unit);
+  return currenciesOf(a.unit).some((currency) => others.includes(currency));
 };
 
 const factTexts = (request: DraftRequest): string[] =>
@@ -51,6 +76,20 @@ const factTexts = (request: DraftRequest): string[] =>
     if (value && typeof value === "object") return Object.values(value).map(String);
     return [];
   });
+
+/** Every amount must be in the facts, in a currency the facts give it in. */
+const amountProblems = (text: string, request: DraftRequest): string[] => {
+  const facts = factTexts(request).flatMap(moneyIn);
+  const problems = new Set<string>();
+  for (const money of moneyIn(text)) {
+    const matches = facts.filter((fact) => fact.amount === money.amount);
+    if (matches.length === 0) problems.add("it mentions an amount that isn't in the facts");
+    else if (!matches.some((fact) => sameCurrency(fact, money))) {
+      problems.add(`it gives an amount in the wrong currency: ${money.written}`);
+    }
+  }
+  return [...problems];
+};
 
 /** Names a draft may quote word for word, even if one looks like a date ("March 15 launch"). */
 const quotedNames = (request: DraftRequest): string[] => {
@@ -120,9 +159,7 @@ export const draftProblems = (
   } else if (urlsIn(text).length > 0) {
     problems.push("it has a link, but a maintenance heads-up has none");
   }
-  const allowed = new Set(factTexts(request).flatMap(amountsIn));
-  const invented = amountsIn(text).filter((key) => !allowed.has(key));
-  if (invented.length > 0) problems.push("it mentions an amount that isn't in the facts");
+  problems.push(...amountProblems(text, request));
   const dates = typedByFreelancer
     ? []
     : unknownDates(text, {
