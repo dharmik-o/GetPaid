@@ -384,3 +384,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 
 - **Changed at your request:** the OAuth values are now `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`, matching your local env file. The M7 choice was `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and the old names are no longer read.
 - **Kept:** `GOOGLE_AUTH_URL` and `GOOGLE_TOKEN_URL` in `lib/gmail.ts`, since they are Google's own addresses, not settings.
+
+### A live Gmail check you can set up (4 Nov 2026)
+
+- **At your request:** `npm run gmail:test` makes a client on the first `DEV_EMAIL_ALLOWLIST` address and a USD 5.00 sandbox invoice, through the app's own API. It reads that one variable through `process.env` and prints the address masked. It refuses to run if the client already exists, so a repeat can't make a second PayPal invoice.
+- **Choice: due on receipt, with the send window always open, on this client only.** The scheduler then plans a real courtesy reminder straight away, and an approval goes out whenever it's tapped. Nothing else's schedule changes.
+- **Sender is now active.** Without it an approved draft never goes out. Scheduler and Reply listener stay off.
+- **Running Scheduler once:** `n8n execute` can't start a workflow with only a schedule trigger, so I added a manual trigger to the inactive workflow, ran it once, and imported the original back.
