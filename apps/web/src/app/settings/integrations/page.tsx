@@ -1,16 +1,23 @@
 import Link from "next/link";
+import { GmailConnect } from "@/components/GmailConnect";
 import { TelegramConnect } from "@/components/TelegramConnect";
-import { telegramBotUsername } from "@/lib/env";
+import { googleOAuthEnv, telegramBotUsername } from "@/lib/env";
+import { getGmailAccount } from "@/lib/gmail-account";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { getTelegramStatus } from "@/lib/telegram-link";
 
-// Connections. Telegram is here; Gmail comes in M7. PayPal uses the sandbox app from the local
-// env file for now.
+// Connections: Telegram and Gmail. PayPal uses the sandbox app from the local env file for now.
 
 export const dynamic = "force-dynamic";
 
-const IntegrationsPage = async () => {
-  const { connected } = await runAsCurrentUser((db) => getTelegramStatus(db));
+type Props = { searchParams: Promise<{ gmail?: string | string[] }> };
+
+const IntegrationsPage = async ({ searchParams }: Props) => {
+  const { gmail: outcome } = await searchParams;
+  const { telegram, gmail } = await runAsCurrentUser(async (db) => ({
+    telegram: await getTelegramStatus(db),
+    gmail: await getGmailAccount(db),
+  }));
   return (
     <div className="page">
       <div className="page-header">
@@ -18,11 +25,19 @@ const IntegrationsPage = async () => {
       </div>
       <section className="card" aria-labelledby="integration-telegram">
         <h2 id="integration-telegram">Telegram</h2>
-        <TelegramConnect connected={connected} configured={Boolean(telegramBotUsername())} />
+        <TelegramConnect
+          connected={telegram.connected}
+          configured={Boolean(telegramBotUsername())}
+        />
       </section>
       <section className="card" aria-labelledby="integration-gmail">
         <h2 id="integration-gmail">Gmail</h2>
-        <p className="muted">Connecting Gmail for sending arrives in M7.</p>
+        <GmailConnect
+          status={gmail.status}
+          email={gmail.email}
+          configured={Boolean(googleOAuthEnv())}
+          outcome={typeof outcome === "string" ? outcome : null}
+        />
       </section>
       <section className="card" aria-labelledby="integration-paypal">
         <h2 id="integration-paypal">PayPal</h2>

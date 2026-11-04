@@ -40,7 +40,7 @@ const SettingsPage = async () => (
     </section>
     <section className="card" aria-labelledby="settings-integrations">
       <h2 id="settings-integrations">Integrations</h2>
-      <p>Connect Telegram to approve drafts from your phone. Gmail arrives in M7.</p>
+      <p>Connect Telegram to approve drafts from your phone, and Gmail to send reminders.</p>
       <Link href="/settings/integrations">Integrations</Link>
     </section>
     <section className="card" aria-labelledby="settings-schedule">

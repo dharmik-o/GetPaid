@@ -127,6 +127,28 @@ export const telegramBotUsername = (
   return name && /^[A-Za-z0-9_]{5,32}$/.test(name) ? name : undefined;
 };
 
+export type GoogleOAuthEnv = { clientId: string; clientSecret: string };
+
+/** The Google OAuth client, or undefined until both values are set. Never log the secret. */
+export const googleOAuthEnv = (
+  source: Record<string, string | undefined> = process.env,
+): GoogleOAuthEnv | undefined => {
+  const clientId = source.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = source.GOOGLE_CLIENT_SECRET?.trim();
+  return clientId && clientSecret ? { clientId, clientSecret } : undefined;
+};
+
+/** Where real Gmail sends may go in dev (security rule 8). Empty means nothing sends. */
+export const devEmailAllowlist = (
+  source: Record<string, string | undefined> = process.env,
+): ReadonlySet<string> =>
+  new Set(
+    (source.DEV_EMAIL_ALLOWLIST ?? "")
+      .split(",")
+      .map((address) => address.trim().toLowerCase())
+      .filter(Boolean),
+  );
+
 /** The Outbox's public address for Telegram messages, or undefined when it isn't set. */
 export const outboxPublicUrl = (
   source: Record<string, string | undefined> = process.env,
