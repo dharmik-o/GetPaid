@@ -100,7 +100,7 @@ const SELECT = `
   JOIN public.invoices i ON i.id = r.invoice_id
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
   LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
-  LEFT JOIN public.projects p ON p.id = m.project_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
   JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
   JOIN public.users u ON u.id = r.user_id
   WHERE r.draft IS NOT NULL`;

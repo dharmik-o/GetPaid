@@ -128,7 +128,6 @@ export const editDraft = async (
     );
   }
   const facts = reminderFacts(ctx, now, ctx.invoice.link, laws);
-  if (!facts) return conflict("Retainer reminders can't be edited yet. Skip this one.");
   const problems = draftProblems(edit, { kind: ctx.tier, facts }, laws);
   if (problems.length > 0) {
     return {

@@ -3,6 +3,7 @@ import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createPaypalClient, PAYPAL_SANDBOX_BASE } from "@/lib/paypal";
 import { paypalWebhookHandler } from "@/lib/paypal-webhook";
+import { runAsUser } from "@/lib/db";
 import { runAsService } from "@/lib/service-db";
 import { USER_A, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
@@ -29,6 +30,8 @@ let paypalId = "";
 const handler = (webhookId: string | null = FAKE_WEBHOOK_ID) =>
   paypalWebhookHandler({
     runAsService: (work) => runAsService(handle.db, work),
+    runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+    now: () => new Date(),
     paypal: () => createPaypalClient({ clientId: "id", clientSecret: "secret" }),
     webhookId: () => webhookId ?? undefined,
   });

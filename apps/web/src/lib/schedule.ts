@@ -244,6 +244,120 @@ const planListedDates = (
 const isOverdueReminder = (reminder: PastReminder): reminder is OverdueReminder =>
   reminder.tier !== "courtesy";
 
+// Recurring dates ---------------------------------------------------------------------------
+
+export type RetainerDates = {
+  startsOn: string;
+  /** Null means until cancelled. */
+  endsOn: string | null;
+  unit: "week" | "month";
+  count: number;
+};
+
+/** Always counted from the start date, so 31 Jan gives 28 Feb then 31 Mar, not 28 Mar. */
+const cycleAt = ({ startsOn, unit, count }: RetainerDates, index: number): string =>
+  isoDateOf(
+    calendarDate(startsOn).plus(
+      unit === "week" ? { weeks: index * count } : { months: index * count },
+    ),
+  );
+
+/** The charge dates from `from` to `to`, both included. */
+export const retainerCyclesBetween = (dates: RetainerDates, from: string, to: string): string[] => {
+  const last = dates.endsOn !== null && dates.endsOn < to ? dates.endsOn : to;
+  const cycles: string[] = [];
+  for (let index = 0; ; index += 1) {
+    const cycle = cycleAt(dates, index);
+    if (cycle > last) return cycles;
+    if (cycle >= from) cycles.push(cycle);
+  }
+};
+
+/** The latest charge on or before a date. */
+export const retainerCycleOn = (dates: RetainerDates, date: string): string | undefined =>
+  retainerCyclesBetween({ ...dates, endsOn: null }, dates.startsOn, date).at(-1);
+
+/** How many charges PayPal should make; 0 is PayPal's word for "until cancelled". */
+export const retainerTotalCycles = (dates: RetainerDates): number =>
+  dates.endsOn === null ? 0 : retainerCyclesBetween(dates, dates.startsOn, dates.endsOn).length;
+
+/** When a cycle's invoice is due. A fixed date can't repeat, so that term means the charge date. */
+export const retainerDueDate = (terms: PaymentTerms, cycleOn: string): string =>
+  terms.kind === "date" ? cycleOn : computeDueDate(terms, cycleOn);
+
+const addMonths = (iso: string, months: number): string =>
+  isoDateOf(calendarDate(iso).plus({ months }));
+
+/** The next due date after a job is done: from the done date or the original one, per the task. */
+export const maintenanceNextDue = ({
+  scheduledDue,
+  repeatMonths,
+  repeatFrom,
+  doneOn,
+}: {
+  scheduledDue: string;
+  repeatMonths: number;
+  repeatFrom: "done" | "scheduled";
+  doneOn: string;
+}): string => {
+  const anchor = repeatFrom === "done" ? doneOn : scheduledDue;
+  for (let step = 1; ; step += 1) {
+    const next = addMonths(anchor, repeatMonths * step);
+    if (next > doneOn) return next;
+  }
+};
+
+/** Each date a job falls due up to `to`. A job already overdue is listed once, at its due date. */
+export const maintenanceOccurrences = (
+  nextDue: string,
+  repeatMonths: number,
+  from: string,
+  to: string,
+): string[] => {
+  const dates: string[] = nextDue <= to ? [nextDue] : [];
+  if (nextDue < from) return dates;
+  for (let step = 1; ; step += 1) {
+    const next = addMonths(nextDue, repeatMonths * step);
+    if (next > to) return dates;
+    dates.push(next);
+  }
+};
+
+/** Freelancers hear about jobs in their own working day, not at the midnight scheduler run. */
+const NOTICE_HOUR = 9;
+
+/**
+ * Whether a maintenance notice should go to the freelancer now: a lead day (or the end of a
+ * snooze) has been reached since the last notice. Catching up past several sends just one.
+ */
+export const maintenanceNoticeDue = ({
+  nextDue,
+  leadDays,
+  snoozedUntil,
+  lastNoticeOn,
+  now,
+  timeZone,
+}: {
+  nextDue: string;
+  leadDays: readonly number[];
+  snoozedUntil: string | null;
+  lastNoticeOn: string | null;
+  now: Date;
+  timeZone: string;
+}): boolean => {
+  assertTimeZone(timeZone);
+  const local = DateTime.fromJSDate(now, { zone: timeZone });
+  if (local.hour < NOTICE_HOUR) return false;
+  const today = localDateOf(now, timeZone);
+  if (snoozedUntil !== null && today < snoozedUntil) return false;
+  const triggers = [
+    ...leadDays.map((days) => addDays(nextDue, -days)),
+    ...(snoozedUntil === null ? [] : [snoozedUntil]),
+  ].filter((date) => date <= today);
+  const latest = triggers.sort().at(-1);
+  return latest !== undefined && (lastNoticeOn === null || latest > lastNoticeOn);
+};
+
 /** The next reminder for one invoice: its tier and send time, or why there isn't one. */
 export const nextSend = ({
   settings,

@@ -41,7 +41,7 @@ const loadGroup = (deps: FlowDeps, invoiceId: string) =>
 /** Cancels (or deletes, if PayPal only has a draft) in PayPal; a message if money is on it. */
 export const cancelInPaypal = async (
   deps: FlowDeps,
-  record: InvoiceRecord,
+  record: Pick<InvoiceRecord, "paypalInvoiceId">,
   paidMessage: string,
 ): Promise<string | undefined> => {
   if (!record.paypalInvoiceId) return undefined;

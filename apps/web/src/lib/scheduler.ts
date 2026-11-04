@@ -1,6 +1,7 @@
 import type { Db } from "./db";
 import { draftReminder, type DrafterDeps } from "./drafter";
 import { errorKind, logEvent } from "./log";
+import { runRetainerInvoices, type RetainerInvoiceDeps } from "./retainer-invoices";
 import { nextSend, todayIn, type PastReminder, type Tier } from "./schedule";
 import type { ServiceDbRunner } from "./service-db";
 import { mergeSettings, type ScheduleSettings } from "./settings";
@@ -10,7 +11,7 @@ import { mergeSettings, type ScheduleSettings } from "./settings";
 // the freelancer has time to approve. Then it drafts what's planned. Nothing here sends, and the
 // only thing it can approve is Tier 1, when the freelancer chose auto-send. Safe to re-run.
 
-export type SchedulerDeps = DrafterDeps & { runAsService: ServiceDbRunner };
+export type SchedulerDeps = DrafterDeps & RetainerInvoiceDeps & { runAsService: ServiceDbRunner };
 
 const PLAN_AHEAD_MS = 24 * 60 * 60 * 1000;
 const PLAN_LIMIT = 200;
@@ -43,12 +44,13 @@ const loadPlanRow = async (db: Db, invoiceId: string): Promise<PlanRow | undefin
        c.settings AS client_settings, p.settings AS project_settings,
        m.settings AS milestone_settings
      FROM public.invoices i
-     JOIN public.milestones m ON m.id = i.milestone_id
-     JOIN public.projects p ON p.id = m.project_id
-     JOIN public.clients c ON c.id = p.client_id
+     LEFT JOIN public.milestones m ON m.id = i.milestone_id
+     LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      JOIN public.users u ON u.id = i.user_id
      WHERE i.id = $1 AND i.status IN ('sent', 'partially_paid') AND i.due_date IS NOT NULL
-       AND i.reminders_held_at IS NULL`,
+       AND i.reminders_held_at IS NULL AND i.retainer_settled_at IS NULL`,
     [invoiceId],
   );
   return rows[0];
@@ -92,8 +94,8 @@ const planAll = async (deps: SchedulerDeps, now: Date): Promise<number> => {
   const invoices = await deps.runAsService(async (db) => {
     const { rows } = await db.query<{ id: string; user_id: string }>(
       `SELECT i.id::text, i.user_id::text FROM public.invoices i
-       WHERE i.status IN ('sent', 'partially_paid') AND i.milestone_id IS NOT NULL
-         AND i.reminders_held_at IS NULL
+       WHERE i.status IN ('sent', 'partially_paid')
+         AND i.reminders_held_at IS NULL AND i.retainer_settled_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM public.reminders r WHERE r.invoice_id = i.id AND r.sent_at IS NULL
              AND r.approval_status IN ('waiting', 'approved'))
@@ -118,9 +120,10 @@ const autoApproveIfChosen = (deps: SchedulerDeps, userId: string, reminderId: st
          m.settings AS milestone_settings
        FROM public.reminders r
        JOIN public.invoices i ON i.id = r.invoice_id
-       JOIN public.milestones m ON m.id = i.milestone_id
-       JOIN public.projects p ON p.id = m.project_id
-       JOIN public.clients c ON c.id = p.client_id
+       LEFT JOIN public.milestones m ON m.id = i.milestone_id
+       LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+       LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
+       JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
        JOIN public.users u ON u.id = r.user_id
        WHERE r.id = $1`,
       [reminderId],
@@ -167,9 +170,10 @@ const draftPlanned = async (deps: SchedulerDeps): Promise<number> => {
 
 export const runScheduler = async (
   deps: SchedulerDeps,
-): Promise<{ planned: number; drafted: number }> => {
+): Promise<{ planned: number; drafted: number; invoiced: number }> => {
+  const { invoiced } = await runRetainerInvoices(deps);
   const planned = await planAll(deps, deps.now());
   const drafted = await draftPlanned(deps);
-  logEvent("scheduler.run", { planned, drafted });
-  return { planned, drafted };
+  logEvent("scheduler.run", { planned, drafted, invoiced });
+  return { planned, drafted, invoiced };
 };

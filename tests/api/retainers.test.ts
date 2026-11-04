@@ -1,0 +1,709 @@
+import { randomBytes } from "node:crypto";
+import { setupServer } from "msw/node";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { clientHandlers } from "@/lib/client-handlers";
+import { createSecretBox } from "@/lib/crypto";
+import { runAsUser, type Db } from "@/lib/db";
+import { loadInvoiceDocument } from "@/lib/invoice-document-data";
+import { createPaypalClient } from "@/lib/paypal";
+import { paypalWebhookHandler } from "@/lib/paypal-webhook";
+import { suggestionFor } from "@/lib/reply-review";
+import { retainerHandlers } from "@/lib/retainer-handlers";
+import { listRetainerAlerts, listRetainers } from "@/lib/retainers";
+import { runScheduler } from "@/lib/scheduler";
+import { runAsService } from "@/lib/service-db";
+import { storedDraftSchema } from "@/lib/stored-draft";
+import { telegramRun } from "@/lib/telegram-cards";
+import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
+import { openMigratedPglite, type TestDatabase } from "../db/pglite";
+import { TEST_LAWS } from "../fixtures/statutes";
+import {
+  createFakePaypal,
+  FAKE_WEBHOOK_ID,
+  VALID_SIGNATURE,
+  type FakePaypal,
+} from "../mocks/paypal";
+
+// Retainers end to end: real migrations and RLS (PGlite), PayPal mocked by msw. No model is set up
+// in these tests, so drafts come from the fixed template. Nothing here can send an email.
+
+let handle: TestDatabase;
+let fake: FakePaypal;
+const server = setupServer();
+const box = createSecretBox(randomBytes(32));
+
+const A = USER_A.userId;
+const CLIENT = USER_A.rows.clients;
+const CHAT_ID = 4242;
+const NOW = new Date("2026-12-07T15:00:00Z");
+let clock = NOW;
+
+const paypal = () => createPaypalClient({ clientId: "id", clientSecret: "secret" });
+const asA = <T>(work: (db: Db) => Promise<T>) => runAsUser(handle.db, A, work);
+
+const handlers = () => retainerHandlers({ runAsUser: asA, paypal, now: () => clock });
+
+const schedulerDeps = () => ({
+  runAsService: <T>(work: (db: Db) => Promise<T>) => runAsService(handle.db, work),
+  runAsUser:
+    (userId: string) =>
+    <T>(work: (db: Db) => Promise<T>) =>
+      runAsUser(handle.db, userId, work),
+  box: () => box,
+  now: () => clock,
+  laws: TEST_LAWS,
+  paypal,
+});
+
+const post = (body: unknown) =>
+  new Request("http://127.0.0.1:3000/api/retainers", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+const context = (id: string) => ({ params: Promise.resolve({ id }) });
+
+const FIELDS = {
+  clientId: CLIENT,
+  name: "Monthly hosting",
+  amountCents: 20_000,
+  currency: "USD",
+  unit: "month",
+  count: 1,
+  startsOn: "2026-12-07",
+  method: "invoice",
+};
+
+const create = async (overrides: object = {}) => {
+  const response = await handlers().create(post({ ...FIELDS, ...overrides }));
+  const body = (await response.json()) as {
+    id: string;
+    errors?: { field: string; message: string }[];
+  };
+  return { response, body };
+};
+
+const createAutoPay = async (overrides: object = {}) => {
+  const { response, body } = await create({ method: "auto_pay", ...overrides });
+  expect(response.status).toBe(201);
+  return body.id;
+};
+
+let nextEvent = 1;
+
+const deliver = (eventType: string, resource: unknown, signature = VALID_SIGNATURE) =>
+  paypalWebhookHandler({
+    runAsService: (work) => runAsService(handle.db, work),
+    runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+    now: () => clock,
+    paypal,
+    webhookId: () => FAKE_WEBHOOK_ID,
+  }).post(
+    new Request("http://127.0.0.1:3000/api/webhooks/paypal", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "paypal-auth-algo": "SHA256withRSA",
+        "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-fake",
+        "paypal-transmission-id": "tx-1",
+        "paypal-transmission-sig": signature,
+        "paypal-transmission-time": "2026-12-07T15:00:00Z",
+      },
+      body: JSON.stringify({
+        id: `WH-RET-${String(nextEvent++)}`,
+        event_type: eventType,
+        resource,
+      }),
+    }),
+  );
+
+const subscriptionOf = async (retainerId: string): Promise<string> => {
+  const { rows } = await handle.db.query<{ paypal_subscription_id: string }>(
+    "SELECT paypal_subscription_id FROM public.retainers WHERE id = $1",
+    [retainerId],
+  );
+  const id = rows[0]?.paypal_subscription_id;
+  if (!id) throw new Error("The retainer has no subscription.");
+  return id;
+};
+
+/** An approved, running auto-pay retainer, as after the client approves. */
+const activeAutoPay = async () => {
+  const id = await createAutoPay();
+  const subscription = await subscriptionOf(id);
+  fake.setSubscription(subscription, { status: "ACTIVE" });
+  await deliver("BILLING.SUBSCRIPTION.ACTIVATED", { id: subscription });
+  return { id, subscription };
+};
+
+const statusOf = async (id: string) => {
+  const { rows } = await handle.db.query<{ status: string; paypal_approval_link: string | null }>(
+    "SELECT status, paypal_approval_link FROM public.retainers WHERE id = $1",
+    [id],
+  );
+  return rows[0];
+};
+
+const invoicesOf = async (id: string) =>
+  (
+    await handle.db.query<{
+      id: string;
+      status: string;
+      amount_cents: string;
+      due_date: string;
+      retainer_cycle_on: string;
+      retainer_cycle_reason: string;
+      link: string | null;
+    }>(
+      `SELECT id::text, status, amount_cents::text, due_date::text, retainer_cycle_on::text,
+         retainer_cycle_reason, link
+       FROM public.invoices WHERE retainer_id = $1 ORDER BY retainer_cycle_on, created_at`,
+      [id],
+    )
+  ).rows;
+
+const alertKinds = async (id: string) =>
+  (
+    await handle.db.query<{ kind: string }>(
+      "SELECT kind FROM public.retainer_alerts WHERE retainer_id = $1 ORDER BY created_at, kind",
+      [id],
+    )
+  ).rows.map((row) => row.kind);
+
+const remindersOf = async (invoiceId: string) =>
+  (
+    await handle.db.query<{
+      tier: string;
+      approval_status: string;
+      draft: unknown;
+      sent_at: unknown;
+    }>("SELECT tier, approval_status, draft, sent_at FROM public.reminders WHERE invoice_id = $1", [
+      invoiceId,
+    ])
+  ).rows;
+
+const telegramOps = () => runAsService(handle.db, (db) => telegramRun(db, clock, undefined));
+
+beforeAll(async () => {
+  handle = await openMigratedPglite();
+  await handle.db.query(seedOwnerSql(USER_A));
+  await handle.db.query(seedOwnerSql(USER_B));
+  await handle.db.query("UPDATE public.users SET telegram_chat_id = $1 WHERE id = $2", [
+    CHAT_ID,
+    A,
+  ]);
+  server.listen({ onUnhandledFrame: "error" });
+}, 60_000);
+
+afterAll(async () => {
+  server.close();
+  await handle.close();
+});
+
+beforeEach(async () => {
+  clock = NOW;
+  fake = createFakePaypal();
+  server.resetHandlers(...fake.handlers);
+  await handle.db.query("DELETE FROM public.retainers");
+  await handle.db.query("DELETE FROM public.reminders");
+  await handle.db.query(`UPDATE public.invoices SET status = 'cancelled'`);
+});
+
+describe("creating a retainer", () => {
+  it("saves an invoice-each-cycle retainer as active, with no PayPal call yet", async () => {
+    const { response, body } = await create();
+    expect(response.status).toBe(201);
+    expect(await statusOf(body.id)).toMatchObject({ status: "active" });
+    expect(fake.calls).toEqual([]);
+  });
+
+  it.each([
+    ["a start in the past", { startsOn: "2026-12-06" }, "startsOn"],
+    ["an end before the start", { endsOn: "2026-12-01" }, "endsOn"],
+    ["a client that isn't yours", { clientId: USER_B.rows.clients }, "clientId"],
+    ["a project of another client", { projectId: USER_B.rows.projects }, "projectId"],
+    ["more than 12 months", { count: 13 }, "count"],
+    ["more than 52 weeks", { unit: "week", count: 53 }, "count"],
+    ["no amount", { amountCents: 0 }, "amountCents"],
+    ["money in a float", { amountCents: 10.5 }, "amountCents"],
+    ["an unknown currency", { currency: "XXX" }, "currency"],
+    ["an unknown method", { method: "cash" }, "method"],
+  ])("refuses %s", async (_label, overrides, field) => {
+    const { response, body } = await create(overrides);
+    expect(response.status).toBe(400);
+    expect(body.errors?.map((error) => error.field)).toContain(field);
+  });
+});
+
+describe("auto-pay setup", () => {
+  it("creates a product, plan and subscription in the sandbox, each with a request id", async () => {
+    const id = await createAutoPay();
+    const creates = fake.calls.filter(
+      (call) => call.method === "POST" && !call.path.includes("oauth2"),
+    );
+    expect(creates.map((call) => call.path)).toEqual([
+      "/v1/catalogs/products",
+      "/v1/billing/plans",
+      "/v1/billing/subscriptions",
+    ]);
+    for (const call of creates) expect(call.requestId).toBeTruthy();
+    expect(await statusOf(id)).toMatchObject({
+      status: "pending_approval",
+      paypal_approval_link: expect.stringContaining("sandbox.paypal.com") as string,
+    });
+  });
+
+  it("sends PayPal the plan's money as a decimal string, with no automatic back-billing", async () => {
+    await createAutoPay({ amountCents: 12_345, unit: "week", count: 2 });
+    const [plan] = [...fake.plans.values()];
+    expect(plan).toMatchObject({
+      billing_cycles: [
+        {
+          frequency: { interval_unit: "WEEK", interval_count: 2 },
+          total_cycles: 0,
+          pricing_scheme: { fixed_price: { currency_code: "USD", value: "123.45" } },
+        },
+      ],
+      payment_preferences: { auto_bill_outstanding: false, payment_failure_threshold: 3 },
+    });
+  });
+
+  it("gives PayPal a future start, and leaves out a start of today", async () => {
+    await createAutoPay({ startsOn: "2026-12-20" });
+    await createAutoPay();
+    const [later, today] = [...fake.subscriptions.values()];
+    expect(later?.body.start_time).toBe("2026-12-20T05:00:00.000Z");
+    expect(today?.body.start_time).toBeUndefined();
+  });
+
+  it("a retry after a failure carries on, with no second product", async () => {
+    const { http, HttpResponse } = await import("msw");
+    server.use(
+      http.post(
+        "https://api-m.sandbox.paypal.com/v1/billing/plans",
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    const { response } = await create({ method: "auto_pay" });
+    expect(response.status).toBe(502);
+    const [saved] = await listRetainersForA();
+    expect(saved?.setUp).toBe(false);
+    const retry = await handlers().act(post({ action: "setup" }), context(saved?.id ?? ""));
+    expect(retry.status).toBe(204);
+    expect(fake.products.size).toBe(1);
+    expect(fake.subscriptions.size).toBe(1);
+    expect((await listRetainersForA())[0]?.setUp).toBe(true);
+  });
+
+  it("never hands PayPal's own ids to the browser", async () => {
+    await createAutoPay();
+    const response = await handlers().list();
+    const text = await response.text();
+    expect(text).not.toContain("PROD-FAKE");
+    expect(text).not.toContain("P-FAKE");
+    expect(text).not.toContain("request_id");
+  });
+});
+
+const listRetainersForA = () => asA((db) => listRetainers(db, clock));
+
+describe("cancelling", () => {
+  it("cancels a running subscription at PayPal first", async () => {
+    const { id, subscription } = await activeAutoPay();
+    const response = await handlers().act(post({ action: "cancel" }), context(id));
+    expect(response.status).toBe(204);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("CANCELLED");
+    expect(await statusOf(id)).toMatchObject({ status: "cancelled", paypal_approval_link: null });
+  });
+
+  it("doesn't alert the freelancer about their own cancellation", async () => {
+    const { id, subscription } = await activeAutoPay();
+    await handlers().act(post({ action: "cancel" }), context(id));
+    await deliver("BILLING.SUBSCRIPTION.CANCELLED", { id: subscription });
+    expect(await alertKinds(id)).toEqual([]);
+  });
+
+  it("a client who approves after the cancel gets cancelled too, and the freelancer is told", async () => {
+    const id = await createAutoPay();
+    const subscription = await subscriptionOf(id);
+    await handlers().act(post({ action: "cancel" }), context(id));
+    fake.setSubscription(subscription, { status: "ACTIVE" });
+    await deliver("BILLING.SUBSCRIPTION.ACTIVATED", { id: subscription });
+    expect(fake.subscriptions.get(subscription)?.status).toBe("CANCELLED");
+    expect(await statusOf(id)).toMatchObject({ status: "cancelled" });
+    expect(await alertKinds(id)).toEqual(["activated_after_cancel"]);
+  });
+
+  it("can't touch another freelancer's retainer", async () => {
+    const id = await createAutoPay();
+    const other = retainerHandlers({
+      runAsUser: (work) => runAsUser(handle.db, USER_B.userId, work),
+      paypal,
+      now: () => clock,
+    });
+    const response = await other.act(post({ action: "cancel" }), context(id));
+    expect(response.status).toBe(404);
+    expect(await statusOf(id)).toMatchObject({ status: "pending_approval" });
+  });
+});
+
+describe("deleting a client", () => {
+  const deleteClientA = () =>
+    clientHandlers({ runAsUser: asA }).remove(new Request("http://x"), context(CLIENT));
+
+  it("is refused while auto-pay could still charge them", async () => {
+    const { id } = await activeAutoPay();
+    const response = await deleteClientA();
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { error: string }).error).toContain("Cancel the retainer");
+    expect(await statusOf(id)).toMatchObject({ status: "active" });
+  });
+
+  it("is allowed once the retainer is cancelled", async () => {
+    const { rows } = await handle.db.query<{ id: string }>(
+      `INSERT INTO public.clients (user_id, name, email, country, time_zone)
+       VALUES ($1, 'Leaving soon', 'leaving@example.test', 'US', 'America/New_York')
+       RETURNING id::text`,
+      [A],
+    );
+    const clientId = rows[0]?.id ?? "";
+    const id = await createAutoPay({ clientId });
+    const subscription = await subscriptionOf(id);
+    fake.setSubscription(subscription, { status: "ACTIVE" });
+    await deliver("BILLING.SUBSCRIPTION.ACTIVATED", { id: subscription });
+    const remove = () =>
+      clientHandlers({ runAsUser: asA }).remove(new Request("http://x"), context(clientId));
+    expect((await remove()).status).toBe(409);
+    await handlers().act(post({ action: "cancel" }), context(id));
+    expect((await remove()).status).toBe(204);
+  });
+});
+
+describe("invoice each cycle", () => {
+  it("creates one sandbox invoice per charge date, and emails nobody", async () => {
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    const [invoice, ...rest] = await invoicesOf(body.id);
+    expect(rest).toEqual([]);
+    expect(invoice).toMatchObject({
+      status: "sent",
+      amount_cents: "20000",
+      retainer_cycle_on: "2026-12-07",
+      retainer_cycle_reason: "cycle",
+    });
+    expect(invoice?.link).toContain("sandbox.paypal.com");
+    const send = fake.calls.find((call) => call.path.endsWith("/send"));
+    expect(JSON.parse(send?.body ?? "{}")).toEqual({
+      send_to_invoicer: false,
+      send_to_recipient: false,
+    });
+  });
+
+  it("is safe to re-run, and adds the next cycle only once its date comes", async () => {
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(body.id)).toHaveLength(1);
+    clock = new Date("2027-01-07T15:00:00Z");
+    await runScheduler(schedulerDeps());
+    expect((await invoicesOf(body.id)).map((i) => i.retainer_cycle_on)).toEqual([
+      "2026-12-07",
+      "2027-01-07",
+    ]);
+  });
+
+  it("uses the client's date, not UTC's", async () => {
+    const { body } = await create({ startsOn: "2026-12-08" });
+    // Still 7 Dec in New York.
+    clock = new Date("2026-12-08T03:00:00Z");
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(body.id)).toEqual([]);
+  });
+
+  it("doesn't bring back a cycle the freelancer cancelled", async () => {
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    await handle.db.query(
+      `UPDATE public.invoices SET status = 'cancelled' WHERE retainer_id = $1`,
+      [body.id],
+    );
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(body.id)).toHaveLength(1);
+  });
+
+  it("a failed PayPal call only delays it: the next run finishes the same invoice", async () => {
+    const { http, HttpResponse } = await import("msw");
+    server.use(
+      http.post(
+        "https://api-m.sandbox.paypal.com/v2/invoicing/invoices",
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    expect((await invoicesOf(body.id))[0]).toMatchObject({ status: "draft", link: null });
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(body.id)).toMatchObject([{ status: "sent" }]);
+    expect(fake.invoices.size).toBe(1);
+  });
+
+  it("stops at the end date, and is marked ended", async () => {
+    const { body } = await create({ endsOn: "2026-12-07" });
+    await runScheduler(schedulerDeps());
+    clock = new Date("2027-02-07T15:00:00Z");
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(body.id)).toHaveLength(1);
+    expect(await statusOf(body.id)).toMatchObject({ status: "ended" });
+  });
+
+  it("runs the normal reminder schedule: a draft with the pay link, waiting for approval", async () => {
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    // Net 14 by default, so due on 21 Dec: this is two days overdue, on a Wednesday.
+    clock = new Date("2026-12-23T15:00:00Z");
+    await runScheduler(schedulerDeps());
+    const [invoice] = await invoicesOf(body.id);
+    const [reminder] = await remindersOf(invoice?.id ?? "");
+    expect(reminder).toMatchObject({ approval_status: "waiting", sent_at: null });
+    const draft = storedDraftSchema.parse(reminder?.draft);
+    expect(draft.body).toContain(invoice?.link ?? "no link");
+    expect(draft.body).toContain("Monthly hosting");
+  });
+
+  it("has a document for the PDF, from the database", async () => {
+    const { body } = await create();
+    await runScheduler(schedulerDeps());
+    const [invoice] = await invoicesOf(body.id);
+    const loaded = await asA((db) => loadInvoiceDocument(db, invoice?.id ?? ""));
+    expect(loaded?.document.invoice.payLink).toBe(invoice?.link);
+    expect(loaded?.document.items).toMatchObject([{ name: "Monthly hosting", unitCents: 20_000 }]);
+  });
+});
+
+describe("a failed auto-pay charge", () => {
+  it("starts the normal escalation for that cycle", async () => {
+    const { id, subscription } = await activeAutoPay();
+    clock = new Date("2027-01-07T16:00:00Z");
+    const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(response.status).toBe(200);
+    const [invoice] = await invoicesOf(id);
+    expect(invoice).toMatchObject({
+      status: "sent",
+      amount_cents: "20000",
+      due_date: "2027-01-07",
+      retainer_cycle_on: "2027-01-07",
+      retainer_cycle_reason: "payment_failed",
+    });
+    clock = new Date("2027-01-10T16:00:00Z");
+    await runScheduler(schedulerDeps());
+    const [reminder] = await remindersOf(invoice?.id ?? "");
+    expect(reminder).toMatchObject({ tier: "tier1", approval_status: "waiting", sent_at: null });
+  });
+
+  it("reuses one invoice across PayPal's retries, and alerts once", async () => {
+    const { id, subscription } = await activeAutoPay();
+    clock = new Date("2027-01-07T16:00:00Z");
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    clock = new Date("2027-01-12T16:00:00Z");
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(await invoicesOf(id)).toHaveLength(1);
+    expect(fake.invoices.size).toBe(1);
+    expect(await alertKinds(id)).toEqual(["payment_failed"]);
+  });
+
+  it("takes the amount from the retainer, never from the event", async () => {
+    const { id, subscription } = await activeAutoPay();
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", {
+      id: subscription,
+      billing_info: { last_failed_payment: { amount: { value: "1.00", currency_code: "USD" } } },
+    });
+    expect((await invoicesOf(id))[0]?.amount_cents).toBe("20000");
+  });
+
+  it("changes nothing when the signature fails", async () => {
+    const { id, subscription } = await activeAutoPay();
+    const response = await deliver(
+      "BILLING.SUBSCRIPTION.PAYMENT.FAILED",
+      { id: subscription },
+      "forged",
+    );
+    expect(response.status).toBe(401);
+    expect(await invoicesOf(id)).toEqual([]);
+    expect(await alertKinds(id)).toEqual([]);
+  });
+
+  it("a failed PayPal invoice doesn't fail the webhook: the scheduler finishes it", async () => {
+    const { http, HttpResponse } = await import("msw");
+    const { id, subscription } = await activeAutoPay();
+    server.use(
+      http.post(
+        "https://api-m.sandbox.paypal.com/v2/invoicing/invoices",
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(response.status).toBe(200);
+    expect((await invoicesOf(id))[0]?.status).toBe("draft");
+    await runScheduler(schedulerDeps());
+    expect((await invoicesOf(id))[0]?.status).toBe("sent");
+  });
+});
+
+describe("PayPal's retry succeeds", () => {
+  const failThenRetry = async (outstanding: string) => {
+    const active = await activeAutoPay();
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: active.subscription });
+    fake.setSubscription(active.subscription, { outstanding });
+    return active;
+  };
+
+  it("cancels the invoice that's no longer owed, and stops its reminders", async () => {
+    const { id, subscription } = await failThenRetry("0.00");
+    const [before] = await invoicesOf(id);
+    clock = new Date("2026-12-10T15:00:00Z");
+    await runScheduler(schedulerDeps());
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    const [after] = await invoicesOf(id);
+    expect(after?.status).toBe("cancelled");
+    expect((await remindersOf(before?.id ?? "")).map((r) => r.approval_status)).toEqual([
+      "skipped",
+    ]);
+    expect(await alertKinds(id)).toEqual(["payment_failed", "recovered"]);
+  });
+
+  it("keeps the invoice while PayPal still shows money outstanding", async () => {
+    const { id, subscription } = await failThenRetry("200.00");
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    expect((await invoicesOf(id))[0]?.status).toBe("sent");
+  });
+
+  it("warns of a possible double payment when the invoice already has money on it", async () => {
+    const { id, subscription } = await failThenRetry("0.00");
+    await handle.db.query(
+      `UPDATE public.invoices SET status = 'paid', amount_paid_cents = amount_cents
+       WHERE retainer_id = $1`,
+      [id],
+    );
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    expect((await invoicesOf(id))[0]?.status).toBe("paid");
+    expect(await alertKinds(id)).toEqual(["payment_failed", "paid_twice"]);
+  });
+
+  it("the client paid at PayPal a moment ago: never cancels it, and warns", async () => {
+    const { id, subscription } = await failThenRetry("0.00");
+    const [paypalInvoice] = [...fake.invoices.values()];
+    fake.pay(paypalInvoice?.id ?? "", "200.00", "PAID");
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    expect(paypalInvoice?.status).toBe("PAID");
+    expect((await invoicesOf(id))[0]?.status).toBe("paid");
+    expect(await alertKinds(id)).toContain("paid_twice");
+  });
+});
+
+describe("subscription status events", () => {
+  it("activation clears the approval link", async () => {
+    const { id } = await activeAutoPay();
+    expect(await statusOf(id)).toEqual({ status: "active", paypal_approval_link: null });
+  });
+
+  it("a cancellation by the client alerts the freelancer on Telegram, once, and in the dashboard", async () => {
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { status: "CANCELLED" });
+    await deliver("BILLING.SUBSCRIPTION.CANCELLED", { id: subscription });
+    expect(await statusOf(id)).toMatchObject({ status: "cancelled" });
+    const ops = await telegramOps();
+    expect(ops).toEqual([
+      {
+        op: "sendText",
+        chatId: CHAT_ID,
+        text: expect.stringContaining("was cancelled") as string,
+      },
+    ]);
+    expect(await telegramOps()).toEqual([]);
+    const alerts = await asA((db) => listRetainerAlerts(db));
+    expect(alerts.map((alert) => alert.kind)).toContain("cancelled");
+  });
+
+  it("a suspension is flagged the same way", async () => {
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { status: "SUSPENDED" });
+    await deliver("BILLING.SUBSCRIPTION.SUSPENDED", { id: subscription });
+    expect(await statusOf(id)).toMatchObject({ status: "suspended" });
+    expect(await alertKinds(id)).toEqual(["suspended"]);
+  });
+
+  it("believes PayPal's copy, not the event: a late event moves nothing", async () => {
+    const { id, subscription } = await activeAutoPay();
+    await deliver("BILLING.SUBSCRIPTION.SUSPENDED", { id: subscription, status: "SUSPENDED" });
+    expect(await statusOf(id)).toMatchObject({ status: "active" });
+    expect(await alertKinds(id)).toEqual([]);
+  });
+
+  it("an expired subscription ends the retainer", async () => {
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { status: "EXPIRED" });
+    await deliver("BILLING.SUBSCRIPTION.EXPIRED", { id: subscription });
+    expect(await statusOf(id)).toMatchObject({ status: "ended" });
+  });
+
+  it("the same event delivered twice applies once", async () => {
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { status: "CANCELLED" });
+    const body = JSON.stringify({
+      id: "WH-TWICE",
+      event_type: "BILLING.SUBSCRIPTION.CANCELLED",
+      resource: { id: subscription },
+    });
+    const send = () =>
+      paypalWebhookHandler({
+        runAsService: (work) => runAsService(handle.db, work),
+        runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+        now: () => clock,
+        paypal,
+        webhookId: () => FAKE_WEBHOOK_ID,
+      }).post(
+        new Request("http://127.0.0.1:3000/api/webhooks/paypal", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "paypal-auth-algo": "SHA256withRSA",
+            "paypal-cert-url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-fake",
+            "paypal-transmission-id": "tx-1",
+            "paypal-transmission-sig": VALID_SIGNATURE,
+            "paypal-transmission-time": "2026-12-07T15:00:00Z",
+          },
+          body,
+        }),
+      );
+    await send();
+    const second = (await (await send()).json()) as { outcome: string };
+    expect(second.outcome).toBe("duplicate");
+    expect(await alertKinds(id)).toEqual(["cancelled"]);
+  });
+
+  it("ignores a subscription that isn't ours", async () => {
+    const response = await deliver("BILLING.SUBSCRIPTION.CANCELLED", { id: "I-NOT-OURS" });
+    expect(await response.json()).toEqual({ received: true, outcome: "ignored" });
+  });
+});
+
+describe("a client's reply on a retainer invoice", () => {
+  const classification = {
+    label: "installments" as const,
+    promisedDate: null,
+    returnDate: null,
+    summary: "Asked to pay in parts.",
+  };
+
+  it("offers no split, since a cycle's invoice stands alone", () => {
+    expect(suggestionFor(classification, "2026-12-07", false)).toEqual({ kind: "hold" });
+  });
+
+  it("still offers one on a milestone invoice", () => {
+    expect(suggestionFor(classification, "2026-12-07")).toEqual({ kind: "split" });
+  });
+});

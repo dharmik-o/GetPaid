@@ -20,7 +20,8 @@ export type ReplyItem = {
   /** The client's own words: untrusted, and only ever shown as text. */
   text: string;
   invoiceId: string;
-  milestoneId: string;
+  /** Null for a retainer invoice, which can't be split: each cycle stands alone. */
+  milestoneId: string | null;
   currency: string;
   amountDue: string;
   today: string;
@@ -47,9 +48,13 @@ const classificationOf = (raw: unknown): Classification => {
 const isOfferable = (date: string | null, today: string): date is string =>
   date !== null && date > today && date <= addCalendarDays(today, LATEST_PAUSE_DAYS);
 
-export const suggestionFor = (classification: Classification, today: string): ReplySuggestion => {
+export const suggestionFor = (
+  classification: Classification,
+  today: string,
+  canSplit = true,
+): ReplySuggestion => {
   const { label, promisedDate, returnDate } = classification;
-  if (label === "installments") return { kind: "split" };
+  if (label === "installments" && canSplit) return { kind: "split" };
   if (label === "promise" && isOfferable(promisedDate, today)) {
     return { kind: "pause", until: addCalendarDays(promisedDate, 1) };
   }
@@ -67,15 +72,15 @@ type ReplyRow = {
   review_status: string | null;
   split_plan_id: string | null;
   invoice_id: string;
-  milestone_id: string;
+  milestone_id: string | null;
   invoice_number: string;
   amount_cents: unknown;
   amount_paid_cents: unknown;
   currency: string;
   installment_number: number | null;
   installment_count: number | null;
-  milestone_name: string;
-  title: string;
+  milestone_name: string | null;
+  title: string | null;
   client_id: string;
   client_name: string;
   time_zone: string;
@@ -85,13 +90,14 @@ export const REPLY_SELECT = `
   SELECT msg.id::text, msg.body, msg.ai_classification, msg.thread_id, msg.review_status,
     msg.split_plan_id::text, i.id::text AS invoice_id, m.id::text AS milestone_id, i.invoice_number,
     i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.installment_number,
-    i.installment_count, m.name AS milestone_name, p.title, c.id::text AS client_id,
+    i.installment_count, coalesce(m.name, rt.name) AS milestone_name, p.title, c.id::text AS client_id,
     c.name AS client_name, c.time_zone
   FROM public.messages msg
   JOIN public.invoices i ON i.id = msg.invoice_id
-  JOIN public.milestones m ON m.id = i.milestone_id
-  JOIN public.projects p ON p.id = m.project_id
-  JOIN public.clients c ON c.id = p.client_id
+  LEFT JOIN public.milestones m ON m.id = i.milestone_id
+  LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
+  JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
   WHERE msg.direction = 'in' AND msg.review_status IS NOT NULL`;
 
 const toItem = (row: ReplyRow, now: Date): ReplyItem => {
@@ -105,7 +111,9 @@ const toItem = (row: ReplyRow, now: Date): ReplyItem => {
     id: row.id,
     clientId: row.client_id,
     clientName: row.client_name,
-    what: [row.title, row.milestone_name, row.invoice_number, ...installment].join(" · "),
+    what: [row.title, row.milestone_name, row.invoice_number, ...installment]
+      .filter((part) => part !== null)
+      .join(" · "),
     label: classification.label,
     summary: classification.summary,
     text: row.body,
@@ -120,7 +128,7 @@ const toItem = (row: ReplyRow, now: Date): ReplyItem => {
     splitLastDate: isOfferable(classification.promisedDate, today)
       ? classification.promisedDate
       : null,
-    suggestion: suggestionFor(classification, today),
+    suggestion: suggestionFor(classification, today, row.milestone_id !== null),
   };
 };
 
@@ -160,20 +168,21 @@ export const listHeldInvoices = async (db: Db, now: Date): Promise<HeldInvoice[]
   const { rows } = await db.query<{
     id: string;
     client_name: string;
-    title: string;
-    milestone_name: string;
+    title: string | null;
+    milestone_name: string | null;
     invoice_number: string;
     paused_until: string | null;
     held: boolean;
     time_zone: string;
   }>(
-    `SELECT i.id::text, c.name AS client_name, p.title, m.name AS milestone_name, i.invoice_number,
+    `SELECT i.id::text, c.name AS client_name, p.title, coalesce(m.name, rt.name) AS milestone_name, i.invoice_number,
        i.reminders_paused_until::text AS paused_until, i.reminders_held_at IS NOT NULL AS held,
        c.time_zone
      FROM public.invoices i
-     JOIN public.milestones m ON m.id = i.milestone_id
-     JOIN public.projects p ON p.id = m.project_id
-     JOIN public.clients c ON c.id = p.client_id
+     LEFT JOIN public.milestones m ON m.id = i.milestone_id
+     LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      WHERE i.status IN ('sent', 'partially_paid')
        AND (i.reminders_held_at IS NOT NULL OR i.reminders_paused_until IS NOT NULL)
        AND NOT EXISTS (
@@ -186,7 +195,9 @@ export const listHeldInvoices = async (db: Db, now: Date): Promise<HeldInvoice[]
     .map((row) => ({
       id: row.id,
       clientName: row.client_name,
-      what: [row.title, row.milestone_name, row.invoice_number].join(" · "),
+      what: [row.title, row.milestone_name, row.invoice_number]
+        .filter((part) => part !== null)
+        .join(" · "),
       pausedUntil: row.paused_until,
     }));
 };
@@ -241,6 +252,7 @@ export const applyReply = async (db: Db, id: string, now: Date): Promise<ReviewR
   const suggestion = suggestionFor(
     classificationOf(row.ai_classification),
     todayIn(now, row.time_zone),
+    row.milestone_id !== null,
   );
   if (suggestion.kind === "split") return { status: "split_needed" };
   if (!(await markDone(db, id, suggestion.kind, now))) return { status: "handled" };

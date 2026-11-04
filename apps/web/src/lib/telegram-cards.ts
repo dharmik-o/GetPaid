@@ -9,6 +9,8 @@ import {
   replyData,
   type TelegramOp,
 } from "./telegram-card";
+import { toCents } from "./db-values";
+import { alertText, type AlertKind } from "./retainer-alerts";
 import { primaryLabel } from "./reply-labels";
 import { loadRepliesById } from "./reply-review";
 
@@ -130,6 +132,43 @@ const reconnectNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
   return rows.map((row) => ({ op: "sendText", chatId: Number(row.chat_id), text: RECONNECT_TEXT }));
 };
 
+/** Each retainer alert once: a cancellation, a suspension, a failed charge. */
+const retainerAlerts = async (db: Db, now: Date): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    kind: AlertKind;
+    chat_id: string;
+    name: string;
+    client_name: string;
+    amount_cents: string;
+    currency: string;
+  }>(
+    `SELECT a.id::text, a.kind, u.telegram_chat_id::text AS chat_id, r.name, c.name AS client_name,
+       r.amount_cents::text, r.currency
+     FROM public.retainer_alerts a
+     JOIN public.users u ON u.id = a.user_id
+     JOIN public.retainers r ON r.id = a.retainer_id
+     JOIN public.clients c ON c.id = r.client_id
+     WHERE a.telegram_notified_at IS NULL AND u.telegram_chat_id IS NOT NULL
+     ORDER BY a.created_at LIMIT 50`,
+  );
+  if (rows.length === 0) return [];
+  await db.query(
+    "UPDATE public.retainer_alerts SET telegram_notified_at = $1 WHERE id = ANY($2::uuid[])",
+    [now.toISOString(), rows.map((row) => row.id)],
+  );
+  return rows.map((row) => ({
+    op: "sendText",
+    chatId: Number(row.chat_id),
+    text: alertText(row.kind, {
+      name: row.name,
+      clientName: row.client_name,
+      amountCents: toCents(row.amount_cents),
+      currency: row.currency,
+    }),
+  }));
+};
+
 const REPLY_QUOTE_MAX = 1000;
 
 /** One card per reply: the client's words, the AI's reading, and the freelancer's choice. */
@@ -236,6 +275,7 @@ export const telegramRun = async (
   outboxUrl: string | undefined,
 ): Promise<TelegramOp[]> => [
   ...(await reconnectNotices(db, now)),
+  ...(await retainerAlerts(db, now)),
   ...(await replyCards(db, now)),
   ...(await sentNotices(db, now)),
   ...(await closeHandled(db, now)),

@@ -206,7 +206,7 @@ export const draftFor = (
 /** Creates (or finds) the PayPal invoice and sends it; returns the client's pay link. */
 export const sendThroughPaypal = async (
   deps: FlowDeps,
-  record: InvoiceRecord,
+  record: Pick<InvoiceRecord, "id" | "invoiceNumber" | "paypalInvoiceId">,
   draft: InvoiceDraft,
 ): Promise<{ ok: true; link: string } | ReturnType<typeof conflict>> => {
   const { paypal } = deps;

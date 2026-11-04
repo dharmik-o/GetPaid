@@ -45,7 +45,9 @@ const OutboxPage = async ({ searchParams }: Props) => {
     for (const reply of pending) {
       withOffers.push({
         reply,
-        offer: (await splitOffer(db, reply.milestoneId, reply.today, reply.splitLastDate)) ?? null,
+        offer: reply.milestoneId
+          ? ((await splitOffer(db, reply.milestoneId, reply.today, reply.splitLastDate)) ?? null)
+          : null,
       });
     }
     return {

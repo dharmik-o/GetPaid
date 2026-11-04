@@ -102,7 +102,11 @@ export const toView = (record: InvoiceRecord): InvoiceView => ({
 });
 
 export const getInvoiceRecord = async (db: Db, id: string): Promise<InvoiceRecord | undefined> => {
-  const { rows } = await db.query<InvoiceRow>(`${SELECT_INVOICES} WHERE i.id = $1`, [id]);
+  // Retainer invoices have their own flow (retainer-invoices.ts).
+  const { rows } = await db.query<InvoiceRow>(
+    `${SELECT_INVOICES} WHERE i.id = $1 AND i.milestone_id IS NOT NULL`,
+    [id],
+  );
   return rows[0] ? toRecord(rows[0]) : undefined;
 };
 

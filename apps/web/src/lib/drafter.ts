@@ -23,8 +23,7 @@ export type DraftOutcome =
   | { status: "exists" }
   | { status: "not_found" }
   | { status: "handled" }
-  | { status: "not_payable"; reason: string }
-  | { status: "unsupported"; reason: string };
+  | { status: "not_payable"; reason: string };
 
 export type DrafterDeps = {
   runAsUser: (userId: string) => UserDbRunner;
@@ -49,28 +48,32 @@ export const reminderFacts = (
   now: Date,
   payLink: string,
   laws: readonly Law[],
-): ReminderFacts | undefined => {
+): ReminderFacts => {
   const { invoice, milestone, project } = ctx;
-  if (!milestone || !project) return undefined;
+  const billedFor = milestone?.name ?? ctx.retainerName ?? invoice.number;
   return {
     freelancerName: ctx.freelancerName,
     clientName: ctx.client.name,
-    projectTitle: project.title,
-    milestoneName: milestone.name,
-    deliverable: milestone.deliverable,
+    projectTitle: project?.title ?? billedFor,
+    milestoneName: billedFor,
+    deliverable: milestone?.deliverable ?? null,
     invoiceNumber: invoice.number,
     amountDue: formatMoney(invoice.amountCents - invoice.amountPaidCents, invoice.currency),
     dueDate: formatFullDay(invoice.dueDate),
     daysOverdue: daysOverdue(invoice.dueDate, now, ctx.client.timeZone),
     paymentTerms: formatPaymentTerms(ctx.settings.paymentTerms),
-    contractTerms: project.contractTerms?.slice(0, CONTRACT_TERMS_MAX) ?? null,
+    contractTerms: project?.contractTerms?.slice(0, CONTRACT_TERMS_MAX) ?? null,
     installment: invoice.installment
       ? `Installment ${String(invoice.installment.number)} of ${String(invoice.installment.count)}`
       : null,
     payLink,
     citation:
       ctx.tier === "tier3"
-        ? pickCitation({ lateFeeClause: project.lateFeeClause, country: ctx.client.country, laws })
+        ? pickCitation({
+            lateFeeClause: project?.lateFeeClause ?? null,
+            country: ctx.client.country,
+            laws,
+          })
         : null,
   };
 };
@@ -92,7 +95,6 @@ const prepare = (
     if (reason) return { status: "not_payable", reason };
     if (!ctx.invoice.link) return { status: "not_payable", reason: "the invoice has no pay link" };
     const facts = reminderFacts(ctx, now, ctx.invoice.link, deps.laws);
-    if (!facts) return { status: "unsupported", reason: "retainer reminders are drafted from M8" };
     const task = ctx.tier === "tier3" ? "tier3" : "draft";
     return { kind: ctx.tier, facts, connections: await loadAiConnections(db, task, deps.box()) };
   });

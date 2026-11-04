@@ -1,6 +1,7 @@
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { internalApiToken } from "@/lib/env";
+import { paypalFromEnv } from "@/lib/paypal";
 import { schedulerHandler } from "@/lib/scheduler-handler";
 import { withServiceDb } from "@/lib/service-db";
 import { STATUTES } from "@/lib/statutes";
@@ -13,6 +14,7 @@ const handler = schedulerHandler({
   box: secretBox,
   now: () => new Date(),
   laws: STATUTES,
+  paypal: paypalFromEnv,
   token: () => internalApiToken(),
 });
 

@@ -78,9 +78,10 @@ const invoiceForThread = async (db: Db, threadId: string): Promise<ThreadInvoice
     `SELECT i.id::text, i.due_date::text, i.amount_cents::text, i.amount_paid_cents::text,
        i.currency, c.time_zone
      FROM public.invoices i
-     JOIN public.milestones m ON m.id = i.milestone_id
-     JOIN public.projects p ON p.id = m.project_id
-     JOIN public.clients c ON c.id = p.client_id
+     LEFT JOIN public.milestones m ON m.id = i.milestone_id
+     LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
+     LEFT JOIN public.projects p ON p.id = m.project_id
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      WHERE i.gmail_thread_id = $1 AND i.status IN ('sent', 'partially_paid')
      ORDER BY coalesce(i.installment_number, 0), i.due_date LIMIT 1`,
     [threadId],

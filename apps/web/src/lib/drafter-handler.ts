@@ -19,7 +19,6 @@ const STATUS: Readonly<Record<DraftOutcome["status"], number>> = {
   not_found: 404,
   handled: 409,
   not_payable: 409,
-  unsupported: 409,
 };
 
 const MESSAGE: Readonly<Record<DraftOutcome["status"], string>> = {
@@ -28,7 +27,6 @@ const MESSAGE: Readonly<Record<DraftOutcome["status"], string>> = {
   not_found: "Reminder not found for this user. Check the reminder id and the user id.",
   handled: "This reminder was already approved or skipped; it isn't drafted again.",
   not_payable: "This reminder's invoice can't be paid now, so no draft was written.",
-  unsupported: "This kind of reminder isn't drafted yet.",
 };
 
 export const draftsHandler = (deps: DrafterDeps & { token: () => string | undefined }) => ({

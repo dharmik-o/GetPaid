@@ -26,8 +26,10 @@ export type ReminderContext = {
     /** The freelancer paused it until this date, in the client's zone. */
     pausedUntil: string | null;
   };
-  /** null for a retainer invoice (drafted from M8). */
+  /** null for a retainer invoice: it has `retainerName` instead. */
   milestone: { name: string; deliverable: string | null } | null;
+  retainerName: string | null;
+  /** null for a retainer that isn't tied to a project. */
   project: { title: string; contractTerms: string | null; lateFeeClause: string | null } | null;
   client: { name: string; country: string; timeZone: string };
   freelancerName: string;
@@ -52,6 +54,7 @@ type Row = {
   held: boolean;
   paused_until: string | null;
   milestone_name: string | null;
+  retainer_name: string | null;
   deliverable: string | null;
   milestone_settings: unknown;
   title: string | null;
@@ -72,7 +75,8 @@ const SELECT = `
     i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.due_date::text, i.link,
     i.installment_number, i.installment_count, i.reminders_held_at IS NOT NULL AS held,
     i.reminders_paused_until::text AS paused_until,
-    m.name AS milestone_name, m.deliverable, m.settings AS milestone_settings,
+    m.name AS milestone_name, rt.name AS retainer_name, m.deliverable,
+    m.settings AS milestone_settings,
     p.title, p.contract_terms, p.late_fee_clause, p.settings AS project_settings,
     c.name AS client_name, c.country, c.time_zone, c.settings AS client_settings,
     u.name AS freelancer_name, u.default_settings AS account_settings
@@ -80,7 +84,7 @@ const SELECT = `
   JOIN public.invoices i ON i.id = r.invoice_id
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
   LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
-  LEFT JOIN public.projects p ON p.id = m.project_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id)
   JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
   JOIN public.users u ON u.id = r.user_id
   WHERE r.id = $1`;
@@ -118,6 +122,7 @@ export const loadReminderContext = async (
       row.milestone_name === null
         ? null
         : { name: row.milestone_name, deliverable: row.deliverable },
+    retainerName: row.retainer_name,
     project:
       row.title === null
         ? null

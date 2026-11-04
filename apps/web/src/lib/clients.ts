@@ -217,7 +217,17 @@ export const updateClient = async (
 };
 
 /** Deletes the client with its projects, invoices and messages (foreign keys cascade). */
-export const deleteClient = async (db: Db, id: string): Promise<boolean> => {
+export type DeleteResult = "deleted" | "not_found" | "has_auto_pay";
+
+/** Deleting a client must not leave PayPal charging them with no record of it here. */
+export const deleteClient = async (db: Db, id: string): Promise<DeleteResult> => {
+  const { rows } = await db.query(
+    `SELECT 1 FROM public.retainers
+     WHERE client_id = $1 AND paypal_subscription_id IS NOT NULL
+       AND status IN ('pending_approval', 'active', 'suspended')`,
+    [id],
+  );
+  if (rows.length > 0) return "has_auto_pay";
   const { rowCount } = await db.query("DELETE FROM public.clients WHERE id = $1", [id]);
-  return rowCount > 0;
+  return rowCount > 0 ? "deleted" : "not_found";
 };

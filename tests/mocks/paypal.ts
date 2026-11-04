@@ -56,7 +56,19 @@ const unprocessable = (issue: string) =>
     { status: 422 },
   );
 
+export type FakeSubscription = {
+  id: string;
+  status: string;
+  outstanding: string;
+  body: Record<string, unknown>;
+};
+
 export const createFakePaypal = () => {
+  const products = new Map<string, Record<string, unknown>>();
+  const plans = new Map<string, Record<string, unknown>>();
+  const subscriptions = new Map<string, FakeSubscription>();
+  /** Like the real sandbox for these calls: a repeated request id returns the first answer. */
+  const byRequestId = new Map<string, string>();
   const invoices = new Map<string, FakeInvoice>();
   const calls: Call[] = [];
   const verifications: Verification[] = [];
@@ -105,7 +117,91 @@ export const createFakePaypal = () => {
     return invoice;
   };
 
+  /** A create call keyed by PayPal-Request-Id: the id already made for it, or a new one. */
+  const idFor = (request: Request, prefix: string): { id: string; isNew: boolean } => {
+    const key = `${prefix}:${request.headers.get("paypal-request-id") ?? ""}`;
+    const known = byRequestId.get(key);
+    if (known) return { id: known, isNew: false };
+    const id = `${prefix}-FAKE-${String(nextId++).padStart(4, "0")}`;
+    byRequestId.set(key, id);
+    return { id, isNew: true };
+  };
+
+  const subscriptionJson = (subscription: FakeSubscription) => ({
+    id: subscription.id,
+    status: subscription.status,
+    billing_info: {
+      outstanding_balance: { currency_code: "USD", value: subscription.outstanding },
+    },
+    links: [
+      {
+        rel: "approve",
+        href: `https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token=${subscription.id}`,
+      },
+    ],
+  });
+
   const handlers: HttpHandler[] = [
+    http.post(`${PAYPAL_SANDBOX_BASE}/v1/catalogs/products`, async ({ request }) => {
+      await record(request);
+      if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+      const { id, isNew } = idFor(request, "PROD");
+      if (isNew) products.set(id, (await request.json()) as Record<string, unknown>);
+      return HttpResponse.json({ id }, { status: 201 });
+    }),
+
+    http.post(`${PAYPAL_SANDBOX_BASE}/v1/billing/plans`, async ({ request }) => {
+      await record(request);
+      if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+      const { id, isNew } = idFor(request, "P");
+      if (isNew) plans.set(id, (await request.json()) as Record<string, unknown>);
+      return HttpResponse.json({ id }, { status: 201 });
+    }),
+
+    http.post(`${PAYPAL_SANDBOX_BASE}/v1/billing/subscriptions`, async ({ request }) => {
+      await record(request);
+      if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+      const { id, isNew } = idFor(request, "I");
+      if (isNew) {
+        subscriptions.set(id, {
+          id,
+          status: "APPROVAL_PENDING",
+          outstanding: "0.00",
+          body: (await request.json()) as Record<string, unknown>,
+        });
+      }
+      const subscription = subscriptions.get(id);
+      return subscription
+        ? HttpResponse.json(subscriptionJson(subscription), { status: 201 })
+        : new HttpResponse(null, { status: 500 });
+    }),
+
+    http.get(`${PAYPAL_SANDBOX_BASE}/v1/billing/subscriptions/:id`, async ({ request, params }) => {
+      await record(request);
+      if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+      const subscription = subscriptions.get(String(params.id));
+      return subscription
+        ? HttpResponse.json(subscriptionJson(subscription))
+        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND", debug_id: "fake" }, { status: 404 });
+    }),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v1/billing/subscriptions/:id/cancel`,
+      async ({ request, params }) => {
+        await record(request);
+        if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+        const subscription = subscriptions.get(String(params.id));
+        if (!subscription) {
+          return HttpResponse.json({ name: "RESOURCE_NOT_FOUND", debug_id: "f" }, { status: 404 });
+        }
+        if (!["ACTIVE", "SUSPENDED"].includes(subscription.status)) {
+          return unprocessable("SUBSCRIPTION_STATUS_INVALID");
+        }
+        subscription.status = "CANCELLED";
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
     http.post(`${PAYPAL_SANDBOX_BASE}/v1/oauth2/token`, async ({ request }) => {
       await record(request);
       tokensIssued += 1;
@@ -191,6 +287,15 @@ export const createFakePaypal = () => {
     calls,
     verifications,
     store,
+    products,
+    plans,
+    subscriptions,
+    /** Simulates PayPal moving a subscription along (client approval, failures, a retry). */
+    setSubscription(id: string, change: Partial<Pick<FakeSubscription, "status" | "outstanding">>) {
+      const subscription = subscriptions.get(id);
+      if (!subscription) throw new Error(`No fake subscription ${id}`);
+      Object.assign(subscription, change);
+    },
     get tokensIssued() {
       return tokensIssued;
     },

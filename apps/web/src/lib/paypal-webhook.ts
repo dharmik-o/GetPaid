@@ -5,6 +5,8 @@ import { jsonResponse, serverError } from "./http";
 import type { InvoiceStatus } from "./invoices";
 import { errorKind, logEvent } from "./log";
 import type { PaypalClient, PaypalInvoice, WebhookHeaders } from "./paypal";
+import { applyRetainerEvent, subscriptionIdOf } from "./retainer-webhook";
+import type { UserDbRunner } from "./db";
 import type { ServiceDbRunner } from "./service-db";
 
 // Server-only: POST /api/webhooks/paypal (n8n's 06_paypal_webhook relays PayPal's deliveries
@@ -14,6 +16,9 @@ import type { ServiceDbRunner } from "./service-db";
 
 type Deps = {
   runAsService: ServiceDbRunner;
+  /** Follow-ups to a verified event (a failed charge's invoice) run as the retainer's owner. */
+  runAsUser: (userId: string) => UserDbRunner;
+  now: () => Date;
   paypal: () => PaypalClient;
   webhookId: () => string | undefined;
 };
@@ -242,6 +247,10 @@ const applyEvent = async (
   paypal: PaypalClient,
   event: WebhookEvent,
 ): Promise<Outcome> => {
+  const subscriptionId = subscriptionIdOf(event);
+  if (subscriptionId) {
+    return applyRetainerEvent({ ...deps, paypal: () => paypal }, paypal, event, subscriptionId);
+  }
   const target = targetOf(event);
   if (!target) return "ignored";
   const found = await deps.runAsService((db) => findInvoice(db, target));

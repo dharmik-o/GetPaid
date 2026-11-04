@@ -78,6 +78,9 @@ const deps = () => ({
   outboxUrl: () => undefined,
   allowlist: () => new Set([CLIENT]),
   pdf: () => Promise.resolve({ pdf: Buffer.from("%PDF"), filename: "i.pdf" }),
+  paypal: () => {
+    throw new Error("These tests don't invoice retainers.");
+  },
 });
 
 const internal = (url: string, body: unknown = {}) =>
@@ -420,7 +423,7 @@ describe("a reply arrives", () => {
     clientSays("Thanks!");
     await listen();
     const response = await schedulerHandler(deps()).post(internal("/api/internal/scheduler/run"));
-    expect(await response.json()).toEqual({ planned: 0, drafted: 0 });
+    expect(await response.json()).toMatchObject({ planned: 0, drafted: 0 });
   });
 
   it("isn't logged, and its text isn't in any event", async () => {

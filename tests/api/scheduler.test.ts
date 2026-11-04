@@ -38,6 +38,9 @@ const deps = () => ({
   now: () => clock,
   laws: TEST_LAWS,
   token: () => TOKEN,
+  paypal: () => {
+    throw new Error("These tests have no retainer to invoice.");
+  },
 });
 
 const run = async () => {
@@ -124,12 +127,13 @@ beforeEach(async () => {
     `UPDATE public.invoices SET status = 'draft', link = NULL, amount_paid_cents = 0`,
   );
   await handle.db.query(`UPDATE public.users SET default_settings = '{}'`);
+  await handle.db.query(`UPDATE public.retainers SET status = 'cancelled'`);
   await setInvoice("status = 'sent', link = $1, due_date = '2026-12-08'", [PAY_LINK]);
 });
 
 describe("planning", () => {
   it("plans and drafts the tier the invoice has reached, and leaves it waiting", async () => {
-    expect(await run()).toEqual({ planned: 1, drafted: 1 });
+    expect(await run()).toMatchObject({ planned: 1, drafted: 1 });
     const [reminder] = await reminders();
     expect(reminder).toMatchObject({ tier: "tier2", approval_status: "waiting", sent_at: null });
     const draft = storedDraftSchema.parse(reminder?.draft);
@@ -152,7 +156,7 @@ describe("planning", () => {
 
   it("repeating the run changes nothing: one open reminder per invoice", async () => {
     await run();
-    expect(await run()).toEqual({ planned: 0, drafted: 0 });
+    expect(await run()).toMatchObject({ planned: 0, drafted: 0 });
     expect(await reminders()).toHaveLength(1);
   });
 
@@ -171,7 +175,7 @@ describe("planning", () => {
     "plans nothing for an invoice that's %s",
     async (status) => {
       await setInvoice("status = $1", [status]);
-      expect(await run()).toEqual({ planned: 0, drafted: 0 });
+      expect(await run()).toMatchObject({ planned: 0, drafted: 0 });
     },
   );
 
@@ -182,7 +186,7 @@ describe("planning", () => {
 
   it("waits while the next reminder is more than a day away", async () => {
     await setInvoice("due_date = '2027-02-01'");
-    expect(await run()).toEqual({ planned: 0, drafted: 0 });
+    expect(await run()).toMatchObject({ planned: 0, drafted: 0 });
   });
 
   it("plans a courtesy note a day ahead, for its own send time", async () => {
@@ -231,12 +235,12 @@ describe("after a reminder", () => {
 describe("stops", () => {
   it("a pause plans nothing", async () => {
     await setSettings({ paused: true });
-    expect(await run()).toEqual({ planned: 0, drafted: 0 });
+    expect(await run()).toMatchObject({ planned: 0, drafted: 0 });
   });
 
   it("a snooze plans nothing until it's nearly over", async () => {
     await setSettings({ snoozeUntil: "2027-01-15" });
-    expect(await run()).toEqual({ planned: 0, drafted: 0 });
+    expect(await run()).toMatchObject({ planned: 0, drafted: 0 });
   });
 });
 
@@ -282,7 +286,7 @@ describe("drafting", () => {
        VALUES ($1, $2, 'tier2', '2026-12-22T20:00:00Z')`,
       [USER_A.userId, INVOICE],
     );
-    expect(await run()).toEqual({ planned: 0, drafted: 1 });
+    expect(await run()).toMatchObject({ planned: 0, drafted: 1 });
     expect((await reminders())[0]?.draft).not.toBeNull();
   });
 

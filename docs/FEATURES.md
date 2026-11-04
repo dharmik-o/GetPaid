@@ -82,8 +82,9 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 
 ## M8 Retainers and maintenance [Retainers and maintenance reminders]
 
-- [ ] **Retainers:** auto-pay (PayPal Subscriptions) or invoice each cycle; handle payment-failed, suspended and cancelled webhooks.
+- [x] **Retainers:** auto-pay (PayPal Subscriptions) or invoice each cycle; handle payment-failed, suspended and cancelled webhooks.
   - Done when: a failed payment starts the normal escalation, and a cancellation alerts the freelancer on Telegram.
+  - Note: product, plan and subscription creation ran against the real sandbox. Webhook behaviour is tested with PayPal mocked: PayPal's simulator can't produce a charge failure that passes signature checks, so a real failed charge hasn't run.
 - [ ] **Maintenance and renewal reminders:** repeat every N months, lead days (14 and 1 by default), Telegram buttons (tell the client, create invoice, snooze, mark done).
   - Done when: mark done sets the next date (from done or from scheduled, per the setting), and a heads-up to the client goes through approval.
 - [ ] **Upcoming list** (dashboard home): the next 90 days of maintenance, renewals and retainer charges, with expected income.

@@ -391,3 +391,21 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Choice: due on receipt, with the send window always open, on this client only.** The scheduler then plans a real courtesy reminder straight away, and an approval goes out whenever it's tapped. Nothing else's schedule changes.
 - **Sender is now active.** Without it an approved draft never goes out. Scheduler and Reply listener stay off.
 - **Running Scheduler once:** `n8n execute` can't start a workflow with only a schedule trigger, so I added a manual trigger to the inactive workflow, ran it once, and imported the original back.
+
+## M8 Retainers and maintenance
+
+### Retainers (4 Nov 2026)
+
+- **A failed charge gets a real invoice:** every reminder carries a pay link, so "the normal escalation" needs one. It's created once per cycle, however often PayPal retries.
+- **The double-charge risk, and how it's handled (please check this one):** after a failed charge the client can pay the invoice, and PayPal can also succeed on a retry. Three choices follow. Plans set `auto_bill_outstanding: false`, so PayPal never bills the balance by itself later. When a payment arrives and PayPal shows nothing outstanding, open invoices for failed charges are cancelled and their reminders stop. PayPal is asked first, so an invoice with money on it is never cancelled, and you're told to check for a double payment instead. What remains: if a client pays the invoice and a retry then also succeeds, they've paid twice, and only a refund fixes that. The app tells you, but doesn't refund.
+- **Why outstanding balance decides, not the event:** a later cycle's payment shouldn't cancel an earlier unpaid invoice. PayPal's `outstanding_balance` tells those two cases apart.
+- **PayPal's state is read fresh:** as with invoices, an event only says which subscription to look at. A late or repeated event can't move anything backwards, and amounts come from our own row.
+- **PayPal suspends after 3 failures in a row** (`payment_failure_threshold: 3`): the charge and its two retries.
+- **The approval link is shown, not emailed:** the spec doesn't say how it reaches the client, and adding a new kind of client email is more than it asks for. You send it on yourself.
+- **No "new link" button:** PayPal's approval links can lapse. If one does, cancel the retainer and create it again. If the client still approves the old link after that, the app cancels that subscription at PayPal and tells you.
+- **A start date can't be in the past:** back-dating would invoice cycles nobody agreed to, and PayPal refuses a past start for auto-pay anyway. It's judged in the client's time zone.
+- **Catching up:** invoice cycles missed while the scheduler was off are created, oldest first, up to 12 a run. A cycle you cancelled doesn't come back.
+- **Due dates:** each cycle's invoice follows the merged payment terms from the charge date. A fixed-date term can't repeat, so it means the charge date. A failed charge is due on its charge date, so the tiers count from when it failed.
+- **A reply on a retainer invoice can't be split:** splits belong to milestones, and each cycle stands alone. The suggestion becomes "keep on hold", and you decide as usual.
+- **Added beyond the list: deleting a client is refused while auto-pay is live.** Otherwise PayPal would keep charging them with no record in the app. The message says to cancel the retainer first.
+- **The webhook handler gained `runAsUser`:** the follow-up after a verified event (creating that cycle's invoice) runs as the retainer's owner under RLS, not as the service role.

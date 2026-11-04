@@ -74,8 +74,17 @@ export const clientHandlers = ({ runAsUser }: Deps) => ({
     const { id } = await params;
     if (!isUuid(id)) return notFound(CLIENT);
     try {
-      const deleted = await runAsUser((db) => deleteClient(db, id));
-      if (!deleted) return notFound(CLIENT);
+      const result = await runAsUser((db) => deleteClient(db, id));
+      if (result === "not_found") return notFound(CLIENT);
+      if (result === "has_auto_pay") {
+        return jsonResponse(
+          {
+            error:
+              "This client has auto-pay set up, and PayPal would keep charging them. Cancel the retainer under Retainers first, then delete the client.",
+          },
+          409,
+        );
+      }
       logEvent("clients.deleted", { clientId: id });
       return noContent();
     } catch (error) {

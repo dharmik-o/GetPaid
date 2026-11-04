@@ -44,7 +44,7 @@ const prepare = (deps: RedraftDeps, userId: string, id: string): Promise<Ready |
       [id],
     );
     const current = storedDraftSchema.safeParse(rows[0]?.draft);
-    if (!facts || !current.success) return undefined;
+    if (!current.success) return undefined;
     const task = ctx.tier === "tier3" ? "tier3" : "draft";
     return {
       request: { kind: ctx.tier, facts },

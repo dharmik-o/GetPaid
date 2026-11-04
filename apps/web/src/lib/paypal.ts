@@ -215,7 +215,91 @@ export type WebhookHeaders = {
 
 const verificationSchema = z.object({ verification_status: z.string() });
 
+// Subscriptions (auto-pay retainers) ----------------------------------------------------------
+
+export type PlanDraft = {
+  requestId: string;
+  productId: string;
+  name: string;
+  amountCents: number;
+  currency: string;
+  unit: "week" | "month";
+  count: number;
+  /** 0 means until cancelled. */
+  totalCycles: number;
+};
+
+export type SubscriptionDraft = {
+  requestId: string;
+  planId: string;
+  /** Null starts it as soon as the client approves. */
+  startTime: Date | null;
+  subscriberEmail: string;
+  /** Our retainer's id, so a subscription can be traced back to it in PayPal. */
+  customId: string;
+};
+
+export type PaypalSubscription = {
+  id: string;
+  status: string;
+  /** What PayPal still expects from failed charges. */
+  outstandingCents: number;
+};
+
+const PAYPAL_NAME_MAX = 127;
+
+/**
+ * Outstanding amounts are never billed automatically: a failed charge also gets a normal invoice,
+ * so billing it later could charge the client twice. PayPal suspends after three failures in a row
+ * (the charge and its two retries).
+ */
+const PAYMENT_PREFERENCES = {
+  auto_bill_outstanding: false,
+  setup_fee_failure_action: "CONTINUE",
+  payment_failure_threshold: 3,
+};
+
+const planBody = (draft: PlanDraft) => ({
+  product_id: draft.productId,
+  name: draft.name.slice(0, PAYPAL_NAME_MAX),
+  status: "ACTIVE",
+  billing_cycles: [
+    {
+      frequency: { interval_unit: draft.unit.toUpperCase(), interval_count: draft.count },
+      tenure_type: "REGULAR",
+      sequence: 1,
+      total_cycles: draft.totalCycles,
+      pricing_scheme: { fixed_price: paypalMoney(draft.amountCents, draft.currency) },
+    },
+  ],
+  payment_preferences: PAYMENT_PREFERENCES,
+});
+
+const createdIdSchema = z.object({ id: z.string().min(1) });
+
+const createdSubscriptionSchema = z.object({
+  id: z.string().min(1),
+  links: z.array(z.object({ rel: z.string(), href: z.url() })),
+});
+
+const subscriptionSchema = z.object({
+  id: z.string().min(1),
+  status: z.string().min(1),
+  billing_info: z.object({ outstanding_balance: moneySchema.optional() }).optional(),
+});
+
+const subscriptionPath = (id: string): string =>
+  `/v1/billing/subscriptions/${encodeURIComponent(id)}`;
+
 export interface PaypalClient {
+  /** A product for a retainer: its plan needs one. */
+  createProduct(draft: { requestId: string; name: string }): Promise<{ id: string }>;
+  /** The fee and interval. */
+  createPlan(draft: PlanDraft): Promise<{ id: string }>;
+  /** The client's subscription, and the link where they approve it. */
+  createSubscription(draft: SubscriptionDraft): Promise<{ id: string; approvalLink: string }>;
+  getSubscription(id: string): Promise<PaypalSubscription>;
+  cancelSubscription(id: string, reason: string): Promise<void>;
   createInvoice(draft: InvoiceDraft): Promise<{ id: string }>;
   sendInvoice(id: string): Promise<void>;
   getInvoice(id: string): Promise<PaypalInvoice>;
@@ -332,6 +416,70 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
   };
 
   return {
+    createProduct: async ({ requestId, name }) => {
+      const action = "create product";
+      const body = await call(action, "POST", "/v1/catalogs/products", {
+        body: { name: name.slice(0, PAYPAL_NAME_MAX), type: "SERVICE" },
+        requestId,
+      });
+      return parse(createdIdSchema, action, body);
+    },
+
+    createPlan: async (draft) => {
+      const action = "create billing plan";
+      const body = await call(action, "POST", "/v1/billing/plans", {
+        body: planBody(draft),
+        requestId: draft.requestId,
+      });
+      return parse(createdIdSchema, action, body);
+    },
+
+    createSubscription: async (draft) => {
+      const action = "create subscription";
+      const body = await call(action, "POST", "/v1/billing/subscriptions", {
+        body: {
+          plan_id: draft.planId,
+          custom_id: draft.customId,
+          subscriber: { email_address: draft.subscriberEmail },
+          application_context: { shipping_preference: "NO_SHIPPING", user_action: "SUBSCRIBE_NOW" },
+          ...(draft.startTime ? { start_time: draft.startTime.toISOString() } : {}),
+        },
+        requestId: draft.requestId,
+      });
+      const created = parse(createdSubscriptionSchema, action, body);
+      const approvalLink = created.links.find((link) => link.rel === "approve")?.href;
+      if (!approvalLink) {
+        throw new Error(
+          "PayPal didn't return an approval link for the subscription. Try again in a minute.",
+        );
+      }
+      return { id: created.id, approvalLink };
+    },
+
+    getSubscription: async (id) => {
+      const action = "read subscription";
+      const remote = parse(
+        subscriptionSchema,
+        action,
+        await call(action, "GET", subscriptionPath(id)),
+      );
+      const balance = remote.billing_info?.outstanding_balance;
+      return {
+        id: remote.id,
+        status: remote.status,
+        outstandingCents:
+          balance && Number(balance.value) !== 0
+            ? fromPaypalValue(balance.value, balance.currency_code)
+            : 0,
+      };
+    },
+
+    cancelSubscription: async (id, reason) => {
+      await call("cancel subscription", "POST", `${subscriptionPath(id)}/cancel`, {
+        body: { reason },
+      });
+    },
+
     /** Creates the invoice, or returns the one already created with this number (a retry). */
     createInvoice: async (draft) => {
       const action = "create invoice";
