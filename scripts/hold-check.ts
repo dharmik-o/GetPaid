@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { PaypalError, paypalFromEnv, type PaypalClient } from "../apps/web/src/lib/paypal";
+import { waitForAuthorization } from "./lib/hold-approval";
 
 // `npm run hold:check`, which you run yourself: milestone holds against the real PayPal SANDBOX, using
 // the app's own PayPal client. The sandbox can't authorize without a buyer, so it prints links for you
@@ -42,18 +43,19 @@ const authorizedOrder = async (paypal: PaypalClient, label: string): Promise<str
   say(
     `\n${label}: open this, sign in with a sandbox buyer, and approve it:\n${order.approvalLink}`,
   );
-  const giveUpAt = Date.now() + WAIT_MS;
-  while (Date.now() < giveUpAt) {
-    const { status } = await paypal.getOrder(order.id);
-    if (status !== "CREATED") {
-      const { authorizationId } = await paypal.authorizeOrder(order.id, randomUUID());
-      const held = await paypal.getAuthorization(authorizationId);
-      check(held.status === "CREATED", `${label}: authorized after the buyer approved`);
-      return authorizationId;
-    }
-    await sleep(POLL_MS);
+  const authorizationId = await waitForAuthorization(paypal, order.id, {
+    requestId: randomUUID(),
+    attempts: WAIT_MS / POLL_MS,
+    pause: () => sleep(POLL_MS),
+  });
+  if (!authorizationId) {
+    throw new Error(
+      `Nobody approved ${label} within 10 minutes. Run this again when you're ready.`,
+    );
   }
-  throw new Error(`Nobody approved ${label} within 10 minutes. Run this again when you're ready.`);
+  const held = await paypal.getAuthorization(authorizationId);
+  check(held.status === "CREATED", `${label}: authorized after the buyer approved`);
+  return authorizationId;
 };
 
 const captureAndConfirm = async (paypal: PaypalClient, authorizationId: string): Promise<void> => {

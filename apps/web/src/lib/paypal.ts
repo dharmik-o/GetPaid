@@ -519,9 +519,13 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
         requestId: draft.requestId,
       });
       const order = parse(orderSchema, action, body);
-      const link = order.links?.find((item) => item.rel === "payer-action" || item.rel === "approve");
+      const link = order.links?.find(
+        (item) => item.rel === "payer-action" || item.rel === "approve",
+      );
       if (!link) {
-        throw new Error("PayPal didn't return an approval link for the hold. Try again in a minute.");
+        throw new Error(
+          "PayPal didn't return an approval link for the hold. Try again in a minute.",
+        );
       }
       return { id: order.id, approvalLink: link.href };
     },
@@ -546,7 +550,9 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
       );
       const authorizationId = authorizationOf(parse(orderSchema, action, body));
       if (!authorizationId) {
-        throw new Error("PayPal authorized the order but gave no authorization. Check it in the sandbox.");
+        throw new Error(
+          "PayPal authorized the order but gave no authorization. Check it in the sandbox.",
+        );
       }
       return { authorizationId };
     },
@@ -738,6 +744,23 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
 let shared: PaypalClient | undefined;
 
 /** The app's one sandbox account, from env. Throws a clear message if the credentials are missing. */
+/**
+ * The authorization for a hold order, placing it if the client has approved. Null means keep
+ * waiting: a plain order starts at CREATED, one naming a payment source at PAYER_ACTION_REQUIRED,
+ * and only APPROVED can be authorized. An order that already has one, say from an answer that was
+ * lost, is never authorized again.
+ */
+export const authorizeOnceApproved = async (
+  paypal: Pick<PaypalClient, "getOrder" | "authorizeOrder">,
+  orderId: string,
+  requestId: string,
+): Promise<string | null> => {
+  const order = await paypal.getOrder(orderId);
+  if (order.authorizationId) return order.authorizationId;
+  if (order.status !== "APPROVED") return null;
+  return (await paypal.authorizeOrder(orderId, requestId)).authorizationId;
+};
+
 export const paypalFromEnv = (): PaypalClient => {
   if (shared) return shared;
   const env = loadPaypalEnv();

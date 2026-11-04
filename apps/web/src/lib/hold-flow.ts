@@ -6,7 +6,7 @@ import { formatDay } from "./format";
 import { loadMilestoneContext } from "./invoice-context";
 import { errorKind, logEvent } from "./log";
 import { LIVE_HOLD_SQL, type HoldNoticeKind, type HoldStatus } from "./milestone-holds";
-import { PaypalError, type PaypalClient } from "./paypal";
+import { authorizeOnceApproved, PaypalError, type PaypalClient } from "./paypal";
 import { holdDeadlineTooFar, holdWindow, invoiceDates, todayIn } from "./schedule";
 import type { ServiceDbRunner } from "./service-db";
 
@@ -185,12 +185,12 @@ export const startHold = async (
 /** The client approved, per PayPal's own copy of the order: authorize. Safe to repeat. */
 export const authorizeIfApproved = async (deps: HoldEventDeps, hold: HoldRow): Promise<boolean> => {
   if (hold.status !== "pending_approval" || !hold.paypal_order_id) return false;
-  const paypal = deps.paypal();
-  const order = await paypal.getOrder(hold.paypal_order_id);
-  if (order.status === "CREATED") return false;
-  const authorizationId =
-    order.authorizationId ??
-    (await paypal.authorizeOrder(hold.paypal_order_id, hold.authorize_request_id)).authorizationId;
+  const authorizationId = await authorizeOnceApproved(
+    deps.paypal(),
+    hold.paypal_order_id,
+    hold.authorize_request_id,
+  );
+  if (!authorizationId) return false;
   return deps.runAsService(async (db) => {
     // Voided while PayPal was being asked: the scheduler or a person will see the authorization.
     const { rowCount } = await db.query(

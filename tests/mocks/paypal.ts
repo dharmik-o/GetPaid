@@ -67,7 +67,7 @@ export type FakeSubscription = {
 
 export type FakeOrder = {
   id: string;
-  status: "CREATED" | "APPROVED" | "COMPLETED";
+  status: "CREATED" | "PAYER_ACTION_REQUIRED" | "APPROVED" | "COMPLETED" | "VOIDED";
   body: Record<string, unknown>;
   authorizationId: string | null;
 };
@@ -188,10 +188,10 @@ export const createFakePaypal = () => {
           ]
         : units,
       links:
-        order.status === "CREATED"
+        order.status === "CREATED" || order.status === "PAYER_ACTION_REQUIRED"
           ? [
               {
-                rel: "payer-action",
+                rel: order.status === "CREATED" ? "approve" : "payer-action",
                 href: `https://www.sandbox.paypal.com/checkoutnow?token=${order.id}`,
               },
             ]
@@ -205,10 +205,12 @@ export const createFakePaypal = () => {
       if (!authorized(request)) return new HttpResponse(null, { status: 401 });
       const { id, isNew } = idFor(request, "ORDER");
       if (isNew) {
+        const body = (await request.json()) as Record<string, unknown>;
         orders.set(id, {
           id,
-          status: "CREATED",
-          body: (await request.json()) as Record<string, unknown>,
+          // As PayPal does: an order naming a payment source is waiting on the payer from the start.
+          status: body.payment_source ? "PAYER_ACTION_REQUIRED" : "CREATED",
+          body,
           authorizationId: null,
         });
       }
@@ -232,10 +234,13 @@ export const createFakePaypal = () => {
         await record(request);
         const order = orders.get(String(params.id));
         if (!order) return HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
-        if (order.status === "COMPLETED") return HttpResponse.json(orderJson(order), { status: 201 });
+        if (order.status === "COMPLETED")
+          return HttpResponse.json(orderJson(order), { status: 201 });
         if (order.status !== "APPROVED") return unprocessable("ORDER_NOT_APPROVED");
         const id = `AUTH-FAKE-${String(nextId++).padStart(4, "0")}`;
-        const unit = (order.body.purchase_units as { amount: { value: string; currency_code: string } }[])[0];
+        const unit = (
+          order.body.purchase_units as { amount: { value: string; currency_code: string } }[]
+        )[0];
         authorizations.set(id, {
           id,
           orderId: order.id,
@@ -249,13 +254,16 @@ export const createFakePaypal = () => {
       },
     ),
 
-    http.get(`${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id`, async ({ request, params }) => {
-      await record(request);
-      const found = authorizations.get(String(params.id));
-      return found
-        ? HttpResponse.json({ id: found.id, status: found.status })
-        : HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
-    }),
+    http.get(
+      `${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id`,
+      async ({ request, params }) => {
+        await record(request);
+        const found = authorizations.get(String(params.id));
+        return found
+          ? HttpResponse.json({ id: found.id, status: found.status })
+          : HttpResponse.json({ name: "RESOURCE_NOT_FOUND" }, { status: 404 });
+      },
+    ),
 
     http.post(
       `${PAYPAL_SANDBOX_BASE}/v2/payments/authorizations/:id/reauthorize`,
@@ -280,7 +288,8 @@ export const createFakePaypal = () => {
         const key = `CAPTURE:${request.headers.get("paypal-request-id") ?? ""}`;
         const seen = byRequestId.get(key);
         const again = seen ? captures.get(seen) : undefined;
-        if (again) return HttpResponse.json({ id: again.id, status: again.status }, { status: 201 });
+        if (again)
+          return HttpResponse.json({ id: again.id, status: again.status }, { status: 201 });
         if (behaviour.refuseCapture) return unprocessable("AUTHORIZATION_DENIED");
         if (found.status !== "CREATED") return unprocessable("AUTHORIZATION_ALREADY_CAPTURED");
         const id = `CAP-FAKE-${String(nextId++).padStart(4, "0")}`;
@@ -514,6 +523,12 @@ export const createFakePaypal = () => {
       const order = orders.get(id);
       if (!order) throw new Error(`No fake order ${id}`);
       order.status = "APPROVED";
+    },
+    /** Simulates PayPal's copy of an order changing, e.g. an authorize whose answer was lost. */
+    setOrder(id: string, change: Partial<Pick<FakeOrder, "status" | "authorizationId">>) {
+      const order = orders.get(id);
+      if (!order) throw new Error(`No fake order ${id}`);
+      Object.assign(order, change);
     },
     /** Simulates PayPal moving a subscription along (client approval, failures, a retry). */
     setSubscription(

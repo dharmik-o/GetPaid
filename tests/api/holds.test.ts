@@ -428,6 +428,26 @@ describe("the client approves", () => {
     expect((await hold()).status).toBe("pending_approval");
   });
 
+  it("waits while the client still has to act, and doesn't call authorize", async () => {
+    await start();
+    const orderId = (await hold()).paypal_order_id ?? "";
+    expect(fake.orders.get(orderId)?.status).toBe("PAYER_ACTION_REQUIRED");
+    const response = await deliver("CHECKOUT.ORDER.APPROVED", { id: orderId });
+    expect(response.status).toBe(200);
+    await runScheduler({ ...core() });
+    expect((await hold()).status).toBe("pending_approval");
+    expect(stepsNamed("/authorize")).toEqual([]);
+  });
+
+  it("uses the authorization the order already has, if the answer to authorizing was lost", async () => {
+    await start();
+    const orderId = (await hold()).paypal_order_id ?? "";
+    fake.setOrder(orderId, { status: "COMPLETED", authorizationId: "AUTH-ALREADY" });
+    await deliver("CHECKOUT.ORDER.APPROVED", { id: orderId });
+    expect(await hold()).toMatchObject({ status: "authorized", authorization_id: "AUTH-ALREADY" });
+    expect(stepsNamed("/authorize")).toEqual([]);
+  });
+
   it("delivered twice authorizes once", async () => {
     const orderId = await authorizedHold();
     await deliver("CHECKOUT.ORDER.APPROVED", { id: orderId });

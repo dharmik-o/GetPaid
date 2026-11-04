@@ -21,7 +21,10 @@ describe("holds in the sandbox", () => {
     const order = await newOrder();
     expect(order.id).toBeTruthy();
     expect(new URL(order.approvalLink).host).toBe("www.sandbox.paypal.com");
-    expect(await paypal.getOrder(order.id)).toMatchObject({ authorizationId: null });
+    expect(await paypal.getOrder(order.id)).toEqual({
+      status: "PAYER_ACTION_REQUIRED",
+      authorizationId: null,
+    });
   });
 
   it("a repeated request id returns the same order", async () => {
