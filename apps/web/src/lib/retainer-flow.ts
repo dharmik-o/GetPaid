@@ -131,7 +131,9 @@ export const cancelRetainer = async (deps: RetainerFlowDeps, id: string): Promis
   }
   await deps.runAsUser(async (db) => {
     await db.query(
-      "UPDATE public.retainers SET status = 'cancelled', paypal_approval_link = NULL WHERE id = $1",
+      `UPDATE public.retainers SET status = 'cancelled', paypal_approval_link = NULL,
+         auto_pay_hold_cycle_on = NULL, auto_pay_held_at = NULL
+       WHERE id = $1`,
       [id],
     );
     await db.query(

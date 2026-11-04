@@ -38,6 +38,8 @@ export type Retainer = {
   endsOn: string | null;
   method: RetainerMethod;
   status: RetainerStatus;
+  /** Auto-pay is paused in PayPal until the invoice for a failed charge is paid. */
+  pausedForInvoice: boolean;
   /** Where the client approves auto-pay; null once approved. */
   approvalLink: string | null;
   /** Auto-pay is set up in PayPal. False means the setup needs another try. */
@@ -171,12 +173,14 @@ type RetainerRow = {
   status: RetainerStatus;
   paypal_approval_link: string | null;
   paypal_subscription_id: string | null;
+  hold_cycle_on: string | null;
 };
 
 export const SELECT_RETAINERS = `
   SELECT r.id::text, r.client_id::text, c.name AS client_name, c.time_zone, p.title AS project_title,
     r.name, r.amount_cents::text, r.currency, r.interval_unit, r.interval_count, r.starts_on::text,
-    r.ends_on::text, r.method, r.status, r.paypal_approval_link, r.paypal_subscription_id
+    r.ends_on::text, r.method, r.status, r.paypal_approval_link, r.paypal_subscription_id,
+    r.auto_pay_hold_cycle_on::text AS hold_cycle_on
   FROM public.retainers r
   JOIN public.clients c ON c.id = r.client_id
   LEFT JOIN public.projects p ON p.id = r.project_id`;
@@ -262,6 +266,7 @@ export const listRetainers = async (db: Db, now: Date): Promise<Retainer[]> => {
     endsOn: row.ends_on,
     method: row.method,
     status: row.status,
+    pausedForInvoice: row.hold_cycle_on !== null,
     approvalLink: row.paypal_approval_link,
     setUp: row.method !== "auto_pay" || row.paypal_subscription_id !== null,
     nextChargeOn: nextCharge(row, now),

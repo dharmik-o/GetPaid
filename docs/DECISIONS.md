@@ -453,3 +453,14 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Replies:** kept as built, as you confirmed. Any reply holds the invoice, and you decide with a tap.
 - **M4's Done-when line:** your message still held the template text for this answer, so I changed nothing and asked again in `docs/NEEDS_YOU.md`.
 - **Live check slots:** the Telegram and email answers were template text too. I read the state from the database instead of assuming: the send had gone through the Outbox.
+
+### Double payment: suspend first (4 Nov 2026, your decision after M8)
+
+- **What changed, as you asked:** a failed charge now suspends the subscription in PayPal before any catch-up invoice exists, and reactivates it once that invoice is paid. PayPal's own copy must say SUSPENDED first: even a draft row waits for that. This replaces the M8 approach, which relied on cancelling an invoice after a retry.
+- **How "a retry won" is decided:** PayPal shows a payment later than the last failure, and nothing outstanding. Outstanding alone can't say it, because PayPal's docs say a failed charge reaches that balance only after its retries run out.
+- **A charge already under way:** it can land between PayPal's reply and the suspension. So PayPal is read again afterwards: if it collected, there's no invoice and auto-pay is reactivated. If an invoice had gone out, it's cancelled and its reminders stop. An invoice with money on it is never cancelled: the "may have paid twice" warning stays as the backstop for this.
+- **What this rests on, and what isn't proven:** PayPal's docs say "When a subscription is paused, or soft-canceled, PayPal will stop processing payments until it is reactivated." They don't say whether a retry resumes after reactivation, or whether cycles missed during a pause are billed. A real failed charge can't be produced in the sandbox with a valid signature, so neither is tested against PayPal. If a retry did resume after a paid invoice, the warning fires.
+- **What the real sandbox showed:** on a subscription nobody has approved, activate answers 422 `SESSION_STATE_NOT_VALID` ("Buyer has not agreed"), which proves its path. Suspend answers 404 `INVALID_RESOURCE_ID`, as cancel does, so suspend's path isn't proven until a sandbox buyer approves a subscription.
+- **Charge dates during a pause aren't billed, and aren't invoiced either:** invoicing them could double-charge if PayPal bills missed cycles on reactivation, which its docs don't rule out. The alert tells you to check. It's your call whether you'd like invoices for those (in `docs/NEEDS_YOU.md`).
+- **Only a paid invoice reactivates:** one cancelled unpaid leaves auto-pay suspended, since nothing was paid. Cancel the retainer, or reactivate it in PayPal.
+- **Reactivating by hand in PayPal during a hold isn't blocked:** the app can't stop that, and it would let new charges run.

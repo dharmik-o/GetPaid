@@ -66,6 +66,12 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
         {retainer.endsOn ? ` to ${formatDay(retainer.endsOn)}` : ", until cancelled"}
         {retainer.nextChargeOn ? `. Next charge ${formatDay(retainer.nextChargeOn)}.` : "."}
       </p>
+      {retainer.pausedForInvoice ? (
+        <p>
+          A charge failed, so auto-pay is paused in PayPal and can&apos;t charge the client again.
+          It comes back on once the invoice for that charge is paid.
+        </p>
+      ) : null}
       {retainer.approvalLink ? (
         <p>
           Send your client this link to approve auto-pay. Nothing is sent to them from here:{" "}

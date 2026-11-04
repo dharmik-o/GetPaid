@@ -5,6 +5,7 @@ import { jsonResponse, serverError } from "./http";
 import type { InvoiceStatus } from "./invoices";
 import { errorKind, logEvent } from "./log";
 import type { PaypalClient, PaypalInvoice, WebhookHeaders } from "./paypal";
+import { releaseHoldIfPaid } from "./retainer-hold";
 import { applyRetainerEvent, subscriptionIdOf } from "./retainer-webhook";
 import type { UserDbRunner } from "./db";
 import type { ServiceDbRunner } from "./service-db";
@@ -86,6 +87,7 @@ type LocalInvoice = {
   id: string;
   user_id: string;
   milestone_id: string | null;
+  retainer_id: string | null;
   paypal_invoice_id: string | null;
   status: InvoiceStatus;
   amount_paid_cents: string;
@@ -101,7 +103,7 @@ const findInvoice = async (
   // The column name comes from the fixed Target type, never from the request.
   const column = target.by === "paypal_invoice_id" ? "paypal_invoice_id" : "invoice_number";
   const { rows } = await db.query<LocalInvoice>(
-    `SELECT id::text, user_id::text, milestone_id::text, paypal_invoice_id, status,
+    `SELECT id::text, user_id::text, milestone_id::text, retainer_id::text, paypal_invoice_id, status,
        amount_paid_cents::text, milestone_status_before, installment_plan_id::text
      FROM public.invoices WHERE ${column} = $1${lock ? " FOR UPDATE" : ""}`,
     [target.value],
@@ -242,6 +244,19 @@ const changeFromPaypal = (invoice: LocalInvoice, remote: PaypalInvoice): Change 
   amountPaidCents: Math.max(0, remote.paidCents - remote.refundedCents),
 });
 
+/** Never fails the webhook: the money is recorded, and the scheduler finishes reactivating. */
+const reactivateAfterPayment = async (
+  deps: Deps,
+  paypal: PaypalClient,
+  retainerId: string,
+): Promise<void> => {
+  try {
+    await releaseHoldIfPaid({ ...deps, paypal: () => paypal }, paypal, retainerId);
+  } catch (error) {
+    logEvent("paypal_webhook.reactivate_failed", { retainerId, error: errorKind(error) });
+  }
+};
+
 const applyEvent = async (
   deps: Deps,
   paypal: PaypalClient,
@@ -263,7 +278,7 @@ const applyEvent = async (
       : undefined;
   if (target.action === "sync" && !remote) return "ignored";
 
-  return deps.runAsService(async (db) => {
+  const outcome = await deps.runAsService(async (db): Promise<Outcome> => {
     const invoice = await findInvoice(db, target, true);
     if (!invoice) return "ignored";
     if (!(await claimEvent(db, invoice, event))) return "duplicate";
@@ -272,6 +287,10 @@ const applyEvent = async (
       : { status: "disputed", amountPaidCents: toCents(invoice.amount_paid_cents) };
     return (await applyChange(db, invoice, change, event)) ? "applied" : "unchanged";
   });
+  if (found.retainer_id && outcome === "applied") {
+    await reactivateAfterPayment(deps, paypal, found.retainer_id);
+  }
+  return outcome;
 };
 
 const reject = (status: number, error: string, reason: string): Response => {

@@ -242,16 +242,18 @@ export type SubscriptionDraft = {
 export type PaypalSubscription = {
   id: string;
   status: string;
-  /** What PayPal still expects from failed charges. */
+  /** What PayPal still expects from failed charges. Filled only after its retries run out. */
   outstandingCents: number;
+  lastPaymentAt: Date | null;
+  lastFailedAt: Date | null;
 };
 
 const PAYPAL_NAME_MAX = 127;
 
 /**
  * Outstanding amounts are never billed automatically: a failed charge also gets a normal invoice,
- * so billing it later could charge the client twice. PayPal suspends after three failures in a row
- * (the charge and its two retries).
+ * so billing it later could charge the client twice. The app suspends at the first failure. The
+ * threshold is PayPal's own backstop, in case that suspension can't be placed.
  */
 const PAYMENT_PREFERENCES = {
   auto_bill_outstanding: false,
@@ -285,8 +287,19 @@ const createdSubscriptionSchema = z.object({
 const subscriptionSchema = z.object({
   id: z.string().min(1),
   status: z.string().min(1),
-  billing_info: z.object({ outstanding_balance: moneySchema.optional() }).optional(),
+  billing_info: z
+    .object({
+      outstanding_balance: moneySchema.optional(),
+      last_payment: z.object({ time: z.string() }).optional(),
+      last_failed_payment: z.object({ time: z.string() }).optional(),
+    })
+    .optional(),
 });
+
+const instantOrNull = (time: string | undefined): Date | null => {
+  const instant = time === undefined ? Number.NaN : Date.parse(time);
+  return Number.isNaN(instant) ? null : new Date(instant);
+};
 
 const subscriptionPath = (id: string): string =>
   `/v1/billing/subscriptions/${encodeURIComponent(id)}`;
@@ -300,6 +313,9 @@ export interface PaypalClient {
   createSubscription(draft: SubscriptionDraft): Promise<{ id: string; approvalLink: string }>;
   getSubscription(id: string): Promise<PaypalSubscription>;
   cancelSubscription(id: string, reason: string): Promise<void>;
+  /** Stops PayPal processing payments for it until it's reactivated. */
+  suspendSubscription(id: string, reason: string): Promise<void>;
+  activateSubscription(id: string, reason: string): Promise<void>;
   createInvoice(draft: InvoiceDraft): Promise<{ id: string }>;
   sendInvoice(id: string): Promise<void>;
   getInvoice(id: string): Promise<PaypalInvoice>;
@@ -471,11 +487,25 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
           balance && Number(balance.value) !== 0
             ? fromPaypalValue(balance.value, balance.currency_code)
             : 0,
+        lastPaymentAt: instantOrNull(remote.billing_info?.last_payment?.time),
+        lastFailedAt: instantOrNull(remote.billing_info?.last_failed_payment?.time),
       };
     },
 
     cancelSubscription: async (id, reason) => {
       await call("cancel subscription", "POST", `${subscriptionPath(id)}/cancel`, {
+        body: { reason },
+      });
+    },
+
+    suspendSubscription: async (id, reason) => {
+      await call("suspend subscription", "POST", `${subscriptionPath(id)}/suspend`, {
+        body: { reason },
+      });
+    },
+
+    activateSubscription: async (id, reason) => {
+      await call("reactivate subscription", "POST", `${subscriptionPath(id)}/activate`, {
         body: { reason },
       });
     },

@@ -2,13 +2,8 @@ import { z } from "zod";
 import type { Db } from "./db";
 import { errorKind, logEvent } from "./log";
 import type { PaypalClient, PaypalSubscription } from "./paypal";
-import {
-  cancelSettledInvoice,
-  insertCycleInvoice,
-  issueRetainerInvoice,
-  loadCycleRow,
-  type RetainerInvoiceDeps,
-} from "./retainer-invoices";
+import { endHoldAfterRetry, failedChargeCollected, placeHold } from "./retainer-hold";
+import { cancelSettledInvoice, loadCycleRow, type RetainerInvoiceDeps } from "./retainer-invoices";
 import type { AlertKind } from "./retainer-alerts";
 import { retainerDates, type RetainerStatus } from "./retainers";
 import { retainerCycleOn, todayIn } from "./schedule";
@@ -51,7 +46,12 @@ const ALERT_ON_STATUS: Partial<Record<RetainerStatus, AlertKind>> = {
   cancelled: "cancelled",
 };
 
-type Local = { id: string; user_id: string; status: RetainerStatus };
+type Local = {
+  id: string;
+  user_id: string;
+  status: RetainerStatus;
+  hold_cycle_on: string | null;
+};
 
 const findRetainer = async (
   db: Db,
@@ -59,7 +59,8 @@ const findRetainer = async (
   lock = false,
 ): Promise<Local | undefined> => {
   const { rows } = await db.query<Local>(
-    `SELECT id::text, user_id::text, status FROM public.retainers
+    `SELECT id::text, user_id::text, status, auto_pay_hold_cycle_on::text AS hold_cycle_on
+     FROM public.retainers
      WHERE paypal_subscription_id = $1${lock ? " FOR UPDATE" : ""}`,
     [subscriptionId],
   );
@@ -88,32 +89,34 @@ const addAlert = (db: Db, retainer: Local, kind: AlertKind) =>
     kind,
   ]);
 
-/** A failed charge gets a normal invoice for that cycle, once, whatever PayPal retries. */
-const startEscalation = async (db: Db, retainer: Local, now: Date): Promise<string | undefined> => {
+/**
+ * Records that this charge failed, once, whatever PayPal repeats. No invoice yet: the subscription
+ * has to be suspended first (retainer-hold.ts). A charge whose invoice is already paid needs nothing.
+ */
+const recordFailedCharge = async (db: Db, retainer: Local, now: Date): Promise<boolean> => {
+  if (retainer.hold_cycle_on) return false;
   const row = await loadCycleRow(db, retainer.id);
-  if (!row) return undefined;
+  if (!row) return false;
   const today = todayIn(now, row.time_zone);
   const on = retainerCycleOn(retainerDates(row), today) ?? row.starts_on;
-  const inserted = await insertCycleInvoice(db, retainer.id, row, {
-    on,
-    // The charge date has passed, so the reminder tiers count from there.
-    dueDate: on,
-    reason: "payment_failed",
-  });
-  if (!inserted) return undefined;
-  await addAlert(db, retainer, "payment_failed");
-  const { rows } = await db.query<{ id: string }>(
-    `SELECT id::text FROM public.invoices
-     WHERE retainer_id = $1 AND retainer_cycle_on = $2 AND status <> 'cancelled'`,
+  const { rows: paid } = await db.query(
+    `SELECT 1 FROM public.invoices
+     WHERE retainer_id = $1 AND retainer_cycle_on = $2 AND status = 'paid'`,
     [retainer.id, on],
   );
-  return rows[0]?.id;
+  if (paid.length > 0) return false;
+  await db.query("UPDATE public.retainers SET auto_pay_hold_cycle_on = $2 WHERE id = $1", [
+    retainer.id,
+    on,
+  ]);
+  await addAlert(db, retainer, "payment_failed");
+  return true;
 };
 
 /**
- * PayPal says nothing is outstanding, so its retry collected what had failed. Open invoices for
- * those charges are no longer owed: their reminders stop now, and they're cancelled at PayPal after
- * this transaction. An invoice with money on it means the client may have paid twice.
+ * PayPal says nothing is owed, so a charge already under way collected what had failed. Open
+ * invoices for it are no longer owed: their reminders stop now, and they're cancelled at PayPal
+ * after this transaction. An invoice with money on it means the client may have paid twice.
  */
 const settleFailedCharges = async (db: Db, retainer: Local): Promise<string[]> => {
   const { rows } = await db.query<{ id: string; status: string }>(
@@ -141,7 +144,10 @@ const settleFailedCharges = async (db: Db, retainer: Local): Promise<string[]> =
 
 type Applied = {
   outcome: "duplicate" | "unchanged" | "applied";
-  issue?: string;
+  /** A charge failed: suspend, then invoice. */
+  hold?: boolean;
+  /** The charge is collected: end the hold. */
+  endHold?: boolean;
   cancel?: string[];
   cancelSubscription?: boolean;
 };
@@ -165,7 +171,16 @@ const applyStatus = async (
      WHERE id = $1`,
     [retainer.id, next],
   );
-  const alert = ALERT_ON_STATUS[next];
+  // Gone for good: there's nothing left to suspend or reactivate. Open invoices stay owed.
+  if (next === "cancelled" || next === "ended") {
+    await db.query(
+      "UPDATE public.retainers SET auto_pay_hold_cycle_on = NULL, auto_pay_held_at = NULL WHERE id = $1",
+      [retainer.id],
+    );
+  }
+  // Suspended by this app's own hold is no surprise: the failed charge has already been reported.
+  const ownSuspension = next === "suspended" && retainer.hold_cycle_on !== null;
+  const alert = ownSuspension ? undefined : ALERT_ON_STATUS[next];
   if (alert) await addAlert(db, retainer, alert);
   return { outcome: "applied" };
 };
@@ -183,16 +198,23 @@ const applyToRetainer = async (
   const status = await applyStatus(db, retainer, remote);
   const applied: Applied & { userId: string } = { ...status, userId: retainer.user_id };
   if (event.event_type === PAYMENT_FAILED && retainer.status !== "cancelled") {
-    const issue = await startEscalation(db, retainer, now);
-    return issue ? { ...applied, outcome: "applied", issue } : applied;
+    const hold = await recordFailedCharge(db, retainer, now);
+    return hold ? { ...applied, outcome: "applied", hold } : applied;
   }
   if (event.event_type === SALE_COMPLETED) {
     await db.query("UPDATE public.retainers SET last_paid_at = $2 WHERE id = $1", [
       retainer.id,
       now.toISOString(),
     ]);
-    const cancel = remote.outstandingCents === 0 ? await settleFailedCharges(db, retainer) : [];
-    return { ...applied, outcome: "applied", cancel };
+    const collected = remote.outstandingCents === 0 && (remote.lastFailedAt === null || failedChargeCollected(remote));
+    if (!collected) return { ...applied, outcome: "applied" };
+    const cancel = await settleFailedCharges(db, retainer);
+    return {
+      ...applied,
+      outcome: "applied",
+      cancel,
+      endHold: retainer.hold_cycle_on !== null,
+    };
   }
   return applied;
 };
@@ -202,6 +224,7 @@ const afterCommit = async (
   deps: RetainerInvoiceDeps,
   paypal: PaypalClient,
   subscriptionId: string,
+  retainerId: string,
   applied: Applied & { userId?: string },
 ): Promise<void> => {
   const { userId } = applied;
@@ -210,10 +233,11 @@ const afterCommit = async (
     if (applied.cancelSubscription) {
       await paypal.cancelSubscription(subscriptionId, "Cancelled by the freelancer.");
     }
-    if (applied.issue) await issueRetainerInvoice(deps, { userId, invoiceId: applied.issue });
+    if (applied.hold) await placeHold(deps, paypal, retainerId);
     for (const invoiceId of applied.cancel ?? []) {
       await cancelSettledInvoice(deps, { userId, invoiceId });
     }
+    if (applied.endHold) await endHoldAfterRetry(deps, paypal, retainerId);
   } catch (error) {
     logEvent("paypal_webhook.retainer_followup_failed", { error: errorKind(error) });
   }
@@ -234,6 +258,6 @@ export const applyRetainerEvent = async (
   const applied = await deps.runAsService((db) =>
     applyToRetainer(db, subscriptionId, event, remote, deps.now()),
   );
-  await afterCommit(deps, paypal, subscriptionId, applied);
+  await afterCommit(deps, paypal, subscriptionId, found.id, applied);
   return applied.outcome;
 };

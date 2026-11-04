@@ -60,6 +60,8 @@ export type FakeSubscription = {
   id: string;
   status: string;
   outstanding: string;
+  lastPaymentAt: string | null;
+  lastFailedAt: string | null;
   body: Record<string, unknown>;
 };
 
@@ -132,6 +134,10 @@ export const createFakePaypal = () => {
     status: subscription.status,
     billing_info: {
       outstanding_balance: { currency_code: "USD", value: subscription.outstanding },
+      ...(subscription.lastPaymentAt ? { last_payment: { time: subscription.lastPaymentAt } } : {}),
+      ...(subscription.lastFailedAt
+        ? { last_failed_payment: { time: subscription.lastFailedAt } }
+        : {}),
     },
     links: [
       {
@@ -167,6 +173,8 @@ export const createFakePaypal = () => {
           id,
           status: "APPROVAL_PENDING",
           outstanding: "0.00",
+          lastPaymentAt: null,
+          lastFailedAt: null,
           body: (await request.json()) as Record<string, unknown>,
         });
       }
@@ -198,6 +206,32 @@ export const createFakePaypal = () => {
           return unprocessable("SUBSCRIPTION_STATUS_INVALID");
         }
         subscription.status = "CANCELLED";
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v1/billing/subscriptions/:id/suspend`,
+      async ({ request, params }) => {
+        await record(request);
+        if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+        const subscription = subscriptions.get(String(params.id));
+        if (subscription?.status !== "ACTIVE") return unprocessable("SUBSCRIPTION_STATUS_INVALID");
+        subscription.status = "SUSPENDED";
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
+
+    http.post(
+      `${PAYPAL_SANDBOX_BASE}/v1/billing/subscriptions/:id/activate`,
+      async ({ request, params }) => {
+        await record(request);
+        if (!authorized(request)) return new HttpResponse(null, { status: 401 });
+        const subscription = subscriptions.get(String(params.id));
+        if (subscription?.status !== "SUSPENDED") {
+          return unprocessable("SUBSCRIPTION_STATUS_INVALID");
+        }
+        subscription.status = "ACTIVE";
         return new HttpResponse(null, { status: 204 });
       },
     ),
@@ -291,7 +325,12 @@ export const createFakePaypal = () => {
     plans,
     subscriptions,
     /** Simulates PayPal moving a subscription along (client approval, failures, a retry). */
-    setSubscription(id: string, change: Partial<Pick<FakeSubscription, "status" | "outstanding">>) {
+    setSubscription(
+      id: string,
+      change: Partial<
+        Pick<FakeSubscription, "status" | "outstanding" | "lastPaymentAt" | "lastFailedAt">
+      >,
+    ) {
       const subscription = subscriptions.get(id);
       if (!subscription) throw new Error(`No fake subscription ${id}`);
       Object.assign(subscription, change);

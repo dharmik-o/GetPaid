@@ -483,12 +483,48 @@ describe("invoice each cycle", () => {
   });
 });
 
+/** The order PayPal was asked to do things in, as short names. */
+const paypalSteps = () =>
+  fake.calls
+    .filter((call) => call.method === "POST")
+    .flatMap((call) => {
+      if (call.path.endsWith("/suspend")) return ["suspend"];
+      if (call.path.endsWith("/activate")) return ["activate"];
+      if (call.path === "/v2/invoicing/invoices") return ["create invoice"];
+      return [];
+    });
+
+const payInvoiceAtPaypal = async (retainerId: string) => {
+  const [paypalInvoice] = [...fake.invoices.values()];
+  const id = paypalInvoice?.id ?? "";
+  fake.pay(id, "200.00", "PAID");
+  const response = await deliver("INVOICING.INVOICE.PAID", { id });
+  expect(response.status).toBe(200);
+  return { retainerId, id };
+};
+
+/** Running auto-pay whose charge just failed, as PayPal reports it. */
+const failedCharge = async () => {
+  const active = await activeAutoPay();
+  fake.setSubscription(active.subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
+  clock = new Date("2027-01-07T16:00:00Z");
+  const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", {
+    id: active.subscription,
+  });
+  expect(response.status).toBe(200);
+  return active;
+};
+
 describe("a failed auto-pay charge", () => {
+  it("suspends the subscription in PayPal before any invoice exists", async () => {
+    const { id, subscription } = await failedCharge();
+    expect(paypalSteps()).toEqual(["suspend", "create invoice"]);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("SUSPENDED");
+    expect(await statusOf(id)).toMatchObject({ status: "suspended" });
+  });
+
   it("starts the normal escalation for that cycle", async () => {
-    const { id, subscription } = await activeAutoPay();
-    clock = new Date("2027-01-07T16:00:00Z");
-    const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
-    expect(response.status).toBe(200);
+    const { id } = await failedCharge();
     const [invoice] = await invoicesOf(id);
     expect(invoice).toMatchObject({
       status: "sent",
@@ -497,25 +533,68 @@ describe("a failed auto-pay charge", () => {
       retainer_cycle_on: "2027-01-07",
       retainer_cycle_reason: "payment_failed",
     });
-    clock = new Date("2027-01-10T16:00:00Z");
+    clock = new Date("2027-01-11T16:00:00Z");
     await runScheduler(schedulerDeps());
     const [reminder] = await remindersOf(invoice?.id ?? "");
     expect(reminder).toMatchObject({ tier: "tier1", approval_status: "waiting", sent_at: null });
   });
 
-  it("reuses one invoice across PayPal's retries, and alerts once", async () => {
+  it("makes no invoice at all while PayPal hasn't confirmed the suspension", async () => {
+    const { http, HttpResponse } = await import("msw");
     const { id, subscription } = await activeAutoPay();
+    server.use(
+      http.post(
+        `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscription}/suspend`,
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
     clock = new Date("2027-01-07T16:00:00Z");
+    const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(response.status).toBe(200);
+    expect(await invoicesOf(id)).toEqual([]);
+    expect(fake.invoices.size).toBe(0);
+    await runScheduler(schedulerDeps());
+    // The refused attempt never reached the fake, so this is the scheduler's retry and what follows.
+    expect(paypalSteps()).toEqual(["suspend", "create invoice"]);
+    expect((await invoicesOf(id))[0]?.status).toBe("sent");
+  });
+
+  it("isn't fooled when PayPal accepts the call but the subscription isn't suspended", async () => {
+    const { http, HttpResponse } = await import("msw");
+    const { id, subscription } = await activeAutoPay();
+    server.use(
+      http.post(
+        `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscription}/suspend`,
+        () => new HttpResponse(null, { status: 204 }),
+        { once: true },
+      ),
+    );
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
     await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(await invoicesOf(id)).toEqual([]);
+  });
+
+  it("reuses one suspension and one invoice across repeated failure events, and alerts once", async () => {
+    const { id, subscription } = await failedCharge();
     clock = new Date("2027-01-12T16:00:00Z");
     await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
     expect(await invoicesOf(id)).toHaveLength(1);
     expect(fake.invoices.size).toBe(1);
+    expect(paypalSteps()).toEqual(["suspend", "create invoice"]);
+    expect(await alertKinds(id)).toEqual(["payment_failed"]);
+  });
+
+  it("doesn't call its own suspension a surprise", async () => {
+    const { id, subscription } = await failedCharge();
+    await deliver("BILLING.SUBSCRIPTION.SUSPENDED", { id: subscription });
     expect(await alertKinds(id)).toEqual(["payment_failed"]);
   });
 
   it("takes the amount from the retainer, never from the event", async () => {
     const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
     await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", {
       id: subscription,
       billing_info: { last_failed_payment: { amount: { value: "1.00", currency_code: "USD" } } },
@@ -533,6 +612,7 @@ describe("a failed auto-pay charge", () => {
     expect(response.status).toBe(401);
     expect(await invoicesOf(id)).toEqual([]);
     expect(await alertKinds(id)).toEqual([]);
+    expect(paypalSteps()).toEqual([]);
   });
 
   it("a failed PayPal invoice doesn't fail the webhook: the scheduler finishes it", async () => {
@@ -545,6 +625,7 @@ describe("a failed auto-pay charge", () => {
         { once: true },
       ),
     );
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
     const response = await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
     expect(response.status).toBe(200);
     expect((await invoicesOf(id))[0]?.status).toBe("draft");
@@ -553,50 +634,175 @@ describe("a failed auto-pay charge", () => {
   });
 });
 
-describe("PayPal's retry succeeds", () => {
-  const failThenRetry = async (outstanding: string) => {
-    const active = await activeAutoPay();
-    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: active.subscription });
-    fake.setSubscription(active.subscription, { outstanding });
-    return active;
-  };
-
-  it("cancels the invoice that's no longer owed, and stops its reminders", async () => {
-    const { id, subscription } = await failThenRetry("0.00");
-    const [before] = await invoicesOf(id);
-    clock = new Date("2026-12-10T15:00:00Z");
+describe("the client pays the invoice first", () => {
+  it("keeps the subscription suspended until the invoice is paid, then reactivates it", async () => {
+    const { id, subscription } = await failedCharge();
     await runScheduler(schedulerDeps());
+    expect(fake.subscriptions.get(subscription)?.status).toBe("SUSPENDED");
+    expect(paypalSteps()).not.toContain("activate");
+
+    await payInvoiceAtPaypal(id);
+    expect(paypalSteps()).toEqual(["suspend", "create invoice", "activate"]);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
+    expect(await statusOf(id)).toMatchObject({ status: "active" });
+    expect((await invoicesOf(id))[0]?.status).toBe("paid");
+    expect(await alertKinds(id)).toEqual(["payment_failed", "reactivated"]);
+  });
+
+  it("no second charge is possible while the invoice is open: PayPal has nothing live to retry", async () => {
+    const { id, subscription } = await failedCharge();
+    expect((await invoicesOf(id))[0]?.status).toBe("sent");
+    expect(fake.subscriptions.get(subscription)?.status).toBe("SUSPENDED");
+  });
+
+  it("the next normal charge after reactivating leaves the paid invoice alone, with no warning", async () => {
+    const { id, subscription } = await failedCharge();
+    await payInvoiceAtPaypal(id);
+    fake.setSubscription(subscription, {
+      outstanding: "200.00",
+      lastPaymentAt: "2027-02-07T15:00:00Z",
+    });
+    clock = new Date("2027-02-07T16:00:00Z");
     await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
-    const [after] = await invoicesOf(id);
-    expect(after?.status).toBe("cancelled");
+    expect((await invoicesOf(id))[0]?.status).toBe("paid");
+    expect(await alertKinds(id)).toEqual(["payment_failed", "reactivated"]);
+  });
+
+  it("finishes reactivating from the scheduler if PayPal fails at that moment", async () => {
+    const { http, HttpResponse } = await import("msw");
+    const { id, subscription } = await failedCharge();
+    server.use(
+      http.post(
+        `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscription}/activate`,
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    await payInvoiceAtPaypal(id);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("SUSPENDED");
+    await runScheduler(schedulerDeps());
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
+    expect(await alertKinds(id)).toEqual(["payment_failed", "reactivated"]);
+  });
+
+  it("stays suspended if the invoice is cancelled unpaid, since nothing was paid", async () => {
+    const { subscription } = await failedCharge();
+    const [paypalInvoice] = [...fake.invoices.values()];
+    fake.setStatus(paypalInvoice?.id ?? "", "CANCELLED");
+    await deliver("INVOICING.INVOICE.CANCELLED", { id: paypalInvoice?.id });
+    await runScheduler(schedulerDeps());
+    expect(fake.subscriptions.get(subscription)?.status).toBe("SUSPENDED");
+    expect(paypalSteps()).not.toContain("activate");
+  });
+
+  it("doesn't reactivate a retainer the freelancer cancelled in the meantime", async () => {
+    const { id, subscription } = await failedCharge();
+    await handlers().act(post({ action: "cancel" }), context(id));
+    expect(fake.subscriptions.get(subscription)?.status).toBe("CANCELLED");
+    await payInvoiceAtPaypal(id);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("CANCELLED");
+    expect(paypalSteps()).not.toContain("activate");
+    expect(await statusOf(id)).toMatchObject({ status: "cancelled" });
+  });
+
+  it("doesn't reactivate after the client cancelled in PayPal", async () => {
+    const { id, subscription } = await failedCharge();
+    fake.setSubscription(subscription, { status: "CANCELLED" });
+    await deliver("BILLING.SUBSCRIPTION.CANCELLED", { id: subscription });
+    await payInvoiceAtPaypal(id);
+    expect(paypalSteps()).not.toContain("activate");
+    expect(await statusOf(id)).toMatchObject({ status: "cancelled" });
+  });
+});
+
+describe("a retry succeeds first", () => {
+  it("makes no invoice when PayPal's copy shows the retry already collected it", async () => {
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, {
+      lastFailedAt: "2027-01-07T15:00:00Z",
+      lastPaymentAt: "2027-01-07T15:30:00Z",
+    });
+    clock = new Date("2027-01-07T16:00:00Z");
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(await invoicesOf(id)).toEqual([]);
+    expect(fake.invoices.size).toBe(0);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
+    expect(await alertKinds(id)).toEqual(["payment_failed", "recovered"]);
+  });
+
+  it("a retry that lands during the suspension: reactivates, and still makes no invoice", async () => {
+    const { http, HttpResponse } = await import("msw");
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
+    server.use(
+      http.post(
+        `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscription}/suspend`,
+        () => {
+          fake.setSubscription(subscription, {
+            status: "SUSPENDED",
+            lastPaymentAt: "2027-01-07T15:59:00Z",
+          });
+          return new HttpResponse(null, { status: 204 });
+        },
+        { once: true },
+      ),
+    );
+    clock = new Date("2027-01-07T16:00:00Z");
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    expect(await invoicesOf(id)).toEqual([]);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
+    expect(await statusOf(id)).toMatchObject({ status: "active" });
+  });
+
+  it("a payment arriving before the suspension could be placed: no invoice is ever made", async () => {
+    const { http, HttpResponse } = await import("msw");
+    const { id, subscription } = await activeAutoPay();
+    fake.setSubscription(subscription, { lastFailedAt: "2027-01-07T15:00:00Z" });
+    server.use(
+      http.post(
+        `https://api-m.sandbox.paypal.com/v1/billing/subscriptions/${subscription}/suspend`,
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    await deliver("BILLING.SUBSCRIPTION.PAYMENT.FAILED", { id: subscription });
+    fake.setSubscription(subscription, { lastPaymentAt: "2027-01-07T17:00:00Z" });
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    await runScheduler(schedulerDeps());
+    expect(await invoicesOf(id)).toEqual([]);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
+  });
+
+  it("a retry already in flight when the invoice went out: cancels it, stops reminders, reactivates", async () => {
+    const { id, subscription } = await failedCharge();
+    const [before] = await invoicesOf(id);
+    clock = new Date("2027-01-11T16:00:00Z");
+    await runScheduler(schedulerDeps());
+    fake.setSubscription(subscription, { lastPaymentAt: "2027-01-11T16:30:00Z" });
+    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
+    expect((await invoicesOf(id))[0]?.status).toBe("cancelled");
     expect((await remindersOf(before?.id ?? "")).map((r) => r.approval_status)).toEqual([
       "skipped",
     ]);
+    expect(fake.subscriptions.get(subscription)?.status).toBe("ACTIVE");
     expect(await alertKinds(id)).toEqual(["payment_failed", "recovered"]);
   });
 
   it("keeps the invoice while PayPal still shows money outstanding", async () => {
-    const { id, subscription } = await failThenRetry("200.00");
+    const { id, subscription } = await failedCharge();
+    fake.setSubscription(subscription, {
+      outstanding: "200.00",
+      lastPaymentAt: "2027-01-11T16:30:00Z",
+    });
     await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
     expect((await invoicesOf(id))[0]?.status).toBe("sent");
   });
 
-  it("warns of a possible double payment when the invoice already has money on it", async () => {
-    const { id, subscription } = await failThenRetry("0.00");
-    await handle.db.query(
-      `UPDATE public.invoices SET status = 'paid', amount_paid_cents = amount_cents
-       WHERE retainer_id = $1`,
-      [id],
-    );
-    await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
-    expect((await invoicesOf(id))[0]?.status).toBe("paid");
-    expect(await alertKinds(id)).toEqual(["payment_failed", "paid_twice"]);
-  });
-
   it("the client paid at PayPal a moment ago: never cancels it, and warns", async () => {
-    const { id, subscription } = await failThenRetry("0.00");
+    const { id, subscription } = await failedCharge();
     const [paypalInvoice] = [...fake.invoices.values()];
     fake.pay(paypalInvoice?.id ?? "", "200.00", "PAID");
+    fake.setSubscription(subscription, { lastPaymentAt: "2027-01-08T16:30:00Z" });
     await deliver("PAYMENT.SALE.COMPLETED", { billing_agreement_id: subscription });
     expect(paypalInvoice?.status).toBe("PAID");
     expect((await invoicesOf(id))[0]?.status).toBe("paid");

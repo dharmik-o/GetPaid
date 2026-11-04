@@ -43,6 +43,42 @@ describe("PayPal Subscriptions in the sandbox", () => {
     expect(read.outstandingCents).toBe(0);
   });
 
+  it("refuses to suspend or reactivate a subscription nobody has approved", async () => {
+    const product = await paypal.createProduct({
+      requestId: randomUUID(),
+      name: "Sandbox check: suspend",
+    });
+    const plan = await paypal.createPlan({
+      requestId: randomUUID(),
+      productId: product.id,
+      name: "Sandbox check: suspend",
+      amountCents: 1000,
+      currency: "USD",
+      unit: "month",
+      count: 1,
+      totalCycles: 0,
+    });
+    const { id } = await paypal.createSubscription({
+      requestId: randomUUID(),
+      planId: plan.id,
+      startTime: null,
+      subscriberEmail: "sandbox-subscriber@example.com",
+      customId: randomUUID(),
+    });
+    // Activate answers that the buyer hasn't agreed, which proves its path. Suspend answers 404 here,
+    // as cancel does: PayPal treats an unapproved subscription as not found for both. Suspend's path
+    // is only proven once a sandbox buyer has approved a subscription.
+    await expect(paypal.activateSubscription(id, "Sandbox check")).rejects.toMatchObject({
+      status: 422,
+      issue: "SESSION_STATE_NOT_VALID",
+    });
+    await expect(paypal.suspendSubscription(id, "Sandbox check")).rejects.toMatchObject({
+      status: 404,
+      issue: "INVALID_RESOURCE_ID",
+    });
+    expect((await paypal.getSubscription(id)).status).toBe("APPROVAL_PENDING");
+  });
+
   it("creates a plan with a fixed number of weekly charges, with no decimals in JPY", async () => {
     const product = await paypal.createProduct({
       requestId: randomUUID(),
