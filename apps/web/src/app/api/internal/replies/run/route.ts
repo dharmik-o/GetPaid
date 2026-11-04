@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { gmailOAuthEnv, internalApiToken } from "@/lib/env";
@@ -9,7 +10,7 @@ import { withServiceDb } from "@/lib/service-db";
 const handler = replyListenerHandler({
   runAsService: withServiceDb,
   runAsUser: withUserDb,
-  now: () => new Date(),
+  now: () => appNow(),
   box: secretBox,
   oauth: () => gmailOAuthEnv(),
   token: () => internalApiToken(),

@@ -535,3 +535,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A split invoice counts from the invoice it replaced.** Installment 1 is due the day of the split, so by its own date a 14-day-late payment would look on time. Only a split on the client's request does this; a planned installment keeps its own date.
 - **Recovery rate leaves out what can't be judged yet:** an unpaid invoice inside its 30 days isn't counted against it, and the counts show beside the percentage. Disputed money isn't counted as recovered, because it may go back.
 - **Home now leads with Needs attention,** as `docs/DESIGN.md` asks: drafts waiting, then overdue invoices.
+
+### Demo clock and seed (5 Nov 2026)
+
+- **`appNow()` in `lib/clock.ts` is the one clock for routes and pages,** and a test fails if `new Date()` comes back under `app/`. In production it's always the real time, whatever is set. The empty `scripts/demo-clock.ts` placeholder is gone.
+- **A dev-only control in Settings jumps the clock without a restart.** The spec names `DEMO_CLOCK_OFFSET_DAYS`, and that still sets the starting value, but restarting the server in the middle of a five-minute demo is the wrong moment for it. `POST /api/dev/clock` answers 404 in production. It takes part of a day, to land inside the send window.
+- **A banner shows on every page while the clock is moved,** so nobody takes the dates for real ones.
+- **Postgres's own timestamps follow the clock,** through `demo_clock_now()` and a transaction-local setting. Without that, reminders are dated days ahead and replies today, and the timeline reads out of order. With nothing set, always so in production, it's exactly `now()`.
+- **Tokens, PayPal and Google keep the real clock.** A jump can't make a token look expired or valid wrongly, and PayPal never sees the demo date except as an invoice's due date.
+- **The seed's send window is all seven days,** not just weekdays, so a demo works on any day. The spec only names the hours. It also has no courtesy note, so nothing is waiting before the clock jumps.

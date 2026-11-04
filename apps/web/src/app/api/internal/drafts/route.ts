@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { draftsHandler } from "@/lib/drafter-handler";
@@ -8,7 +9,7 @@ import { STATUTES } from "@/lib/statutes";
 const handler = draftsHandler({
   runAsUser: withUserDb,
   box: secretBox,
-  now: () => new Date(),
+  now: () => appNow(),
   laws: STATUTES,
   token: () => internalApiToken(),
 });

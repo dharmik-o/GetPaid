@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { devEmailAllowlist, gmailOAuthEnv, internalApiToken } from "@/lib/env";
@@ -11,7 +12,7 @@ import { withServiceDb } from "@/lib/service-db";
 const handler = senderHandler({
   runAsService: withServiceDb,
   runAsUser: withUserDb,
-  now: () => new Date(),
+  now: () => appNow(),
   box: secretBox,
   oauth: () => gmailOAuthEnv(),
   allowlist: () => devEmailAllowlist(),

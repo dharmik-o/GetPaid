@@ -1,4 +1,5 @@
 import { currentUserId } from "@/lib/auth";
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { paypalFromEnv } from "@/lib/paypal";
@@ -13,7 +14,7 @@ const handlers = retainerHandlers({
   box: secretBox,
   laws: STATUTES,
   paypal: paypalFromEnv,
-  now: () => new Date(),
+  now: () => appNow(),
 });
 
 export const DELETE = handlers.dismissAlert;

@@ -3,6 +3,7 @@ import { NeedsAttention } from "@/components/NeedsAttention";
 import { RecoveryMetrics } from "@/components/RecoveryMetrics";
 import { RetainerAlerts } from "@/components/RetainerAlerts";
 import { UpcomingList } from "@/components/UpcomingList";
+import { appNow } from "@/lib/clock";
 import { loadMetrics } from "@/lib/metrics";
 import { outboxCounts } from "@/lib/outbox";
 import { runAsCurrentUser } from "@/lib/request-user";
@@ -14,7 +15,7 @@ import { loadUpcoming } from "@/lib/upcoming";
 export const dynamic = "force-dynamic";
 
 const HomePage = async () => {
-  const now = new Date();
+  const now = appNow();
   const { alerts, upcoming, clientCount, metrics, counts } = await runAsCurrentUser(async (db) => {
     const { rows } = await db.query<{ count: number }>(
       "SELECT count(*)::int AS count FROM public.clients",

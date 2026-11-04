@@ -1,4 +1,5 @@
 import { currentUserId } from "@/lib/auth";
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { milestoneHandlers } from "@/lib/milestone-handlers";
@@ -14,7 +15,7 @@ const handlers = milestoneHandlers({
     runAsService: withServiceDb,
     runAsUser: withUserDb,
     box: secretBox,
-    now: () => new Date(),
+    now: () => appNow(),
     laws: STATUTES,
     paypal: paypalFromEnv,
   },

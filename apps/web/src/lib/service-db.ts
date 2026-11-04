@@ -1,4 +1,4 @@
-import { withConnection, type Db } from "./db";
+import { applyDemoClock, withConnection, type Db } from "./db";
 
 // Server-only. The service role bypasses row-level security, so it is for webhook handlers
 // (and n8n) only: never import this into dashboard pages, components or user-facing routes
@@ -10,6 +10,7 @@ export type ServiceDbRunner = <T>(work: (db: Db) => Promise<T>) => Promise<T>;
 export const runAsService = async <T>(conn: Db, work: (db: Db) => Promise<T>): Promise<T> => {
   await conn.query("BEGIN");
   try {
+    await applyDemoClock(conn);
     await conn.query("SET LOCAL ROLE service_role");
     const result = await work(conn);
     await conn.query("COMMIT");

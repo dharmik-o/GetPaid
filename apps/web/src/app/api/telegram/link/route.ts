@@ -1,10 +1,11 @@
+import { appNow } from "@/lib/clock";
 import { telegramBotUsername } from "@/lib/env";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { telegramLinkHandlers } from "@/lib/telegram-handlers";
 
 const handlers = telegramLinkHandlers({
   runAsUser: runAsCurrentUser,
-  now: () => new Date(),
+  now: () => appNow(),
   botUsername: () => telegramBotUsername(),
 });
 

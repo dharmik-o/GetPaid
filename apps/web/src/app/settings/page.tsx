@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { DemoClockForm } from "@/components/DemoClockForm";
 import { TimeZoneForm } from "@/components/TimeZoneForm";
 import { UsualDelayForm } from "@/components/UsualDelayForm";
 import { getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
+import { demoOffsetDays } from "@/lib/clock";
 import { ownTimeZoneChoices } from "@/lib/countries";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -49,6 +51,16 @@ const SettingsPage = async () => (
       <p>Connect Telegram to approve drafts from your phone, and Gmail to send reminders.</p>
       <Link href="/settings/integrations">Integrations</Link>
     </section>
+    {process.env.NODE_ENV === "production" ? null : (
+      <section className="card" aria-labelledby="settings-demo-clock">
+        <h2 id="settings-demo-clock">Demo clock (development only)</h2>
+        <p>
+          Moves this app&apos;s clock forward, so a demo can jump past a due date. Restarting the
+          server goes back to <code>DEMO_CLOCK_OFFSET_DAYS</code>, or to the real time.
+        </p>
+        <DemoClockForm current={demoOffsetDays()} />
+      </section>
+    )}
     <section className="card" aria-labelledby="settings-schedule">
       <h2 id="settings-schedule">Default schedule</h2>
       <p className="muted">

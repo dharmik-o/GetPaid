@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { internalApiToken, outboxPublicUrl } from "@/lib/env";
@@ -12,7 +13,7 @@ const handler = telegramUpdateHandler({
   runAsService: withServiceDb,
   runAsUser: withUserDb,
   box: secretBox,
-  now: () => new Date(),
+  now: () => appNow(),
   laws: STATUTES,
   token: () => internalApiToken(),
   outboxUrl: () => outboxPublicUrl(),

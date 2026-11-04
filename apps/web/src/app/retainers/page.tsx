@@ -1,6 +1,7 @@
 import { RetainerAlerts } from "@/components/RetainerAlerts";
 import { RetainerCard } from "@/components/RetainerCard";
 import { RetainerForm, type RetainerClient } from "@/components/RetainerForm";
+import { appNow } from "@/lib/clock";
 import type { Db } from "@/lib/db";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { listRetainerAlerts, listRetainers } from "@/lib/retainers";
@@ -31,7 +32,7 @@ const loadClients = async (db: Db): Promise<RetainerClient[]> => {
 };
 
 const RetainersPage = async () => {
-  const now = new Date();
+  const now = appNow();
   const { retainers, alerts, clients, timeZone } = await runAsCurrentUser(async (db) => {
     const { rows } = await db.query<{ time_zone: string }>(
       "SELECT time_zone FROM public.users WHERE id = (SELECT auth.uid())",

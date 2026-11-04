@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { DemoClockBanner } from "@/components/DemoClockBanner";
 import { Sidebar } from "@/components/Sidebar";
 import "./globals.css";
 
@@ -14,7 +15,10 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
     <body>
       <div className="shell">
         <Sidebar />
-        <main className="content">{children}</main>
+        <main className="content">
+          <DemoClockBanner />
+          {children}
+        </main>
       </div>
     </body>
   </html>

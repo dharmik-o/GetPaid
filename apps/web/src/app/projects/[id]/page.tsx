@@ -4,6 +4,7 @@ import { HoldPanel } from "@/components/HoldPanel";
 import { InvoicePanel } from "@/components/InvoicePanel";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
+import { appNow } from "@/lib/clock";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
 import { listActivePlansForProject } from "@/lib/installment-plans";
@@ -30,7 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
 const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const now = new Date();
+  const now = appNow();
   const { project, clients, milestones, invoices, plans, templates, holds } = await runAsCurrentUser(
     async (db) => {
       const found = await getProject(db, id);

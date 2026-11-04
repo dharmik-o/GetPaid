@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { withUserDb } from "@/lib/db";
 import { loadPaypalEnv } from "@/lib/env";
 import { paypalFromEnv } from "@/lib/paypal";
@@ -18,7 +19,7 @@ const webhookId = (): string | undefined => {
 const handler = paypalWebhookHandler({
   runAsService: withServiceDb,
   runAsUser: withUserDb,
-  now: () => new Date(),
+  now: () => appNow(),
   paypal: paypalFromEnv,
   webhookId,
 });

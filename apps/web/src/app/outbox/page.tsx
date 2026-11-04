@@ -3,6 +3,7 @@ import { OutboxCard } from "@/components/OutboxCard";
 import { OutboxLive } from "@/components/OutboxLive";
 import { HeldInvoiceRow } from "@/components/HeldInvoiceRow";
 import { ReplyCard, type SplitOffer } from "@/components/ReplyCard";
+import { appNow } from "@/lib/clock";
 import { getGmailAccount } from "@/lib/gmail-account";
 import { splitOffer } from "@/lib/invoice-split";
 import {
@@ -38,7 +39,7 @@ type Props = { searchParams: Promise<{ tab?: string | string[] }> };
 
 const OutboxPage = async ({ searchParams }: Props) => {
   const tab = tabOf((await searchParams).tab);
-  const now = new Date();
+  const now = appNow();
   const { items, counts, replies, held, gmail } = await runAsCurrentUser(async (db) => {
     const pending = await listPendingReplies(db, now);
     const withOffers: { reply: ReplyItem; offer: SplitOffer | null }[] = [];

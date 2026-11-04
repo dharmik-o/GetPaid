@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MaintenanceCard } from "@/components/MaintenanceCard";
 import { MaintenanceForm, type MaintenanceProject } from "@/components/MaintenanceForm";
+import { appNow } from "@/lib/clock";
 import type { Db } from "@/lib/db";
 import { listMaintenanceTasks } from "@/lib/maintenance";
 import { runAsCurrentUser } from "@/lib/request-user";
@@ -30,7 +31,7 @@ const loadProjects = async (db: Db): Promise<MaintenanceProject[]> => {
 };
 
 const MaintenancePage = async () => {
-  const now = new Date();
+  const now = appNow();
   const { tasks, projects, timeZone } = await runAsCurrentUser(async (db) => {
     const { rows } = await db.query<{ time_zone: string }>(
       "SELECT time_zone FROM public.users WHERE id = (SELECT auth.uid())",

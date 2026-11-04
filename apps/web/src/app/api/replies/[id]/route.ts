@@ -1,3 +1,4 @@
+import { appNow } from "@/lib/clock";
 import { renderPdf } from "@/lib/invoice-pdf";
 import { defaultPdfDir, invoicePdf } from "@/lib/invoice-pdfs";
 import { paypalFromEnv } from "@/lib/paypal";
@@ -6,7 +7,7 @@ import { runAsCurrentUser } from "@/lib/request-user";
 
 const handlers = replyHandlers({
   runAsUser: runAsCurrentUser,
-  now: () => new Date(),
+  now: () => appNow(),
   paypal: paypalFromEnv,
   pdf: (invoiceId) =>
     invoicePdf({ runAsUser: runAsCurrentUser, renderPdf, dir: defaultPdfDir() }, invoiceId, {

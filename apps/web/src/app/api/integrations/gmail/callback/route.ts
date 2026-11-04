@@ -1,4 +1,5 @@
 import { currentUserId } from "@/lib/auth";
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { gmailOAuthEnv } from "@/lib/env";
 import { gmailHandlers } from "@/lib/gmail-handlers";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 const handlers = gmailHandlers({
   runAsUser: runAsCurrentUser,
-  now: () => new Date(),
+  now: () => appNow(),
   box: secretBox,
   oauth: () => gmailOAuthEnv(),
   userId: currentUserId,

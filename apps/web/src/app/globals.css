@@ -650,6 +650,10 @@ label.inline {
   }
 }
 
+.demo-clock {
+  margin-bottom: var(--space-3);
+}
+
 /* Client timeline */
 .timeline {
   list-style: none;

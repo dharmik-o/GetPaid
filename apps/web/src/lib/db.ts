@@ -1,4 +1,5 @@
 import pg from "pg";
+import { demoOffsetSeconds } from "./clock";
 import { loadServerEnv } from "./env";
 
 // Server-only. Dashboard code reaches the database only through `runAsUser`, which acts as
@@ -24,6 +25,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const isUuid = (value: string): boolean => UUID.test(value);
 
+/** Lets Postgres's own timestamps follow the demo clock, for this transaction only. */
+export const applyDemoClock = async (conn: Db): Promise<void> => {
+  const seconds = demoOffsetSeconds();
+  if (seconds === 0) return;
+  await conn.query("SELECT set_config('app.demo_clock_offset_seconds', $1, true)", [String(seconds)]);
+};
+
 /** One transaction as `authenticated` with `sub = userId`; committed on success, rolled back on error. */
 export const runAsUser = async <T>(
   conn: Db,
@@ -33,6 +41,7 @@ export const runAsUser = async <T>(
   if (!isUuid(userId)) throw new Error("The signed-in user is not a valid user id. Sign in again.");
   await conn.query("BEGIN");
   try {
+    await applyDemoClock(conn);
     await conn.query("SET LOCAL ROLE authenticated");
     await conn.query("SELECT set_config('request.jwt.claims', $1, true)", [
       JSON.stringify({ sub: userId, role: "authenticated" }),

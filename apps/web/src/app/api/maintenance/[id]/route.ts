@@ -1,4 +1,5 @@
 import { currentUserId } from "@/lib/auth";
+import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { maintenanceHandlers } from "@/lib/maintenance-handlers";
@@ -11,7 +12,7 @@ const handlers = maintenanceHandlers({
   runAsCurrent: runAsCurrentUser,
   runAsUser: withUserDb,
   box: secretBox,
-  now: () => new Date(),
+  now: () => appNow(),
   laws: STATUTES,
   paypal: paypalFromEnv,
 });

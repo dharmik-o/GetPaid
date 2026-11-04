@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listClients, type Client } from "@/lib/clients";
+import { appNow } from "@/lib/clock";
 import { formatDaysAgo, formatMoney } from "@/lib/format";
 import { runAsCurrentUser } from "@/lib/request-user";
 
@@ -20,7 +21,7 @@ const OpenBalance = ({ client }: { client: Client }) =>
 
 const ClientsPage = async () => {
   const clients = await runAsCurrentUser((db) => listClients(db));
-  const now = new Date();
+  const now = appNow();
   return (
     <div className="page">
       <div className="page-header">
