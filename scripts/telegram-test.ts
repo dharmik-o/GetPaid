@@ -71,7 +71,8 @@ const run = async (db: SqlClient): Promise<void> => {
     process.exitCode = 1;
     return;
   }
-  say("PASSED: Telegram confirmed the card. Check your phone, then tap Approve, Edit or Skip.");
+  say("CARD DELIVERED: Telegram confirmed it. Your taps aren't checked yet.");
+  say("Check your phone, then tap Approve, Edit or Skip.");
   say("See what your tap did: npm run telegram:test -- status");
   say("Remove the test draft: npm run telegram:test -- remove");
 };
