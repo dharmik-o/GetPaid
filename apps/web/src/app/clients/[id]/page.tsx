@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ClientForm } from "@/components/ClientForm";
 import { ClientInvoiceDetailsForm } from "@/components/ClientInvoiceDetailsForm";
 import { DeleteClientButton } from "@/components/DeleteClientButton";
+import { Timeline } from "@/components/Timeline";
+import { getOwnTimeZone } from "@/lib/account";
 import { getClient } from "@/lib/clients";
 import { allTimeZones, COUNTRIES } from "@/lib/countries";
 import { isUuid } from "@/lib/db";
@@ -11,20 +13,24 @@ import { getClientDetails } from "@/lib/invoice-details";
 import { listTemplates } from "@/lib/invoice-templates";
 import { listProjectsForClient } from "@/lib/projects";
 import { runAsCurrentUser } from "@/lib/request-user";
+import { loadClientTimeline } from "@/lib/timeline";
 
-// One client: details and totals. The history timeline (messages, replies, payments) comes in M10.
+// One client: details, totals and the evidence timeline (messages, replies, payments, events).
 
 export const dynamic = "force-dynamic";
 
 const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const { client, projects, invoiceDetails, templates } = await runAsCurrentUser(async (db) => ({
+  const data = await runAsCurrentUser(async (db) => ({
     client: await getClient(db, id),
     projects: await listProjectsForClient(db, id),
     invoiceDetails: await getClientDetails(db, id),
     templates: await listTemplates(db),
+    timeline: await loadClientTimeline(db, id),
+    ownZone: await getOwnTimeZone(db),
   }));
+  const { client, projects, invoiceDetails, templates, timeline, ownZone } = data;
   if (!client) notFound();
 
   return (
@@ -88,6 +94,8 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           </table>
         )}
       </section>
+
+      <Timeline entries={timeline} clientZone={client.timeZone} ownZone={ownZone} />
 
       <section className="card" aria-labelledby="edit">
         <h2 id="edit">Edit details</h2>

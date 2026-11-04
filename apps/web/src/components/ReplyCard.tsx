@@ -13,7 +13,7 @@ import {
   type InstallmentItem,
 } from "@/lib/installments";
 import type { ReplyItem } from "@/lib/reply-review";
-import { primaryLabel } from "@/lib/reply-labels";
+import { primaryLabel, REPLY_LABEL_NAMES } from "@/lib/reply-labels";
 
 // A client's reply, and what the AI thinks it says. The AI only suggests: nothing changes until
 // the freelancer chooses, and any split's amounts and dates are theirs. The client's words are
@@ -22,15 +22,6 @@ import { primaryLabel } from "@/lib/reply-labels";
 export type SplitOffer = { remainderCents: number; items: InstallmentItem[] };
 
 type Props = { reply: ReplyItem; offer: SplitOffer | null };
-
-const LABEL_NAMES: Record<ReplyItem["label"], string> = {
-  promise: "Promises to pay",
-  installments: "Asks to pay in parts",
-  paid_elsewhere: "Says they've paid",
-  dispute: "Disputes the work",
-  out_of_office: "Out of office",
-  unclear: "Unclear",
-};
 
 const FIELD_NAMES = { items: "Installments" };
 
@@ -186,7 +177,7 @@ export const ReplyCard = ({ reply, offer }: Props) => {
       </div>
       <p className="outbox-body">{reply.text}</p>
       <p>
-        <span className="chip">AI suggestion: {LABEL_NAMES[reply.label]}</span>
+        <span className="chip">AI suggestion: {REPLY_LABEL_NAMES[reply.label]}</span>
         {reply.summary}
       </p>
       <p className="field-hint">
@@ -195,7 +186,7 @@ export const ReplyCard = ({ reply, offer }: Props) => {
       </p>
       {reply.label === "dispute" ? (
         <p>
-          <Link href={`/clients/${reply.clientId}`}>Open this client&apos;s evidence timeline</Link>
+          <Link href={`/clients/${reply.clientId}#timeline`}>Open this client&apos;s evidence timeline</Link>
         </p>
       ) : null}
       {error ? (

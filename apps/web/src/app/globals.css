@@ -649,3 +649,52 @@ label.inline {
     flex-basis: 100%;
   }
 }
+
+/* Client timeline */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline-row {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.timeline-row:first-child {
+  border-top: 0;
+}
+
+.timeline-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.timeline-payment {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.timeline-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.timeline-title {
+  margin: 0;
+}
+
+.timeline-text {
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

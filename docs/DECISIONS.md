@@ -521,3 +521,9 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **More forms now count as amounts,** because they used to slip past the check entirely: `1,500€`, `USD1,500`, `RM500`, `1,500 kr` and any Unicode currency symbol such as `₩`. An unknown symbol only matches itself, so `₩1,500` is refused on a USD invoice.
 - **"Due 15 Dec 2026 USD 1,500.00" no longer reads 2026 as an amount,** which would have refused a correct draft.
 - **Not covered:** amounts in words ("1,500 dollars", "fifteen hundred euros") still aren't recognised, as before. You'd see them before approving.
+
+### Client timeline (5 Nov 2026)
+
+- **Only listed event types show.** `lib/timeline.ts` has the words for each one, and anything else stays hidden, so a new event type can't leak internal detail onto the page. Left out on purpose: `reminder.drafted`, `paypal.webhook` and account events such as `gmail.connected`, which aren't evidence about a client.
+- **A sent email comes from its `reminder.sent` event and draft,** not from the `messages` row, so one send isn't listed twice and its tier can be named. Its text is behind a toggle to keep the page short.
+- **A reply shows the client's words as plain text,** with the AI's reading marked "AI suggestion", because it's a suggestion and not a fact.
