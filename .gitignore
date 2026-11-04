@@ -4,6 +4,7 @@
 node_modules/
 .next/
 .next-e2e/
+.next-build/
 *.log
 CLAUDE.local.md
 .claude/settings.local.json

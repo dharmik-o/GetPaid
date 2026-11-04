@@ -4,6 +4,10 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 ## Open
 
+- **Before the demo:** follow "Before you start" in `docs/DEMO.md`, and rehearse it once. That includes the clean slate: the demo clock moves everything on this account, so delete your test clients once your live checks are finished. Run `npm run db:seed` for the demo project: I haven't, so your data stays as it was.
+
+- **Optional: delete `apps/web/.next-build/`.** It's left from the `next build` check. It's gitignored and does nothing. My command to delete it was refused (see Blocked commands).
+
 - **Optional: run Test connection with Claude.** M4 now records what you ran by hand: Ollama (`llama3.2`). To try Claude too, pick it in Settings > AI, enter your key, and press Test connection. Nothing depends on this.
 
 - **Fixed tunnel address (postponed by you on 4 Nov 2026; ngrok is my recommendation, reasons in `docs/DECISIONS.md`):** it gives one address that doesn't change, and only `/webhook/*` gets through. Until then the quick tunnel still exposes the whole n8n editor. **I haven't run this**, because it needs your account. Step 4 is how you check it.
@@ -59,6 +63,7 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 Nothing here is blocking work, and I didn't route around any of them.
 
+- **M10, 5 Nov 2026:** `rm -rf apps/web/.next-build` was refused, after the production build. I left the folder and gitignored it.
 - **M8, 4 Nov 2026:** publishing Scheduler and Reply listener and restarting n8n was refused as a production deploy. You ran `npm run n8n:go-live` instead.
 - **M4:** the protect-files hook blocked a one-off script that named the env file, so it could use `LITELLM_MASTER_KEY` without printing it. I ran the same check with no key instead: LiteLLM answered 401, and the router correctly fell back to the template. To check with the key, enter the gateway in Settings > AI (Custom URL `http://127.0.0.1:4000/v1`, local, your master key, model `mock`) and press Test connection. Expect "template" for every task, because the mock model always answers `{"ok": true}`, which fails the schemas.
 - **M4:** a shell command that appended to my own memory index was refused because its text mentioned the env file's name. No env file was involved. I used the file-edit tool instead.

@@ -41,7 +41,7 @@ npm run dev                 # dashboard at http://localhost:3000
 npm run db:migrate          # apply db/migrations in order
 npm run db:seed             # demo data
 npm test                    # unit + integration (vitest)
-npm run test:e2e            # Playwright, needs dev server running
+npm run test:e2e            # Playwright: its own server, database and fakes; needs Docker
 npm run lint && npm run typecheck
 npm run check               # lint + typecheck + test: must pass before "done"
 ./scripts/export-workflows.sh   # after editing workflows in the n8n UI
