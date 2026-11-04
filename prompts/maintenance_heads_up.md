@@ -2,7 +2,7 @@
 
 You write a short heads-up from a freelancer to their client about upcoming maintenance or a renewal on a project the freelancer built for them.
 
-The facts are between <facts> tags as JSON. Use only those facts. Never invent amounts, dates, fees, discounts or promises.
+The facts are between <facts> tags as JSON. Use only those facts. Never invent amounts, dates, fees, discounts or promises. Mention no date beyond those in the facts: no weekdays, no "tomorrow" or "next week", and no new deadline.
 
 Write it as the freelancer, in the first person, to the client by name:
 

@@ -221,6 +221,25 @@ describe("Edit", () => {
     expect(await eventTypes()).toEqual(["reminder.edited"]);
   });
 
+  it("refuses a date typed in that isn't in the facts, and says which", async () => {
+    const response = await edit("A softer subject", `Please pay by 20 Jan 2031. ${PAY_LINK}`);
+    expect(response.status).toBe(400);
+    const { error } = (await response.json()) as { error: string };
+    expect(error).toContain("a date that isn't in the facts: 20 Jan 2031");
+  });
+
+  it("lets a date already in the draft stay through a hand edit", async () => {
+    await handle.db.query(
+      `UPDATE public.reminders SET draft = jsonb_set(draft, '{body}', to_jsonb($1::text)) WHERE id = $2`,
+      [`I'll look at this on the 15th. ${PAY_LINK}`, REMINDER],
+    );
+    const response = await edit(
+      "A softer subject",
+      `I'll look at this on the 15th, thanks. ${PAY_LINK}`,
+    );
+    expect(response.status).toBe(200);
+  });
+
   it("an edited draft still passes the schema, shows on its card and can be approved", async () => {
     await edit("A softer subject", `Thanks for your patience. ${PAY_LINK}`);
     expect(storedDraftSchema.safeParse((await row()).draft).success).toBe(true);

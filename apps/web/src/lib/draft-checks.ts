@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { draftSchema, type Draft } from "./ai-schemas";
+import { unknownDates } from "./draft-dates";
 import type { DraftRequest } from "./draft-facts";
 import { legalProblem, type Law } from "./legal";
 
@@ -51,11 +52,35 @@ const factTexts = (request: DraftRequest): string[] =>
     return [];
   });
 
+/** Names a draft may quote word for word, even if one looks like a date ("March 15 launch"). */
+const quotedNames = (request: DraftRequest): string[] => {
+  const { facts } = request;
+  if (request.kind === "maintenance") {
+    return [request.facts.freelancerName, request.facts.clientName, request.facts.projectTitle, request.facts.task];
+  }
+  const reminder = request.facts;
+  return [
+    facts.freelancerName,
+    facts.clientName,
+    facts.projectTitle,
+    reminder.milestoneName,
+    reminder.deliverable ?? "",
+    reminder.invoiceNumber,
+    reminder.citation?.text ?? "",
+  ];
+};
+
+export type DraftCheckOptions = {
+  /** The freelancer's own words: a date they named or already approved can stay in the draft. */
+  alsoAllowed?: readonly string[];
+};
+
 /** Problems with a schema-valid draft, in words the log and tests can show. Empty = fine. */
 export const draftProblems = (
   draft: Draft,
   request: DraftRequest,
   laws: readonly Law[] = [],
+  { alsoAllowed = [] }: DraftCheckOptions = {},
 ): string[] => {
   const problems: string[] = [];
   const text = `${draft.subject}\n${draft.body}`;
@@ -72,6 +97,14 @@ export const draftProblems = (
   const allowed = new Set(factTexts(request).flatMap(amountsIn));
   const invented = amountsIn(text).filter((key) => !allowed.has(key));
   if (invented.length > 0) problems.push("it mentions an amount that isn't in the facts");
+  const dates = unknownDates(text, {
+    facts: factTexts(request),
+    quoted: quotedNames(request),
+    alsoAllowed,
+  });
+  for (const date of dates) {
+    problems.push(`it mentions a date that isn't in the facts: ${date}`);
+  }
   // Legal gating: only Tier 3 may cite, and only what it was given.
   const legal = legalProblem(text, {
     citation: request.kind === "tier3" ? request.facts.citation : null,
@@ -86,9 +119,10 @@ export const draftProblems = (
 export const checkedDraftSchema = (
   request: DraftRequest,
   laws: readonly Law[] = [],
+  options: DraftCheckOptions = {},
 ): z.ZodType<Draft> =>
   draftSchema.superRefine((draft, ctx) => {
-    for (const message of draftProblems(draft, request, laws)) {
+    for (const message of draftProblems(draft, request, laws, options)) {
       ctx.addIssue({ code: "custom", message });
     }
   });

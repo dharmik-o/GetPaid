@@ -146,7 +146,10 @@ export const editDraft = async (
   const request = await requestFor(db, id, now, laws);
   if (!request) return NOT_FOUND;
   if (typeof request === "string") return conflict(request);
-  const problems = draftProblems(edit, request, laws);
+  // A date already in the draft stays allowed: it came from the facts or the freelancer's note.
+  const problems = draftProblems(edit, request, laws, {
+    alsoAllowed: [current.data.subject, current.data.body],
+  });
   if (problems.length > 0) {
     return {
       status: "invalid",

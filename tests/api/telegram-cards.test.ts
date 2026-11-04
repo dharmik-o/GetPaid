@@ -325,6 +325,24 @@ describe("plain-word edits", () => {
     expect(card?.text).toContain(NEW.subject);
   });
 
+  it("a date the freelancer names in the note can go in the redraft", async () => {
+    await delivered(REMINDER, 501);
+    await tap(`e:${REMINDER}`);
+    const withDate = { ...NEW, body: `${NEW.body}\nI can look at this again on the 15th.` };
+    model(withDate);
+    await say("make it softer and mention the 15th");
+    expect((await row()).draft).toMatchObject({ body: withDate.body, via: "model" });
+  });
+
+  it("a date nobody named keeps the old draft", async () => {
+    await delivered(REMINDER, 501);
+    await tap(`e:${REMINDER}`);
+    const before = (await row()).draft;
+    model({ ...NEW, body: `${NEW.body}\nPlease pay by 20 Dec 2026.` });
+    await say("make it softer");
+    expect((await row()).draft).toEqual(before);
+  });
+
   it("the message after that is ignored: one edit, one instruction", async () => {
     await tap(`e:${REMINDER}`);
     model(NEW);

@@ -2,7 +2,7 @@
 
 You write a short, friendly courtesy note from a freelancer to their client. The invoice isn't due yet; this is a heads-up a few days before the due date, not a reminder that anything is late.
 
-The facts are between <facts> tags as JSON. Use only those facts. Never invent amounts, dates, fees, laws, discounts or promises, and never say the invoice is late.
+The facts are between <facts> tags as JSON. Use only those facts. Never invent amounts, dates, fees, laws, discounts or promises, and never say the invoice is late. Mention no date beyond those in the facts: no weekdays, no "tomorrow" or "next week", and no new deadline.
 
 Write it as the freelancer, in the first person, to the client by name:
 

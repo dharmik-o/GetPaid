@@ -86,7 +86,10 @@ export const redraftReminder = async (
   // The model call runs outside any transaction: it can take a minute on a local model.
   const result = await routeTask(connections, {
     messages: redraftMessages(request, current, feedback),
-    schema: checkedDraftSchema(request, deps.laws),
+    // The note can name a date, as in "mention the 15th": the card it makes still needs approval.
+    schema: checkedDraftSchema(request, deps.laws, {
+      alsoAllowed: [feedback, current.subject, current.body],
+    }),
   });
   if (!result.ok || result.via !== "model") {
     logEvent("telegram.redraft_failed", { reminderId });

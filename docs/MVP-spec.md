@@ -331,6 +331,11 @@ The stack from v1 stays. The scheduler now runs hourly instead of daily, so mess
 
 The AI suggests and drafts. Money, status changes and legal claims stay under hard rules.
 
+**Dates**
+
+- Every date in a draft, in any common format, must be in the facts. The same date in another format passes ("May 15, 2027" for "15 May 2027"). Relative dates such as "next Friday" count as new dates. A draft that fails is treated like any invalid draft.
+- A date the freelancer named in a plain-word edit counts for that redraft, and a date already in a draft can stay through a hand edit.
+
 **Legal**
 
 - Tier 3 may cite only the contract's own late-fee clause or a law from a verified table keyed to the client's country. Starting entries: UK Late Payment of Commercial Debts (Interest) Act 1998, EU Late Payment Directive 2011/7/EU, India MSMED Act 2006 (for registered MSMEs), and NYC Freelance Isn't Free Act.
