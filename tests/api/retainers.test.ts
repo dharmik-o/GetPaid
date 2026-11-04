@@ -3,6 +3,10 @@ import { setupServer } from "msw/node";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { clientHandlers } from "@/lib/client-handlers";
 import { createSecretBox } from "@/lib/crypto";
+import { saveGmailConnection } from "@/lib/gmail-account";
+import { listOutbox } from "@/lib/outbox";
+import { outboxHandlers } from "@/lib/outbox-handlers";
+import { senderHandler } from "@/lib/sender-handler";
 import { runAsUser, type Db } from "@/lib/db";
 import { loadInvoiceDocument } from "@/lib/invoice-document-data";
 import { createPaypalClient } from "@/lib/paypal";
@@ -18,6 +22,12 @@ import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
 import { TEST_LAWS } from "../fixtures/statutes";
 import {
+  createFakeGmail,
+  FAKE_GMAIL_ADDRESS,
+  FAKE_REFRESH_TOKEN,
+  type FakeGmail,
+} from "../mocks/gmail";
+import {
   createFakePaypal,
   FAKE_WEBHOOK_ID,
   VALID_SIGNATURE,
@@ -29,6 +39,7 @@ import {
 
 let handle: TestDatabase;
 let fake: FakePaypal;
+let gmail: FakeGmail;
 const server = setupServer();
 const box = createSecretBox(randomBytes(32));
 
@@ -41,7 +52,16 @@ let clock = NOW;
 const paypal = () => createPaypalClient({ clientId: "id", clientSecret: "secret" });
 const asA = <T>(work: (db: Db) => Promise<T>) => runAsUser(handle.db, A, work);
 
-const handlers = () => retainerHandlers({ runAsUser: asA, paypal, now: () => clock });
+const handlers = () =>
+  retainerHandlers({
+    currentUser: () => A,
+    runAsCurrent: asA,
+    runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+    box: () => box,
+    laws: TEST_LAWS,
+    paypal,
+    now: () => clock,
+  });
 
 const schedulerDeps = () => ({
   runAsService: <T>(work: (db: Db) => Promise<T>) => runAsService(handle.db, work),
@@ -193,6 +213,14 @@ beforeAll(async () => {
     CHAT_ID,
     A,
   ]);
+  await asA((db) =>
+    saveGmailConnection(db, {
+      userId: A,
+      refreshToken: FAKE_REFRESH_TOKEN,
+      email: FAKE_GMAIL_ADDRESS,
+      box,
+    }),
+  );
   server.listen({ onUnhandledFrame: "error" });
 }, 60_000);
 
@@ -204,7 +232,8 @@ afterAll(async () => {
 beforeEach(async () => {
   clock = NOW;
   fake = createFakePaypal();
-  server.resetHandlers(...fake.handlers);
+  gmail = createFakeGmail();
+  server.resetHandlers(...fake.handlers, ...gmail.handlers);
   await handle.db.query("DELETE FROM public.retainers");
   await handle.db.query("DELETE FROM public.reminders");
   await handle.db.query(`UPDATE public.invoices SET status = 'cancelled'`);
@@ -339,7 +368,11 @@ describe("cancelling", () => {
   it("can't touch another freelancer's retainer", async () => {
     const id = await createAutoPay();
     const other = retainerHandlers({
-      runAsUser: (work) => runAsUser(handle.db, USER_B.userId, work),
+      currentUser: () => USER_B.userId,
+      runAsCurrent: (work) => runAsUser(handle.db, USER_B.userId, work),
+      runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+      box: () => box,
+      laws: TEST_LAWS,
       paypal,
       now: () => clock,
     });
@@ -911,5 +944,221 @@ describe("a client's reply on a retainer invoice", () => {
 
   it("still offers one on a milestone invoice", () => {
     expect(suggestionFor(classification, "2026-12-07")).toEqual({ kind: "split" });
+  });
+});
+
+describe("the auto-pay approval email", () => {
+  const TOKEN = "t".repeat(64);
+  const CLIENT_EMAIL = "client-a@example.test";
+
+  const emails = async (retainerId: string) =>
+    (
+      await handle.db.query<{
+        id: string;
+        tier: string;
+        approval_status: string;
+        sent_at: Date | null;
+        draft: unknown;
+      }>(
+        `SELECT id::text, tier, approval_status, sent_at, draft FROM public.reminders
+         WHERE retainer_id = $1 ORDER BY created_at`,
+        [retainerId],
+      )
+    ).rows;
+
+  const linkOf = async (retainerId: string): Promise<string> => {
+    const { rows } = await handle.db.query<{ link: string }>(
+      "SELECT paypal_approval_link AS link FROM public.retainers WHERE id = $1",
+      [retainerId],
+    );
+    return rows[0]?.link ?? "";
+  };
+
+  const send = (allowlist = [CLIENT_EMAIL]) =>
+    senderHandler({
+      runAsService: <T>(work: (db: Db) => Promise<T>) => runAsService(handle.db, work),
+      runAsUser:
+        (userId: string) =>
+        <T>(work: (db: Db) => Promise<T>) =>
+          runAsUser(handle.db, userId, work),
+      now: () => clock,
+      box: () => box,
+      oauth: () => ({ clientId: "id", clientSecret: "secret", redirectUri: "http://x" }),
+      token: () => TOKEN,
+      allowlist: () => new Set(allowlist),
+      pdf: () => Promise.reject(new Error("This email has no PDF.")),
+    }).post(
+      new Request("http://127.0.0.1:3000/api/internal/sender/run", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` },
+        body: "{}",
+      }),
+    );
+
+  const outbox = (id: string, body: unknown) =>
+    outboxHandlers({ runAsUser: asA, now: () => clock, laws: TEST_LAWS }).post(
+      post(body),
+      context(id),
+    );
+
+  it("is drafted when auto-pay is set up, and waits for approval: nothing is sent", async () => {
+    const id = await createAutoPay();
+    const [email, ...rest] = await emails(id);
+    expect(rest).toEqual([]);
+    expect(email).toMatchObject({ tier: "auto_pay_approval", approval_status: "waiting", sent_at: null });
+    const draft = storedDraftSchema.parse(email?.draft);
+    expect(draft.kind).toBe("auto_pay_approval");
+    expect(draft.body).toContain(await linkOf(id));
+    await send();
+    expect(gmail.state.sent).toEqual([]);
+  });
+
+  it("has the approval link as its only link", async () => {
+    const id = await createAutoPay();
+    const draft = storedDraftSchema.parse((await emails(id))[0]?.draft);
+    const links = draft.body.match(/https?:\/\/\S+/g) ?? [];
+    expect(links).toEqual([await linkOf(id)]);
+  });
+
+  it("isn't made for invoice-each-cycle, or when PayPal setup failed", async () => {
+    const { body } = await create();
+    expect(await emails(body.id)).toEqual([]);
+    const { http, HttpResponse } = await import("msw");
+    server.use(
+      http.post(
+        "https://api-m.sandbox.paypal.com/v1/billing/subscriptions",
+        () => new HttpResponse(null, { status: 500 }),
+        { once: true },
+      ),
+    );
+    const failed = await create({ method: "auto_pay", name: "Failed setup" });
+    expect(failed.response.status).toBe(502);
+    const [saved] = await listRetainersForA();
+    expect(await emails(saved?.id ?? "")).toEqual([]);
+    await handlers().act(post({ action: "setup" }), context(saved?.id ?? ""));
+    expect(await emails(saved?.id ?? "")).toHaveLength(1);
+  });
+
+  it("repeating setup keeps one draft", async () => {
+    const id = await createAutoPay();
+    await handlers().act(post({ action: "setup" }), context(id));
+    expect(await emails(id)).toHaveLength(1);
+  });
+
+  it("sits in the Outbox with the fee, and goes out only after approval, with no attachment", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    const items = await asA((db) => listOutbox(db, "waiting", clock));
+    expect(items).toContainEqual(
+      expect.objectContaining({
+        id: email?.id,
+        tier: "auto_pay_approval",
+        clientName: "Client a",
+        payLink: await linkOf(id),
+      }),
+    );
+    expect((await outbox(email?.id ?? "", { action: "approve" })).status).toBe(200);
+    await send();
+    expect(gmail.state.sent).toHaveLength(1);
+    const raw = Buffer.from(gmail.state.sent[0]?.raw ?? "", "base64url").toString("utf8");
+    expect(raw).not.toContain("application/pdf");
+    expect((await emails(id))[0]?.sent_at).not.toBeNull();
+    const { rows } = await handle.db.query<{ retainer_id: string; invoice_id: null }>(
+      "SELECT retainer_id::text, invoice_id FROM public.messages WHERE retainer_id = $1",
+      [id],
+    );
+    expect(rows).toEqual([{ retainer_id: id, invoice_id: null }]);
+  });
+
+  it("is refused for an address not on the allowlist", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    await outbox(email?.id ?? "", { action: "approve" });
+    await send([]);
+    expect(gmail.state.sent).toEqual([]);
+  });
+
+  it("an edit that drops the link or adds another isn't saved", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    const link = await linkOf(id);
+    for (const body of ["Please approve auto-pay.", `${link}\nAlso https://example.test/x`]) {
+      expect((await outbox(email?.id ?? "", { action: "edit", subject: "Auto-pay", body })).status).toBe(400);
+    }
+  });
+
+  it("the client approving stops a draft that hasn't gone out", async () => {
+    const id = await createAutoPay();
+    const subscription = await subscriptionOf(id);
+    fake.setSubscription(subscription, { status: "ACTIVE" });
+    await deliver("BILLING.SUBSCRIPTION.ACTIVATED", { id: subscription });
+    expect((await emails(id))[0]?.approval_status).toBe("skipped");
+  });
+
+  it("an approved draft stops too, if the client approved before it went", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    await outbox(email?.id ?? "", { action: "approve" });
+    const subscription = await subscriptionOf(id);
+    fake.setSubscription(subscription, { status: "ACTIVE" });
+    await deliver("BILLING.SUBSCRIPTION.ACTIVATED", { id: subscription });
+    await send();
+    expect(gmail.state.sent).toEqual([]);
+  });
+
+  it("cancelling the retainer stops it", async () => {
+    const id = await createAutoPay();
+    await handlers().act(post({ action: "cancel" }), context(id));
+    expect((await emails(id))[0]?.approval_status).toBe("skipped");
+  });
+
+  it("the sender stops one whose retainer is no longer waiting, however it got there", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    await outbox(email?.id ?? "", { action: "approve" });
+    await handle.db.query("UPDATE public.retainers SET status = 'active' WHERE id = $1", [id]);
+    await send();
+    expect(gmail.state.sent).toEqual([]);
+    expect((await emails(id))[0]?.approval_status).toBe("skipped");
+  });
+
+  it("a skipped draft can be made again, and the card shows where it stands", async () => {
+    const id = await createAutoPay();
+    const [email] = await emails(id);
+    const stateOf = async () => (await listRetainersForA()).find((r) => r.id === id)?.approvalEmail;
+    expect(await stateOf()).toBe("waiting");
+    await outbox(email?.id ?? "", { action: "skip" });
+    expect(await stateOf()).toBe("none");
+    expect((await handlers().act(post({ action: "email" }), context(id))).status).toBe(204);
+    expect(await emails(id)).toHaveLength(2);
+    expect(await stateOf()).toBe("waiting");
+  });
+
+  it("the link isn't handed to the browser outside the draft", async () => {
+    await createAutoPay();
+    const text = await (await handlers().list()).text();
+    expect(text).not.toContain("ba_token");
+  });
+
+  it("the scheduler writes it if the first attempt never finished", async () => {
+    const id = await createAutoPay();
+    await handle.db.query("UPDATE public.reminders SET draft = NULL WHERE retainer_id = $1", [id]);
+    await runScheduler(schedulerDeps());
+    expect(storedDraftSchema.parse((await emails(id))[0]?.draft).kind).toBe("auto_pay_approval");
+  });
+
+  it("another freelancer can't draft it", async () => {
+    const id = await createAutoPay();
+    const other = retainerHandlers({
+      currentUser: () => USER_B.userId,
+      runAsCurrent: (work) => runAsUser(handle.db, USER_B.userId, work),
+      runAsUser: (userId) => (work) => runAsUser(handle.db, userId, work),
+      box: () => box,
+      laws: TEST_LAWS,
+      paypal,
+      now: () => clock,
+    });
+    expect((await other.act(post({ action: "email" }), context(id))).status).toBe(404);
+    expect(await emails(id)).toHaveLength(1);
   });
 });

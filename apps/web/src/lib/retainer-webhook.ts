@@ -152,6 +152,15 @@ type Applied = {
   cancelSubscription?: boolean;
 };
 
+/** The client has answered, or it's cancelled: an approval email not yet sent is stopped. */
+const skipApprovalEmail = (db: Db, retainerId: string) =>
+  db.query(
+    `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
+     WHERE retainer_id = $1 AND sent_at IS NULL AND send_attempted_at IS NULL
+       AND approval_status IN ('waiting', 'approved')`,
+    [retainerId],
+  );
+
 const applyStatus = async (
   db: Db,
   retainer: Local,
@@ -171,6 +180,9 @@ const applyStatus = async (
      WHERE id = $1`,
     [retainer.id, next],
   );
+  if (retainer.status === "pending_approval" && next !== "pending_approval") {
+    await skipApprovalEmail(db, retainer.id);
+  }
   // Gone for good: there's nothing left to suspend or reactivate. Open invoices stay owed.
   if (next === "cancelled" || next === "ended") {
     await db.query(

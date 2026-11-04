@@ -1,4 +1,4 @@
-import type { MaintenanceFacts, ReminderFacts } from "@/lib/draft-facts";
+import type { AutoPayFacts, MaintenanceFacts, ReminderFacts } from "@/lib/draft-facts";
 
 // Made-up facts for drafting tests: fake names and a fake sandbox pay link.
 
@@ -19,6 +19,21 @@ export const reminderFacts = (overrides: Partial<ReminderFacts> = {}): ReminderF
   installment: null,
   payLink: PAY_LINK,
   citation: null,
+  ...overrides,
+});
+
+export const APPROVAL_LINK =
+  "https://www.sandbox.paypal.com/webapps/billing/subscriptions?ba_token=BA-TEST-0001";
+
+export const autoPayFacts = (overrides: Partial<AutoPayFacts> = {}): AutoPayFacts => ({
+  freelancerName: "Alex Rivera",
+  clientName: "Sam Lee",
+  retainerName: "Monthly hosting",
+  amount: "USD 200.00",
+  repeat: "every month",
+  firstCharge: "7 Dec 2026",
+  lastCharge: null,
+  approvalLink: APPROVAL_LINK,
   ...overrides,
 });
 

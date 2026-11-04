@@ -27,6 +27,7 @@ export const PROMPT_FILES = [
   "tier2_firm",
   "tier3_final_notice",
   "maintenance_heads_up",
+  "auto_pay_approval",
   "invoice_text",
   "redraft_from_feedback",
   "classify_reply",

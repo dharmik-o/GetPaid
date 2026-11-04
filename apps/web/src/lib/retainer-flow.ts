@@ -137,6 +137,12 @@ export const cancelRetainer = async (deps: RetainerFlowDeps, id: string): Promis
       [id],
     );
     await db.query(
+      `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
+       WHERE retainer_id = $1 AND sent_at IS NULL AND send_attempted_at IS NULL
+         AND approval_status IN ('waiting', 'approved')`,
+      [id],
+    );
+    await db.query(
       `INSERT INTO public.events (user_id, entity, entity_id, type, payload)
        VALUES ((SELECT auth.uid()), 'retainer', $1, 'retainer.cancelled', $2)`,
       [id, JSON.stringify({ by: "freelancer" })],

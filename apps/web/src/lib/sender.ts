@@ -7,7 +7,7 @@ import { GmailAuthExpired, GmailError, gmailClient, type GmailClient } from "./g
 import { loadGmailRefreshToken, markGmailNeedsReconnect } from "./gmail-account";
 import type { PdfFile } from "./invoice-pdfs";
 import { errorKind, logEvent } from "./log";
-import { loadMaintenanceContext } from "./maintenance-context";
+import { loadStandaloneContext, type StandaloneSource } from "./standalone-draft";
 import { loadReminderContext } from "./reminder-context";
 import { buildReminderEmail, toGmailRaw } from "./reminder-email";
 import { isInsideWindow, todayIn } from "./schedule";
@@ -48,8 +48,26 @@ const RUN_LIMIT = 50;
 /** Enough of the chain for Gmail and mail clients; the first and the latest matter most. */
 const REFERENCES_KEPT = 10;
 
-/** What a send is about: an invoice, whose PDF goes with it, or a maintenance task. */
-type Source = { kind: "invoice"; invoiceId: string } | { kind: "maintenance"; taskId: string };
+/** What a send is about: an invoice, whose PDF goes with it, or an email with no invoice. */
+type Source = { kind: "invoice"; invoiceId: string } | StandaloneSource;
+
+/** Where a send's thread is kept, fixed by its kind, never from a request. */
+const THREAD_TABLES: Readonly<Record<Source["kind"], string>> = {
+  invoice: "invoices",
+  maintenance: "maintenance_tasks",
+  auto_pay_approval: "retainers",
+};
+
+const sourceId = (source: Source): string => {
+  switch (source.kind) {
+    case "invoice":
+      return source.invoiceId;
+    case "maintenance":
+      return source.taskId;
+    case "auto_pay_approval":
+      return source.retainerId;
+  }
+};
 
 type Ready = {
   source: Source;
@@ -68,7 +86,7 @@ type Ready = {
 type Step = { kind: "done" } | { kind: "held" } | { kind: "ready"; ready: Ready };
 
 type SendRow = {
-  maintenance_task_id: string | null;
+  has_invoice: boolean;
   draft: unknown;
   client_email: string;
   own_email: string | null;
@@ -80,17 +98,18 @@ type SendRow = {
 
 const loadSendRow = async (db: Db, id: string): Promise<SendRow | undefined> => {
   const { rows } = await db.query<SendRow>(
-    `SELECT r.maintenance_task_id::text, r.draft, r.send_blocked_reason, c.email AS client_email,
+    `SELECT r.invoice_id IS NOT NULL AS has_invoice, r.draft, r.send_blocked_reason, c.email AS client_email,
        u.gmail_email AS own_email, u.gmail_status,
-       coalesce(i.gmail_thread_id, mt.gmail_thread_id) AS gmail_thread_id,
-       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject) AS gmail_thread_subject
+       coalesce(i.gmail_thread_id, mt.gmail_thread_id, ar.gmail_thread_id) AS gmail_thread_id,
+       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject) AS gmail_thread_subject
      FROM public.reminders r
      LEFT JOIN public.invoices i ON i.id = r.invoice_id
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
      LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
-     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
+     LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
      JOIN public.users u ON u.id = r.user_id
      WHERE r.id = $1 AND r.approval_status = 'approved' AND r.sent_at IS NULL
        AND r.send_attempted_at IS NULL`,
@@ -196,24 +215,26 @@ const invoiceTarget = async (
   };
 };
 
-const maintenanceTarget = async (
+const standaloneTarget = async (
   db: Db,
   id: string,
   rawDraft: unknown,
   now: Date,
 ): Promise<Target | undefined> => {
-  const job = await loadMaintenanceContext(db, id);
-  if (!job) return undefined;
-  if (!job.taskActive) return { stop: "the job was stopped" };
-  if (job.aboutDue !== job.nextDue) return { stop: "the job's date has changed" };
+  const other = await loadStandaloneContext(db, id);
+  if (!other) return undefined;
+  if (other.stopReason) return { stop: other.stopReason };
   const draft = storedDraftSchema.safeParse(rawDraft);
   if (!draft.success) return { hold: "draft_invalid" };
-  const { settings, client } = job;
+  if (other.requiredLink && !draft.data.body.includes(other.requiredLink)) {
+    return { hold: "no_pay_link" };
+  }
+  const { settings, client } = other;
   if (settings.paused || isSnoozed(settings, client.timeZone, now)) return { hold: "paused" };
   return {
-    source: { kind: "maintenance", taskId: job.taskId },
-    tier: "maintenance",
-    freelancerName: job.freelancerName,
+    source: other.source,
+    tier: other.tier,
+    freelancerName: other.freelancerName,
     clientName: client.name,
     timeZone: client.timeZone,
     settings,
@@ -228,9 +249,9 @@ const prepare = async (deps: SenderDeps, db: Db, id: string, now: Date): Promise
   const previous = row.send_blocked_reason;
   const held = (reason: HoldReason) => hold(db, id, reason, previous);
 
-  const target = row.maintenance_task_id
-    ? await maintenanceTarget(db, id, row.draft, now)
-    : await invoiceTarget(db, id, row.draft, now);
+  const target = row.has_invoice
+    ? await invoiceTarget(db, id, row.draft, now)
+    : await standaloneTarget(db, id, row.draft, now);
   if (!target) return { kind: "done" };
   if ("stop" in target) return stop(db, id, target.stop);
   if ("hold" in target) return held(target.hold);
@@ -305,23 +326,21 @@ const recordSent = (
       [id, now],
     );
     const { source } = ready;
-    // The table name is fixed by the source's kind, never from a request.
-    const table = source.kind === "invoice" ? "invoices" : "maintenance_tasks";
-    const sourceId = source.kind === "invoice" ? source.invoiceId : source.taskId;
     await db.query(
-      `UPDATE public.${table}
+      `UPDATE public.${THREAD_TABLES[source.kind]}
        SET gmail_thread_id = coalesce(gmail_thread_id, $2),
            gmail_thread_subject = coalesce(gmail_thread_subject, $3)
        WHERE id = $1`,
-      [sourceId, sent.threadId, ready.subject],
+      [sourceId(source), sent.threadId, ready.subject],
     );
     await db.query(
-      `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, direction, body,
-         thread_id, gmail_message_id, rfc_message_id)
-       VALUES ((SELECT auth.uid()), $1, $2, 'out', $3, $4, $5, $6)`,
+      `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, retainer_id,
+         direction, body, thread_id, gmail_message_id, rfc_message_id)
+       VALUES ((SELECT auth.uid()), $1, $2, $3, 'out', $4, $5, $6, $7)`,
       [
         source.kind === "invoice" ? source.invoiceId : null,
         source.kind === "maintenance" ? source.taskId : null,
+        source.kind === "auto_pay_approval" ? source.retainerId : null,
         ready.draft.body,
         sent.threadId,
         sent.id,

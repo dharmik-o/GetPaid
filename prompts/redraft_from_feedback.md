@@ -10,7 +10,7 @@ Keep what makes it this email:
 
 - Written as the freelancer, in the first person, to the client by name.
 - The amount due (`amountDue`) written exactly as given.
-- The pay link (`payLink`) exactly as given, on its own line, and no other links.
+- The pay link (`payLink`) exactly as given, on its own line, and no other links. If the facts have an approval link (`approvalLink`) instead, the same goes for that.
 - If `citation` is set, its text exactly as given.
 - Signed off with the freelancer's name.
 

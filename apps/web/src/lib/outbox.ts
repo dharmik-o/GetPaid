@@ -19,7 +19,7 @@ export type OutboxItem = {
   /** "Website · Build · FPR-000042 · Installment 2 of 3" */
   what: string;
   amountDue: string;
-  tier: Tier | "maintenance";
+  tier: Tier | "maintenance" | "auto_pay_approval";
   /** Both zones; null for a skipped draft, which has no send time. */
   sendTime: string | null;
   /** The send time as the reschedule input's value, in the client's zone. */
@@ -56,7 +56,7 @@ const LIST_LIMIT = 200;
 
 type Row = {
   id: string;
-  tier: Tier | "maintenance";
+  tier: Tier | "maintenance" | "auto_pay_approval";
   approval_status: "waiting" | "approved" | "skipped";
   chat_id: string | null;
   message_id: string | null;
@@ -76,6 +76,9 @@ type Row = {
   task_cost_cents: unknown;
   task_currency: string | null;
   task_due_on: string | null;
+  approval_name: string | null;
+  approval_cents: unknown;
+  approval_currency: string | null;
   installment_number: number | null;
   installment_count: number | null;
   milestone_name: string | null;
@@ -92,9 +95,11 @@ type Row = {
 
 const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
-    r.send_blocked_reason, coalesce(i.gmail_thread_subject, mt.gmail_thread_subject) AS gmail_thread_subject,
+    r.send_blocked_reason, coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject) AS gmail_thread_subject,
     u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id, r.telegram_card_sent_at AS card_sent_at,
-    i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.link,
+    i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency,
+    coalesce(i.link, ar.paypal_approval_link) AS link, ar.name AS approval_name,
+    ar.amount_cents::text AS approval_cents, ar.currency AS approval_currency,
     i.installment_number, i.installment_count, mt.task AS task_name,
     mt.est_cost_cents::text AS task_cost_cents, mt.currency AS task_currency,
     r.maintenance_due_on::text AS task_due_on,
@@ -107,15 +112,17 @@ const SELECT = `
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
   LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
   LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
-  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
-  JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
+  LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id)
+  JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
   JOIN public.users u ON u.id = r.user_id
   WHERE r.draft IS NOT NULL`;
 
 const whatOf = (row: Row): string =>
   [
     row.title,
-    row.milestone_name ?? row.retainer_name ?? row.task_name,
+    row.milestone_name ?? row.retainer_name ?? row.task_name ?? row.approval_name,
+    row.approval_name === null ? null : "auto-pay approval",
     row.invoice_number,
     row.task_due_on === null ? null : `due ${formatDay(row.task_due_on)}`,
     row.installment_number === null || row.installment_count === null
@@ -129,6 +136,9 @@ const whatOf = (row: Row): string =>
 const amountOf = (row: Row): string => {
   if (row.currency !== null) {
     return formatMoney(toCents(row.amount_cents) - toCents(row.amount_paid_cents), row.currency);
+  }
+  if (row.approval_currency !== null) {
+    return formatMoney(toCents(row.approval_cents), row.approval_currency);
   }
   return row.task_cost_cents === null || row.task_currency === null
     ? "No cost given"

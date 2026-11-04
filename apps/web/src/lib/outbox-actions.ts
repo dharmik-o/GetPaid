@@ -3,7 +3,7 @@ import { draftProblems } from "./draft-checks";
 import type { DraftRequest } from "./draft-facts";
 import { notPayable, reminderFacts } from "./drafter";
 import type { Law } from "./legal";
-import { loadMaintenanceContext } from "./maintenance-context";
+import { loadStandaloneContext } from "./standalone-draft";
 import { loadReminderContext, type ReminderContext } from "./reminder-context";
 import { rescheduledSendAt } from "./schedule";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
@@ -59,8 +59,7 @@ const requestFor = async (
 ): Promise<DraftRequest | string | undefined> => {
   const ctx = await loadReminderContext(db, id);
   if (!ctx) {
-    const job = await loadMaintenanceContext(db, id);
-    return job ? { kind: "maintenance", facts: job.facts } : undefined;
+    return (await loadStandaloneContext(db, id))?.request;
   }
   const reason = notPayable(ctx);
   if (reason || !ctx.invoice.link) {
@@ -98,8 +97,13 @@ export const approveDraft = async (
   if (ctx) {
     const reason = cannotSend(ctx, draft.data);
     if (reason) return conflict(reason);
-  } else if (!(await loadMaintenanceContext(db, id))) {
-    return NOT_FOUND;
+  } else {
+    const other = await loadStandaloneContext(db, id);
+    if (!other) return NOT_FOUND;
+    if (other.stopReason) return conflict(`This draft can't go out: ${other.stopReason}. Skip it.`);
+    if (other.requiredLink && !draft.data.body.includes(other.requiredLink)) {
+      return conflict("This draft doesn't carry its link. Edit it to include the link.");
+    }
   }
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET approval_status = 'approved', approved_via = $2
@@ -195,7 +199,7 @@ export const rescheduleDraft = async (
   const state = await loadState(db, id);
   if (!state) return NOT_FOUND;
   if (state.approval_status === "skipped" || state.sent_at !== null) return ALREADY_HANDLED;
-  const ctx = (await loadReminderContext(db, id)) ?? (await loadMaintenanceContext(db, id));
+  const ctx = (await loadReminderContext(db, id)) ?? (await loadStandaloneContext(db, id));
   if (!ctx) return NOT_FOUND;
   const sendAt = rescheduledSendAt(at, now, ctx.settings.sendWindow, ctx.client.timeZone);
   if (!sendAt) {

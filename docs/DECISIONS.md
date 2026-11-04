@@ -473,3 +473,11 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Relative dates count as dates:** "tomorrow", "next Friday", "within 7 days" and "today" fail. `within 14 days` passes only when the terms are Net 14. This can cost a model answer ("I'm writing today"), and the retry and fixed template catch that. The prompts now say so.
 - **Names are quoted, not scanned:** a project called "March 15 launch" can be named. "You may pay", "my 2nd reminder", "24/7", invoice numbers and links aren't dates.
 - **Where the freelancer's own words count (please check this one):** you said to reject any date not in the facts. I kept one exception. In a plain-word edit on Telegram, a date named in the note is allowed for that redraft. Your spec's own example is "mention the 15th", the redraft prompt already says "in the facts or the note", and strict checking would answer "I couldn't redraft that" to that example. The result still waits for your approval. A date already in a draft can also stay through a hand edit, or fixing a typo would be refused. A new date typed in the Outbox is refused, as a new amount is. Say if you want either tightened.
+
+### The auto-pay approval link is an email draft (4 Nov 2026, your decision after M8)
+
+- **What changed, as you asked:** setting up auto-pay now makes an email draft with the approval link as its only link. It goes through the normal approval, Outbox, Telegram card, allowlist and sender. The check that refuses any other link is the same kind as the pay link's.
+- **The link no longer shows on the Retainers screen,** only inside the draft, so the one path to the client is the approved one. The screen says where the email stands.
+- **It's drafted once by itself.** After you skip it, nothing comes back unless you press Draft the approval email. Skipping is your decision, and a retried setup mustn't undo it.
+- **It stops if it's out of date:** the client approving, or you cancelling, stops a draft not yet sent, and the sender checks again just before sending.
+- **Same path as a heads-up:** both are "an email with no invoice" (`lib/standalone-draft.ts`), so the sender, Outbox and redraft have one extra path, not two. No PDF, and replies to it land in your Gmail unread by the app, as rule 7 covers invoice threads.

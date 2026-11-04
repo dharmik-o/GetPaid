@@ -9,7 +9,7 @@ import { draftTemplate } from "./draft-templates";
 import { pickCitation, type Law } from "./legal";
 import { formatFullDay, formatMoney, formatPaymentTerms } from "./format";
 import { logEvent } from "./log";
-import { loadMaintenanceContext } from "./maintenance-context";
+import { loadStandaloneContext } from "./standalone-draft";
 import { loadReminderContext, type ReminderContext } from "./reminder-context";
 import { daysOverdue } from "./schedule";
 import type { StoredDraft } from "./stored-draft";
@@ -90,12 +90,13 @@ const prepare = (
   deps.runAsUser(userId)(async (db): Promise<DraftOutcome | Ready> => {
     const ctx = await loadReminderContext(db, reminderId);
     if (!ctx) {
-      const job = await loadMaintenanceContext(db, reminderId);
-      if (!job) return { status: "not_found" };
-      if (job.approvalStatus !== "waiting") return { status: "handled" };
-      if (job.hasDraft) return { status: "exists" };
+      const other = await loadStandaloneContext(db, reminderId);
+      if (!other) return { status: "not_found" };
+      if (other.approvalStatus !== "waiting") return { status: "handled" };
+      if (other.hasDraft) return { status: "exists" };
+      if (other.stopReason) return { status: "handled" };
       return {
-        request: { kind: "maintenance", facts: job.facts },
+        request: other.request,
         connections: await loadAiConnections(db, "draft", deps.box()),
       };
     }

@@ -6,8 +6,8 @@ import { toFieldIssues, type FieldIssue } from "./field-issues";
 import { alertText, type AlertKind } from "./retainer-alerts";
 import { retainerCyclesBetween, todayIn, type RetainerDates } from "./schedule";
 
-// Server-only: retainers as the signed-in freelancer sees them (RLS). PayPal ids and request ids
-// stay here: only the client's approval link reaches the browser.
+// Server-only: retainers as the signed-in freelancer sees them (RLS). PayPal ids, request ids and
+// the approval link stay on the server: the link reaches the browser only inside its email draft.
 
 export type RetainerMethod = "auto_pay" | "invoice";
 export type RetainerStatus = "pending_approval" | "active" | "suspended" | "cancelled" | "ended";
@@ -40,8 +40,8 @@ export type Retainer = {
   status: RetainerStatus;
   /** Auto-pay is paused in PayPal until the invoice for a failed charge is paid. */
   pausedForInvoice: boolean;
-  /** Where the client approves auto-pay; null once approved. */
-  approvalLink: string | null;
+  /** Where the email asking the client to approve auto-pay stands. */
+  approvalEmail: "none" | "waiting" | "scheduled" | "sent";
   /** Auto-pay is set up in PayPal. False means the setup needs another try. */
   setUp: boolean;
   nextChargeOn: string | null;
@@ -171,7 +171,6 @@ type RetainerRow = {
   ends_on: string | null;
   method: RetainerMethod;
   status: RetainerStatus;
-  paypal_approval_link: string | null;
   paypal_subscription_id: string | null;
   hold_cycle_on: string | null;
 };
@@ -179,7 +178,7 @@ type RetainerRow = {
 export const SELECT_RETAINERS = `
   SELECT r.id::text, r.client_id::text, c.name AS client_name, c.time_zone, p.title AS project_title,
     r.name, r.amount_cents::text, r.currency, r.interval_unit, r.interval_count, r.starts_on::text,
-    r.ends_on::text, r.method, r.status, r.paypal_approval_link, r.paypal_subscription_id,
+    r.ends_on::text, r.method, r.status, r.paypal_subscription_id,
     r.auto_pay_hold_cycle_on::text AS hold_cycle_on
   FROM public.retainers r
   JOIN public.clients c ON c.id = r.client_id
@@ -249,9 +248,29 @@ const loadInvoices = async (db: Db): Promise<Map<string, RetainerInvoice[]>> => 
   return byRetainer;
 };
 
+const loadApprovalEmails = async (db: Db): Promise<Map<string, Retainer["approvalEmail"]>> => {
+  const { rows } = await db.query<{
+    retainer_id: string;
+    approval_status: string;
+    sent: boolean;
+  }>(
+    `SELECT retainer_id::text, approval_status, sent_at IS NOT NULL AS sent
+     FROM public.reminders WHERE retainer_id IS NOT NULL ORDER BY created_at`,
+  );
+  const states = new Map<string, Retainer["approvalEmail"]>();
+  for (const row of rows) {
+    if (row.sent) states.set(row.retainer_id, "sent");
+    else if (row.approval_status === "waiting") states.set(row.retainer_id, "waiting");
+    else if (row.approval_status === "approved") states.set(row.retainer_id, "scheduled");
+    else if (states.get(row.retainer_id) !== "sent") states.set(row.retainer_id, "none");
+  }
+  return states;
+};
+
 export const listRetainers = async (db: Db, now: Date): Promise<Retainer[]> => {
   const { rows } = await db.query<RetainerRow>(`${SELECT_RETAINERS} ORDER BY r.created_at DESC`);
   const invoices = await loadInvoices(db);
+  const approvalEmails = await loadApprovalEmails(db);
   return rows.map((row) => ({
     id: row.id,
     clientId: row.client_id,
@@ -267,7 +286,7 @@ export const listRetainers = async (db: Db, now: Date): Promise<Retainer[]> => {
     method: row.method,
     status: row.status,
     pausedForInvoice: row.hold_cycle_on !== null,
-    approvalLink: row.paypal_approval_link,
+    approvalEmail: approvalEmails.get(row.id) ?? "none",
     setUp: row.method !== "auto_pay" || row.paypal_subscription_id !== null,
     nextChargeOn: nextCharge(row, now),
     invoices: invoices.get(row.id) ?? [],

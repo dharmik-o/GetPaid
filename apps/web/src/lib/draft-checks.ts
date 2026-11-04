@@ -55,6 +55,9 @@ const factTexts = (request: DraftRequest): string[] =>
 /** Names a draft may quote word for word, even if one looks like a date ("March 15 launch"). */
 const quotedNames = (request: DraftRequest): string[] => {
   const { facts } = request;
+  if (request.kind === "auto_pay_approval") {
+    return [facts.freelancerName, facts.clientName, request.facts.retainerName];
+  }
   if (request.kind === "maintenance") {
     return [request.facts.freelancerName, request.facts.clientName, request.facts.projectTitle, request.facts.task];
   }
@@ -62,7 +65,7 @@ const quotedNames = (request: DraftRequest): string[] => {
   return [
     facts.freelancerName,
     facts.clientName,
-    facts.projectTitle,
+    reminder.projectTitle,
     reminder.milestoneName,
     reminder.deliverable ?? "",
     reminder.invoiceNumber,
@@ -85,7 +88,15 @@ export const draftProblems = (
   const problems: string[] = [];
   const text = `${draft.subject}\n${draft.body}`;
   if (/[\r\n]/.test(draft.subject)) problems.push("the subject has a line break");
-  if (request.kind !== "maintenance") {
+  if (request.kind === "auto_pay_approval") {
+    const { approvalLink } = request.facts;
+    if (!draft.body.includes(approvalLink)) {
+      problems.push("the body doesn't include the approval link");
+    }
+    if (urlsIn(text).some((url) => url !== approvalLink)) {
+      problems.push("it has a link other than the approval link");
+    }
+  } else if (request.kind !== "maintenance") {
     const { payLink } = request.facts;
     if (!draft.body.includes(payLink)) problems.push("the body doesn't include the pay link");
     if (urlsIn(text).some((url) => url !== payLink)) {
@@ -108,7 +119,10 @@ export const draftProblems = (
   // Legal gating: only Tier 3 may cite, and only what it was given.
   const legal = legalProblem(text, {
     citation: request.kind === "tier3" ? request.facts.citation : null,
-    contractTerms: request.kind === "maintenance" ? null : request.facts.contractTerms,
+    contractTerms:
+      request.kind === "maintenance" || request.kind === "auto_pay_approval"
+        ? null
+        : request.facts.contractTerms,
     laws,
   });
   if (legal) problems.push(legal);

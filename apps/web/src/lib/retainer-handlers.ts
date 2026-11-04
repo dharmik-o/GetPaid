@@ -1,16 +1,23 @@
 import { z } from "zod";
-import type { UserDbRunner } from "./db";
+import { isUuid, type UserDbRunner } from "./db";
+import type { DrafterDeps } from "./drafter";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, noContent, notFound, readJson, serverError } from "./http";
-import { logEvent } from "./log";
+import { errorKind, logEvent } from "./log";
 import { PaypalError, type PaypalClient } from "./paypal";
+import { draftApprovalEmail } from "./retainer-approval-email";
 import { cancelRetainer, setUpAutoPay, type RetainerFlowDeps } from "./retainer-flow";
 import { createRetainer, dismissRetainerAlert, listRetainers } from "./retainers";
 
 // Server-only: /api/retainers. Runs as the signed-in freelancer. PayPal is called only after the
 // retainer is saved, so a failed call leaves something to retry.
 
-type Deps = { runAsUser: UserDbRunner; paypal: () => PaypalClient; now: () => Date };
+type Deps = DrafterDeps & {
+  /** The signed-in freelancer. */
+  currentUser: () => string;
+  runAsCurrent: UserDbRunner;
+  paypal: () => PaypalClient;
+};
 type IdContext = { params: Promise<{ id: string }> };
 
 const RETAINER = "Retainer";
@@ -19,7 +26,7 @@ const PAYPAL_NOT_SET_UP =
   "PayPal isn't set up yet. Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET from your PayPal sandbox app to your local env file (see .env.example), then restart.";
 
 const actionSchema = z.strictObject({
-  action: z.enum(["setup", "cancel"], { error: "must be setup or cancel" }),
+  action: z.enum(["setup", "cancel", "email"], { error: "must be setup, cancel or email" }),
 });
 
 const failure = (event: string, error: unknown): Response => {
@@ -34,16 +41,47 @@ const failure = (event: string, error: unknown): Response => {
 export const retainerHandlers = (deps: Deps) => {
   const flowDeps = (): RetainerFlowDeps | undefined => {
     try {
-      return { runAsUser: deps.runAsUser, paypal: deps.paypal(), now: deps.now() };
+      return { runAsUser: deps.runAsCurrent, paypal: deps.paypal(), now: deps.now() };
     } catch {
       return undefined;
+    }
+  };
+
+  /** Once PayPal gave a link. If the model call fails, the scheduler writes the draft. */
+  const draftEmail = async (retainerId: string): Promise<void> => {
+    try {
+      await draftApprovalEmail(deps, { userId: deps.currentUser(), retainerId });
+    } catch (error) {
+      logEvent("retainers.approval_email_failed", { retainerId, error: errorKind(error) });
+    }
+  };
+
+  /** The freelancer asked for another, after skipping one. */
+  const askForEmail = async (id: string): Promise<Response> => {
+    if (!isUuid(id)) return notFound(RETAINER);
+    try {
+      const result = await draftApprovalEmail(deps, {
+        userId: deps.currentUser(),
+        retainerId: id,
+        evenIfSkipped: true,
+      });
+      if (result === "not_found") return notFound(RETAINER);
+      if (result === "not_ready") {
+        return jsonResponse(
+          { error: "This retainer isn't waiting for the client's approval, so there's no link to send." },
+          409,
+        );
+      }
+      return noContent();
+    } catch (error) {
+      return serverError("retainers.approval_email_failed", error);
     }
   };
 
   return {
     list: async (): Promise<Response> => {
       try {
-        const retainers = await deps.runAsUser((db) => listRetainers(db, deps.now()));
+        const retainers = await deps.runAsCurrent((db) => listRetainers(db, deps.now()));
         return jsonResponse({ retainers });
       } catch (error) {
         return serverError("retainers.list_failed", error);
@@ -54,7 +92,9 @@ export const retainerHandlers = (deps: Deps) => {
       const read = await readJson(request);
       if (!read.ok) return read.response;
       try {
-        const created = await deps.runAsUser((db) => createRetainer(db, read.body, deps.now()));
+        const created = await deps.runAsCurrent((db) =>
+          createRetainer(db, read.body, deps.now()),
+        );
         if (!created.ok) return fieldErrors(created.errors);
         if (created.method === "invoice") return jsonResponse({ id: created.id }, 201);
         const flow = flowDeps();
@@ -62,6 +102,7 @@ export const retainerHandlers = (deps: Deps) => {
           return jsonResponse({ error: PAYPAL_NOT_SET_UP }, 503);
         }
         await setUpAutoPay(flow, created.id);
+        await draftEmail(created.id);
         return jsonResponse({ id: created.id }, 201);
       } catch (error) {
         return failure("retainers.create_failed", error);
@@ -74,14 +115,15 @@ export const retainerHandlers = (deps: Deps) => {
       if (!read.ok) return read.response;
       const parsed = actionSchema.safeParse(read.body);
       if (!parsed.success) return fieldErrors(toFieldIssues(parsed.error, { noun: "field" }));
+      if (parsed.data.action === "email") return askForEmail(id);
       const flow = flowDeps();
       if (!flow) return jsonResponse({ error: PAYPAL_NOT_SET_UP }, 503);
       try {
-        const result =
-          parsed.data.action === "setup"
-            ? await setUpAutoPay(flow, id)
-            : await cancelRetainer(flow, id);
-        return result === "not_found" ? notFound(RETAINER) : noContent();
+        const setUp = parsed.data.action === "setup";
+        const result = setUp ? await setUpAutoPay(flow, id) : await cancelRetainer(flow, id);
+        if (result === "not_found") return notFound(RETAINER);
+        if (setUp && result === "ok") await draftEmail(id);
+        return noContent();
       } catch (error) {
         return failure("retainers.action_failed", error);
       }
@@ -90,7 +132,7 @@ export const retainerHandlers = (deps: Deps) => {
     dismissAlert: async (_request: Request, { params }: IdContext): Promise<Response> => {
       const { id } = await params;
       try {
-        const done = await deps.runAsUser((db) => dismissRetainerAlert(db, id, deps.now()));
+        const done = await deps.runAsCurrent((db) => dismissRetainerAlert(db, id, deps.now()));
         return done ? noContent() : notFound("Alert");
       } catch (error) {
         return serverError("retainers.dismiss_failed", error);

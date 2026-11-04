@@ -1,5 +1,5 @@
 import type { Draft } from "./ai-schemas";
-import type { DraftRequest, MaintenanceFacts, ReminderFacts } from "./draft-facts";
+import type { AutoPayFacts, DraftRequest, MaintenanceFacts, ReminderFacts } from "./draft-facts";
 
 // The fixed fallback for each kind of draft: used when no model gives a valid answer, so a
 // reminder still gets a correct draft. Built only from the facts. Pure.
@@ -86,6 +86,21 @@ const maintenance = (f: MaintenanceFacts): Draft => ({
   ),
 });
 
+const autoPayApproval = (f: AutoPayFacts): Draft => ({
+  subject: subject(`Please approve auto-pay: ${f.retainerName}`),
+  body: letter(
+    f.clientName,
+    [
+      `I've set up ${f.retainerName} as auto-pay through PayPal: ${f.amount} ${f.repeat}, with the first charge on ${f.firstCharge}, ${
+        f.lastCharge ? `and the last on ${f.lastCharge}` : "until cancelled"
+      }.`,
+      `PayPal charges nothing until you approve it. You can do that here:\n${f.approvalLink}`,
+      "Reply if you have any questions.",
+    ],
+    f.freelancerName,
+  ),
+});
+
 export const draftTemplate = (request: DraftRequest): Draft => {
   switch (request.kind) {
     case "courtesy":
@@ -98,5 +113,7 @@ export const draftTemplate = (request: DraftRequest): Draft => {
       return tier3(request.facts);
     case "maintenance":
       return maintenance(request.facts);
+    case "auto_pay_approval":
+      return autoPayApproval(request.facts);
   }
 };

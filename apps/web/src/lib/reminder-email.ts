@@ -3,8 +3,8 @@ import type { PdfFile } from "./invoice-pdfs";
 
 // Server-only: the email a reminder goes out as (the M7 sender passes it to Gmail as `raw`).
 // Plain text, on the original thread, with the invoice PDF attached: the PDF is a required
-// argument, so a reminder can't be built without saying what's attached. Only a maintenance
-// heads-up, which has no invoice, passes null. Header values can't carry a line break, so a
+// argument, so a reminder can't be built without saying what's attached. Only an email with no
+// invoice behind it (a maintenance heads-up, an auto-pay approval) passes null. Header values can't carry a line break, so a
 // subject or name can't add headers.
 
 export type ReminderEmail = {
@@ -12,7 +12,7 @@ export type ReminderEmail = {
   to: { name: string; email: string };
   subject: string;
   body: string;
-  /** The invoice document; null only for a maintenance heads-up, which has no invoice. */
+  /** The invoice document; null only for an email with no invoice behind it. */
   pdf: PdfFile | null;
   /** The Message-ID of the thread's first email, to stay on the original thread. */
   inReplyTo?: string | null;

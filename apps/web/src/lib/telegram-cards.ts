@@ -100,8 +100,9 @@ const sentNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
      LEFT JOIN public.maintenance_tasks mt ON mt.id = r.maintenance_task_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
-     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
+     LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
      WHERE r.sent_at IS NOT NULL AND r.telegram_sent_notified_at IS NULL
        AND r.telegram_message_id IS NOT NULL AND u.telegram_chat_id IS NOT NULL`,
   );

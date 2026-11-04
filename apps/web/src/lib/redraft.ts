@@ -8,7 +8,7 @@ import { redraftMessages } from "./draft-prompts";
 import { notPayable, reminderFacts } from "./drafter";
 import type { Law } from "./legal";
 import { logEvent } from "./log";
-import { loadMaintenanceContext } from "./maintenance-context";
+import { loadStandaloneContext } from "./standalone-draft";
 import { loadReminderContext } from "./reminder-context";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
 
@@ -38,8 +38,9 @@ type Ready = {
 const prepare = (deps: RedraftDeps, userId: string, id: string): Promise<Ready | undefined> =>
   deps.runAsUser(userId)(async (db) => {
     const ctx = await loadReminderContext(db, id);
-    const job = ctx ? undefined : await loadMaintenanceContext(db, id);
-    if (job?.approvalStatus !== "waiting" && ctx?.approvalStatus !== "waiting") return undefined;
+    const other = ctx ? undefined : await loadStandaloneContext(db, id);
+    if (other?.approvalStatus !== "waiting" && ctx?.approvalStatus !== "waiting") return undefined;
+    if (other?.stopReason) return undefined;
     if (ctx && (notPayable(ctx) || !ctx.invoice.link)) return undefined;
     const { rows } = await db.query<{ draft: unknown; telegram_message_id: string | null }>(
       "SELECT draft, telegram_message_id::text FROM public.reminders WHERE id = $1",
@@ -49,7 +50,7 @@ const prepare = (deps: RedraftDeps, userId: string, id: string): Promise<Ready |
     if (!current.success) return undefined;
     const request: DraftRequest | undefined = ctx
       ? { kind: ctx.tier, facts: reminderFacts(ctx, deps.now(), ctx.invoice.link ?? "", deps.laws) }
-      : job && { kind: "maintenance", facts: job.facts };
+      : other?.request;
     if (!request) return undefined;
     const task = request.kind === "tier3" ? "tier3" : "draft";
     return {

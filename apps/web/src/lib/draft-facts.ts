@@ -42,7 +42,25 @@ export type MaintenanceFacts = {
   estimatedCost: string | null;
 };
 
+/** Asking a client to approve auto-pay. */
+export type AutoPayFacts = {
+  freelancerName: string;
+  clientName: string;
+  retainerName: string;
+  /** "USD 200.00". */
+  amount: string;
+  /** "every month". */
+  repeat: string;
+  firstCharge: string;
+  /** Null means until cancelled. */
+  lastCharge: string | null;
+  /** PayPal's approval page: the email's only link. */
+  approvalLink: string;
+};
+
 export type DraftRequest =
-  { kind: Tier; facts: ReminderFacts } | { kind: "maintenance"; facts: MaintenanceFacts };
+  | { kind: Tier; facts: ReminderFacts }
+  | { kind: "maintenance"; facts: MaintenanceFacts }
+  | { kind: "auto_pay_approval"; facts: AutoPayFacts };
 
 export type DraftKind = DraftRequest["kind"];

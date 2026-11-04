@@ -122,7 +122,7 @@ Freelancers can bill a fixed fee on a repeating schedule, and the app reminds th
 
 - **Failed auto-pay:** PayPal retries a failed subscription payment every 5 days, up to 2 times, then adds it to an outstanding balance. The app catches the payment-failed webhook and suspends the subscription in PayPal, which stops PayPal processing payments. Only once PayPal confirms the suspension does it create the catch-up invoice and start the normal escalation for that cycle. Once that invoice is paid, the subscription is reactivated. Outstanding amounts are never billed automatically. If a charge already under way collects the money first, no invoice is needed, or an open one is cancelled with its reminders stopped, and auto-pay is reactivated. If that invoice already has money on it, the freelancer is told to check for a double payment. Charge dates that pass during the pause aren't billed, and the freelancer is told to check them.
 - **Cancelled by the client:** the freelancer gets a Telegram alert and a dashboard flag. The same goes for a suspension.
-- **Approving auto-pay:** the dashboard shows the PayPal approval link for the freelancer to send on. The app doesn't email it.
+- **Approving auto-pay:** when auto-pay is set up, the AI drafts an email to the client with the fee, the dates and the PayPal approval link as its only link. It goes through the normal approval, like any draft. It stops if the client has already approved or the retainer is cancelled.
 
 **Maintenance reminders (to the freelancer)**
 
@@ -298,8 +298,8 @@ Fourteen tables cover the MVP (`invoice_templates` arrives with the Invoice temp
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
 | invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text |
 | invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
-| reminders | invoice_id or maintenance_task_id (a heads-up has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
-| messages | invoice_id or maintenance_task_id, direction (in / out), body, AI classification, thread_id |
+| reminders | invoice_id, maintenance_task_id or retainer_id (a heads-up or an auto-pay approval email has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
+| messages | invoice_id, maintenance_task_id or retainer_id, direction (in / out), body, AI classification, thread_id |
 | events | entity, type, payload, created_at: the audit log behind the evidence timeline |
 
 ## Architecture and tech stack

@@ -26,6 +26,13 @@ const INVOICE_STATUS_NAMES: Record<string, string> = {
   disputed: "Disputed",
 };
 
+const APPROVAL_EMAIL_TEXT: Record<Retainer["approvalEmail"], string> = {
+  none: "The client hasn't been asked to approve auto-pay. Draft the email, then review it in the Outbox.",
+  waiting: "The email asking the client to approve auto-pay is waiting for you in the Outbox.",
+  scheduled: "The email asking the client to approve auto-pay is approved, and goes out in their send window.",
+  sent: "The client has been emailed the approval link. This changes once they approve.",
+};
+
 const repeatText = ({ unit, count }: Retainer): string =>
   count === 1 ? `Every ${unit}` : `Every ${String(count)} ${unit}s`;
 
@@ -37,7 +44,7 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  const act = async (action: "setup" | "cancel") => {
+  const act = async (action: "setup" | "cancel" | "email") => {
     setBusy(true);
     setError(undefined);
     const result = await sendJson(`/api/retainers/${retainer.id}`, "POST", { action }, {});
@@ -72,13 +79,8 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
           It comes back on once the invoice for that charge is paid.
         </p>
       ) : null}
-      {retainer.approvalLink ? (
-        <p>
-          Send your client this link to approve auto-pay. Nothing is sent to them from here:{" "}
-          <a href={retainer.approvalLink} target="_blank" rel="noreferrer">
-            PayPal approval link
-          </a>
-        </p>
+      {retainer.status === "pending_approval" && retainer.setUp ? (
+        <p>{APPROVAL_EMAIL_TEXT[retainer.approvalEmail]}</p>
       ) : null}
       {retainer.invoices.length > 0 ? (
         <ul>
@@ -106,6 +108,18 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
             onClick={() => void act("setup")}
           >
             Finish setup
+          </button>
+        ) : null}
+        {retainer.status === "pending_approval" &&
+        retainer.setUp &&
+        retainer.approvalEmail === "none" ? (
+          <button
+            className="button"
+            type="button"
+            disabled={busy}
+            onClick={() => void act("email")}
+          >
+            Draft the approval email
           </button>
         ) : null}
         {canCancel(retainer) ? (

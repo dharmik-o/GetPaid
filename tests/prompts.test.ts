@@ -5,7 +5,7 @@ import type { DraftRequest } from "@/lib/draft-facts";
 import { draftTemplate } from "@/lib/draft-templates";
 import { PROMPT_TEXT } from "@/lib/prompt-text";
 import { PROMPT_FILES, promptBody } from "../scripts/lib/prompt-source";
-import { maintenanceFacts, PAY_LINK, reminderFacts } from "./fixtures/draft-facts";
+import { autoPayFacts, maintenanceFacts, PAY_LINK, reminderFacts } from "./fixtures/draft-facts";
 
 // The drafting prompts (prompts/*.md), the messages built from them, and the fixed templates.
 
@@ -15,6 +15,7 @@ const REQUESTS: DraftRequest[] = [
   { kind: "tier2", facts: reminderFacts() },
   { kind: "tier3", facts: reminderFacts({ daysOverdue: 25 }) },
   { kind: "maintenance", facts: maintenanceFacts() },
+  { kind: "auto_pay_approval", facts: autoPayFacts() },
 ];
 
 /** The email-draft prompts; prompts/invoice_text.md is tested in tests/invoice-text.test.ts. */
@@ -80,7 +81,10 @@ describe("draftMessages", () => {
     expect(user?.role).toBe("user");
     const content = user?.content ?? "";
     expect(content.startsWith("<facts>") && content.endsWith("</facts>")).toBe(true);
-    expect(JSON.parse(content.slice(7, -8))).toMatchObject({ projectTitle: "Website redesign" });
+    expect(JSON.parse(content.slice(7, -8))).toMatchObject({
+      clientName: "Sam Lee",
+      freelancerName: "Alex Rivera",
+    });
   });
 
   it("shows a citation only to Tier 3", () => {
@@ -103,7 +107,13 @@ describe("draftTemplate", () => {
     expect(draftSchema.safeParse(draftTemplate(request)).success).toBe(true);
   });
 
-  it.each(REQUESTS.filter((r) => r.kind !== "maintenance"))(
+  it("the auto-pay approval prompt asks for its link as the only link", () => {
+    const text = PROMPT_TEXT.auto_pay_approval;
+    expect(text).toContain("approval link (`approvalLink`) exactly as given");
+    expect(text).toContain("It must be the only link.");
+  });
+
+  it.each(REQUESTS.filter((r) => r.kind !== "maintenance" && r.kind !== "auto_pay_approval"))(
     "$kind carries the pay link and the amount",
     (request) => {
       const { body } = draftTemplate(request);

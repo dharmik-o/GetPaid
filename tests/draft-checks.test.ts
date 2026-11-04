@@ -7,7 +7,13 @@ import { amountsIn, checkedDraftSchema, draftProblems } from "@/lib/draft-checks
 import type { DraftRequest } from "@/lib/draft-facts";
 import { draftMessages } from "@/lib/draft-prompts";
 import { draftTemplate } from "@/lib/draft-templates";
-import { maintenanceFacts, PAY_LINK, reminderFacts } from "./fixtures/draft-facts";
+import {
+  APPROVAL_LINK,
+  autoPayFacts,
+  maintenanceFacts,
+  PAY_LINK,
+  reminderFacts,
+} from "./fixtures/draft-facts";
 
 // Checks on drafted emails beyond their JSON shape, alone and through the router (mock model).
 
@@ -70,6 +76,46 @@ describe("draftProblems", () => {
       "it has a link, but a maintenance heads-up has none",
     );
     expect(draftProblems(body("About USD 250.00."), request)).toHaveLength(1);
+  });
+});
+
+describe("the auto-pay approval email", () => {
+  const request: DraftRequest = { kind: "auto_pay_approval", facts: autoPayFacts() };
+
+  it("accepts the approval link as its only link", () => {
+    const text = `USD 200.00 every month from 7 Dec 2026. Approve here:\n${APPROVAL_LINK}`;
+    expect(draftProblems(body(text), request)).toEqual([]);
+  });
+
+  it("refuses a draft without the approval link", () => {
+    expect(draftProblems(body("Please approve auto-pay."), request)).toContain(
+      "the body doesn't include the approval link",
+    );
+  });
+
+  it("refuses any other link, even a pay link", () => {
+    const text = `${APPROVAL_LINK}\nOr here: ${PAY_LINK}`;
+    expect(draftProblems(body(text), request)).toContain(
+      "it has a link other than the approval link",
+    );
+  });
+
+  it("refuses an amount or a date that isn't in the facts", () => {
+    expect(draftProblems(body(`USD 250.00.\n${APPROVAL_LINK}`), request)).toContain(
+      "it mentions an amount that isn't in the facts",
+    );
+    expect(draftProblems(body(`From 8 Dec 2026.\n${APPROVAL_LINK}`), request)).toContain(
+      "it mentions a date that isn't in the facts: 8 Dec 2026",
+    );
+  });
+
+  it("its fixed template passes, and states the terms before asking", () => {
+    const draft = draftTemplate(request);
+    expect(draftProblems(draft, request)).toEqual([]);
+    expect(draft.body).toContain("USD 200.00");
+    expect(draft.body).toContain("every month");
+    expect(draft.body).toContain("7 Dec 2026");
+    expect(draft.body).toContain(APPROVAL_LINK);
   });
 });
 
