@@ -37,7 +37,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - History: first built with PayPal partial payments, which the sandbox refused for this account's country. Reworked for installments (`docs/CHANGE-installments-and-templates.md`, approved 3 Nov 2026).
 - [x] **Webhook handler** (n8n `06_paypal_webhook`): verify the signature, then update invoice and milestone status (Paid, Partially paid, refund, dispute).
   - Done when: an unsigned or forged event is rejected, and paid stops all pending reminders for that invoice.
-  - Note: both checks pass in tests (PayPal mocked), and the real sandbox answers FAILURE for a forged delivery. A live delivery through n8n hasn't run yet: it needs a public URL (see `docs/NEEDS_YOU.md`).
+  - Note: both checks pass in tests (PayPal mocked), and the real sandbox answers FAILURE for a forged delivery. A real delivery ran through the tunnel and n8n on 4 Nov 2026: `BILLING.SUBSCRIPTION.CREATED` passed PayPal's signature check and was recorded. A real paid invoice hasn't been delivered yet.
 
 ## M4 Bring your own AI [Bring your own AI]
 
@@ -88,7 +88,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Maintenance and renewal reminders:** repeat every N months, lead days (14 and 1 by default), Telegram buttons (tell the client, create invoice, snooze, mark done).
   - Done when: mark done sets the next date (from done or from scheduled, per the setting), and a heads-up to the client goes through approval.
   - Note: runs against real routes in tests, with Telegram, Gmail and PayPal mocked, and the screen ran in a real browser and Postgres. The card's Telegram buttons haven't run live: "Approval handler" in n8n needs the updated workflow first (see `docs/NEEDS_YOU.md`).
-- [ ] **Upcoming list** (dashboard home): the next 90 days of maintenance, renewals and retainer charges, with expected income.
+- [x] **Upcoming list** (dashboard home): the next 90 days of maintenance, renewals and retainer charges, with expected income.
+  - Note: amounts come from the database only, with one total per currency, never converted.
 
 ## M9 Milestone holds [Milestones]
 

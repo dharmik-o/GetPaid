@@ -133,7 +133,7 @@ Freelancers can bill a fixed fee on a repeating schedule, and the app reminds th
   - **Snooze or reschedule:** Snooze waits 7 days and reminds again. Reschedule is in the dashboard, where a date can be picked.
   - **Mark done:** the next due date is set automatically, counted from the done date or from the original date (a setting).
 - **Renewals use the same reminder:** domains, hosting and SSL certificates, each with its own repeat interval and cost.
-- **Upcoming list:** the dashboard shows the next 90 days of maintenance jobs, renewals and retainer charges, with the expected income. It's a list, not a calendar; a full calendar is planned for later.
+- **Upcoming list:** the dashboard shows the next 90 days of maintenance jobs, renewals and retainer charges, with the expected income. Amounts come from the database only, with one total per currency, never converted. A job with no estimate isn't counted, and the list says so. It's a list, not a calendar; a full calendar is planned for later.
 
 These reminders go to the freelancer only. Nothing reaches the client without approval.
 

@@ -424,3 +424,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Double taps:** on Telegram a closed card's buttons do nothing. In the dashboard, Mark done sends the date on screen, and a second click is refused.
 - **To change a job's cost or repeat, stop it and add it again.** There's no edit form: the spec asks for snooze and reschedule, and that keeps this smaller. Say if you want one.
 - **New Telegram step `sendMaintenance`:** an existing step can't carry four buttons. The labels are fixed in the workflow, so nothing in the data can add one.
+
+### Upcoming list (4 Nov 2026)
+
+- **One total per currency, never converted, as you asked:** a converted total would need a rate from somewhere, and would be a number that isn't in your records.
+- **A job with no estimate isn't counted, and the list says how many:** counting it as zero would make the total look complete when it isn't.
+- **"Expected income" includes every estimate on a job or renewal:** the spec calls these costs, and a renewal could be something you pay yourself. There's no field saying who pays, so the list counts it as billed to the client. Say if you'd like a choice per job.
+- **What's listed:** retainer charges only while a retainer is active, so one waiting for approval or suspended isn't counted. A job already overdue shows once, at its due date.
+- **The window uses your own time zone,** because this list is for you. Each retainer's charge dates are calendar dates, so they don't shift.
+- **Rows fold the type and client under the name:** five columns overflowed a phone by 74 pixels.

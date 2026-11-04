@@ -323,6 +323,10 @@ export const maintenanceOccurrences = (
   }
 };
 
+/** The Monday of a calendar date's week. */
+export const startOfWeekDate = (iso: string): string =>
+  isoDateOf(calendarDate(iso).startOf("week"));
+
 /** Freelancers hear about jobs in their own working day, not at the midnight scheduler run. */
 const NOTICE_HOUR = 9;
 
