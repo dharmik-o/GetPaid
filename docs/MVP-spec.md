@@ -310,7 +310,7 @@ The stack from v1 stays. The scheduler now runs hourly instead of daily, so mess
 | Orchestration | n8n, self-hosted (needed for local models) or cloud |
 | AI | AI Router sub-workflow, then LiteLLM gateway, then any cloud or local model |
 | Payments | PayPal Invoicing, Orders and Webhooks |
-| Email and approvals | Gmail API via OAuth (send, plus reading the invoice threads only); Telegram Bot API for approval cards |
+| Email and approvals | Gmail API via OAuth (gmail.send and gmail.readonly; the app reads only the invoice threads it stored when sending); Telegram Bot API for approval cards |
 | Data | Supabase (Postgres) |
 
 **n8n workflows**
@@ -341,7 +341,8 @@ The AI suggests and drafts. Money, status changes and legal claims stay under ha
 - API keys and OAuth tokens are encrypted at rest, never logged, and never sent back to the browser.
 - Every PayPal webhook is signature-verified before it changes anything.
 - Client emails are untrusted input. Text in a reply can't change an invoice status, amount or schedule on its own.
-- Gmail access is limited to sending and to reading the invoice threads.
+- Gmail scopes are gmail.send and gmail.readonly, because Google has no thread-limited read scope. The app reads only threads whose IDs it stored when sending, enforced in code and covered by tests. It never lists or searches the mailbox.
+- PayPal live endpoints are never called. Tests never send real email. In development, real Gmail sends go only to addresses in `DEV_EMAIL_ALLOWLIST` (comma-separated, empty by default, meaning nothing sends); anything else is refused and logged.
 
 **Privacy**
 

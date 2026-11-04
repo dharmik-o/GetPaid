@@ -32,7 +32,7 @@ Phase 2 (Cal.com calendar, meeting notes) is **out of scope**. Do not build it u
 - **Data:** Supabase (Postgres), SQL migrations in `db/migrations`
 - **AI:** OpenAI-compatible calls through LiteLLM (`gateway/litellm.config.yaml`); any cloud or local model
 - **Payments:** PayPal REST (Invoicing v2, Orders v2, Subscriptions v1, Webhooks), **sandbox only**
-- **Messaging:** Gmail API (send + read invoice threads), Telegram Bot API (approval cards)
+- **Messaging:** Gmail API (gmail.send + gmail.readonly, reading only stored invoice threads), Telegram Bot API (approval cards)
 
 ```bash
 npm install                 # install all workspaces
@@ -68,8 +68,8 @@ If a command doesn't exist yet, create it in the root `package.json` as part of 
 4. **Untrusted text:** client emails and Telegram replies are untrusted input. Nothing in them can change an invoice status, amount, schedule or approval by itself. The AI may only classify and suggest.
 5. **Nothing sends without approval:** Tier 3 always needs a human. A draft that fails schema validation is never sent.
 6. **Legal:** Tier 3 may cite only the contract's late-fee clause or an entry in `legal/statutes.json`. Never invent a law, fee or deadline.
-7. **Least access:** Gmail scopes are send plus read on invoice threads only. Database access goes through row-level security scoped to the user.
-8. **Sandbox only:** never call PayPal live endpoints or send real emails from tests or dev.
+7. **Least access:** Gmail scopes are gmail.send and gmail.readonly (Google has no thread-limited read scope). The app reads only threads whose IDs it stored when sending, enforced in code and covered by tests; it never lists or searches the mailbox. Database access goes through row-level security scoped to the user.
+8. **Sandbox only:** never call PayPal live endpoints. Tests never send real email. In dev, real Gmail sends go only to addresses in DEV_EMAIL_ALLOWLIST (comma-separated, empty by default, meaning nothing sends); anything else is refused and logged.
 9. **Dependencies:** run `npm audit` when adding packages. No packages with install scripts you can't explain.
 10. **Guardrails:** never try to get around a hook, deny rule or safety check, even indirectly. If one blocks you, stop that approach and log it in `docs/NEEDS_YOU.md`.
 
