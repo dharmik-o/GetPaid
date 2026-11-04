@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { GmailConnect } from "@/components/GmailConnect";
 import { TelegramConnect } from "@/components/TelegramConnect";
-import { googleOAuthEnv, telegramBotUsername } from "@/lib/env";
+import { gmailOAuthEnv, telegramBotUsername } from "@/lib/env";
 import { getGmailAccount } from "@/lib/gmail-account";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { getTelegramStatus } from "@/lib/telegram-link";
@@ -35,7 +35,7 @@ const IntegrationsPage = async ({ searchParams }: Props) => {
         <GmailConnect
           status={gmail.status}
           email={gmail.email}
-          configured={Boolean(googleOAuthEnv())}
+          configured={Boolean(gmailOAuthEnv())}
           outcome={typeof outcome === "string" ? outcome : null}
         />
       </section>

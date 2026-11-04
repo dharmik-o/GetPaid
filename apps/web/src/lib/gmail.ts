@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GoogleOAuthEnv } from "./env";
+import type { GmailOAuthEnv } from "./env";
 
 // Server-only: Google's token endpoint and the Gmail API. This client can send, read the
 // connected address, and read one message or thread by ID. It has no way to list or search the
@@ -45,7 +45,7 @@ export class GmailError extends Error {
   }
 }
 
-export const consentUrl = (oauth: GoogleOAuthEnv, state: string): string => {
+export const consentUrl = (oauth: GmailOAuthEnv, state: string): string => {
   const params = new URLSearchParams({
     client_id: oauth.clientId,
     redirect_uri: GMAIL_REDIRECT_URI,
@@ -86,7 +86,7 @@ const postToken = async (form: Record<string, string>): Promise<z.infer<typeof t
 };
 
 export const exchangeCode = (
-  oauth: GoogleOAuthEnv,
+  oauth: GmailOAuthEnv,
   code: string,
 ): Promise<z.infer<typeof tokenSchema>> =>
   postToken({
@@ -209,7 +209,7 @@ export const gmailClientWithToken = (token: () => Promise<string>): GmailClient 
 };
 
 /** A client that refreshes its access token once, on first use. Never logs or returns a token. */
-export const gmailClient = (oauth: GoogleOAuthEnv, refreshToken: string): GmailClient => {
+export const gmailClient = (oauth: GmailOAuthEnv, refreshToken: string): GmailClient => {
   let accessToken: Promise<string> | undefined;
   return gmailClientWithToken(() => {
     accessToken ??= postToken({

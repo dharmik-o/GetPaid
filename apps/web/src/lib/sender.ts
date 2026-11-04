@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SecretBox } from "./crypto";
 import type { Db, UserDbRunner } from "./db";
 import { notPayable } from "./drafter";
-import type { GoogleOAuthEnv } from "./env";
+import type { GmailOAuthEnv } from "./env";
 import { GmailAuthExpired, GmailError, gmailClient, type GmailClient } from "./gmail";
 import { loadGmailRefreshToken, markGmailNeedsReconnect } from "./gmail-account";
 import type { PdfFile } from "./invoice-pdfs";
@@ -23,7 +23,7 @@ export type SenderDeps = {
   runAsUser: (userId: string) => UserDbRunner;
   now: () => Date;
   box: () => SecretBox;
-  oauth: () => GoogleOAuthEnv | undefined;
+  oauth: () => GmailOAuthEnv | undefined;
   /** Security rule 8: the only addresses a real send may go to in dev. */
   allowlist: () => ReadonlySet<string>;
   /** The invoice's PDF. A reminder never goes without it. */

@@ -127,14 +127,14 @@ export const telegramBotUsername = (
   return name && /^[A-Za-z0-9_]{5,32}$/.test(name) ? name : undefined;
 };
 
-export type GoogleOAuthEnv = { clientId: string; clientSecret: string };
+export type GmailOAuthEnv = { clientId: string; clientSecret: string };
 
 /** The Google OAuth client, or undefined until both values are set. Never log the secret. */
-export const googleOAuthEnv = (
+export const gmailOAuthEnv = (
   source: Record<string, string | undefined> = process.env,
-): GoogleOAuthEnv | undefined => {
-  const clientId = source.GOOGLE_CLIENT_ID?.trim();
-  const clientSecret = source.GOOGLE_CLIENT_SECRET?.trim();
+): GmailOAuthEnv | undefined => {
+  const clientId = source.GMAIL_CLIENT_ID?.trim();
+  const clientSecret = source.GMAIL_CLIENT_SECRET?.trim();
   return clientId && clientSecret ? { clientId, clientSecret } : undefined;
 };
 

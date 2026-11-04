@@ -19,8 +19,8 @@ const post = (url: string, headers: Record<string, string> = {}) =>
   });
 
 beforeEach(() => {
-  vi.stubEnv("GOOGLE_CLIENT_ID", "");
-  vi.stubEnv("GOOGLE_CLIENT_SECRET", "");
+  vi.stubEnv("GMAIL_CLIENT_ID", "");
+  vi.stubEnv("GMAIL_CLIENT_SECRET", "");
   vi.stubEnv("INTERNAL_API_TOKEN", "i".repeat(64));
 });
 
@@ -33,7 +33,7 @@ describe("Connect Gmail", () => {
   it("says what to set when the OAuth client isn't configured", async () => {
     const response = await connectGmail(post("/api/integrations/gmail"));
     expect(response.status).toBe(503);
-    expect(((await response.json()) as { error: string }).error).toContain("GOOGLE_CLIENT_ID");
+    expect(((await response.json()) as { error: string }).error).toContain("GMAIL_CLIENT_ID");
   });
 
   it("the callback refuses when there's no OAuth client, and never returns an error page", async () => {

@@ -379,3 +379,8 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Choice: its own fake client, not a seeded one.** The address is on the reserved `.example` domain, so approving can't email anyone even with Gmail connected, and real clients are never touched. Fixed ids mean a repeat run replaces the draft and `-- remove` deletes exactly those rows and their events. It refuses any database that isn't local.
 - **The earlier draft is gone:** the first run replaced it, since it used the same project id. Lumen Labs itself stays.
 - **What "passed" means:** n8n reported the message id Telegram returned. It proves the bot sent the card, not that you tapped it.
+
+### Gmail's env names (4 Nov 2026)
+
+- **Changed at your request:** the OAuth values are now `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`, matching your local env file. The M7 choice was `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and the old names are no longer read.
+- **Kept:** `GOOGLE_AUTH_URL` and `GOOGLE_TOKEN_URL` in `lib/gmail.ts`, since they are Google's own addresses, not settings.

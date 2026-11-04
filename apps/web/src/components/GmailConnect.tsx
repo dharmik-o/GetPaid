@@ -106,9 +106,9 @@ export const GmailConnect = ({ status, email, configured, outcome }: Props) => {
   if (!configured) {
     return (
       <p className="muted">
-        Gmail isn&apos;t set up yet: add <code>GOOGLE_CLIENT_ID</code> and{" "}
-        <code>GOOGLE_CLIENT_SECRET</code> to your local env file and restart. Approved reminders
-        wait until then.
+        Gmail isn&apos;t set up yet: add <code>GMAIL_CLIENT_ID</code> and{" "}
+        <code>GMAIL_CLIENT_SECRET</code> to your local env file and restart. Approved reminders wait
+        until then.
       </p>
     );
   }

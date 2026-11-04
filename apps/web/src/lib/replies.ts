@@ -3,7 +3,7 @@ import { loadAiConnections } from "./ai-settings";
 import type { SecretBox } from "./crypto";
 import type { Db, UserDbRunner } from "./db";
 import { toCents } from "./db-values";
-import type { GoogleOAuthEnv } from "./env";
+import type { GmailOAuthEnv } from "./env";
 import { formatFullDay, formatMoney } from "./format";
 import { GmailAuthExpired, GmailError, gmailClient, type GmailThreadMessage } from "./gmail";
 import { loadGmailRefreshToken, markGmailNeedsReconnect } from "./gmail-account";
@@ -23,7 +23,7 @@ export type ReplyListenerDeps = {
   runAsUser: (userId: string) => UserDbRunner;
   now: () => Date;
   box: () => SecretBox;
-  oauth: () => GoogleOAuthEnv | undefined;
+  oauth: () => GmailOAuthEnv | undefined;
 };
 
 const THREAD_LIMIT = 200;
@@ -168,7 +168,7 @@ const readUser = async (
   deps: ReplyListenerDeps,
   userId: string,
   threads: ThreadRow[],
-  oauth: GoogleOAuthEnv,
+  oauth: GmailOAuthEnv,
 ): Promise<{ read: number; replies: number }> => {
   const refreshToken = await deps.runAsUser(userId)((db) => loadGmailRefreshToken(db, deps.box()));
   if (!refreshToken) return { read: 0, replies: 0 };

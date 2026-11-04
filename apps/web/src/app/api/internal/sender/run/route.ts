@@ -1,6 +1,6 @@
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
-import { devEmailAllowlist, googleOAuthEnv, internalApiToken } from "@/lib/env";
+import { devEmailAllowlist, gmailOAuthEnv, internalApiToken } from "@/lib/env";
 import { renderPdf } from "@/lib/invoice-pdf";
 import { defaultPdfDir, invoicePdf } from "@/lib/invoice-pdfs";
 import { senderHandler } from "@/lib/sender-handler";
@@ -13,7 +13,7 @@ const handler = senderHandler({
   runAsUser: withUserDb,
   now: () => new Date(),
   box: secretBox,
-  oauth: () => googleOAuthEnv(),
+  oauth: () => gmailOAuthEnv(),
   allowlist: () => devEmailAllowlist(),
   pdf: (userId, invoiceId) =>
     invoicePdf({ runAsUser: withUserDb(userId), renderPdf, dir: defaultPdfDir() }, invoiceId),

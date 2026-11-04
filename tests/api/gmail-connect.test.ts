@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { GmailConnect } from "@/components/GmailConnect";
 import { createSecretBox } from "@/lib/crypto";
 import { runAsUser, type Db } from "@/lib/db";
-import { devEmailAllowlist, googleOAuthEnv } from "@/lib/env";
+import { devEmailAllowlist, gmailOAuthEnv } from "@/lib/env";
 import { GMAIL_REDIRECT_URI, GMAIL_SCOPES } from "@/lib/gmail";
 import { gmailTokenContext, getGmailAccount, loadGmailRefreshToken } from "@/lib/gmail-account";
 import { gmailHandlers } from "@/lib/gmail-handlers";
@@ -135,8 +135,8 @@ describe("the consent link", () => {
     }).connect(jsonRequest("POST"));
     expect(response.status).toBe(503);
     const { error } = (await response.json()) as { error: string };
-    expect(error).toContain("GOOGLE_CLIENT_ID");
-    expect(error).toContain("GOOGLE_CLIENT_SECRET");
+    expect(error).toContain("GMAIL_CLIENT_ID");
+    expect(error).toContain("GMAIL_CLIENT_SECRET");
   });
 });
 
@@ -272,9 +272,9 @@ describe("the Gmail client can't read the mailbox", () => {
 
 describe("env", () => {
   it("needs both OAuth names", () => {
-    expect(googleOAuthEnv({})).toBeUndefined();
-    expect(googleOAuthEnv({ GOOGLE_CLIENT_ID: "a" })).toBeUndefined();
-    expect(googleOAuthEnv({ GOOGLE_CLIENT_ID: "a", GOOGLE_CLIENT_SECRET: "b" })).toEqual({
+    expect(gmailOAuthEnv({})).toBeUndefined();
+    expect(gmailOAuthEnv({ GMAIL_CLIENT_ID: "a" })).toBeUndefined();
+    expect(gmailOAuthEnv({ GMAIL_CLIENT_ID: "a", GMAIL_CLIENT_SECRET: "b" })).toEqual({
       clientId: "a",
       clientSecret: "b",
     });
@@ -290,7 +290,7 @@ describe("env", () => {
 
   it("every name is in .env.example, with no value", () => {
     const example = readFileSync(join(import.meta.dirname, "..", "..", ".env.example"), "utf8");
-    for (const name of ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "DEV_EMAIL_ALLOWLIST"]) {
+    for (const name of ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "DEV_EMAIL_ALLOWLIST"]) {
       expect(example).toMatch(new RegExp(`^${name}=\\s*$`, "m"));
     }
   });
@@ -316,7 +316,7 @@ describe("GmailConnect", () => {
 
   it("names the OAuth env values when they aren't set", () => {
     const html = render({ configured: false });
-    expect(html).toContain("GOOGLE_CLIENT_ID");
+    expect(html).toContain("GMAIL_CLIENT_ID");
     expect(html).not.toContain("<button");
   });
 

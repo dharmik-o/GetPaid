@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { SecretBox } from "./crypto";
 import type { UserDbRunner } from "./db";
-import type { GoogleOAuthEnv } from "./env";
+import type { GmailOAuthEnv } from "./env";
 import { toFieldIssues } from "./field-issues";
 import {
   consentUrl,
@@ -29,7 +29,7 @@ type Deps = {
   runAsUser: UserDbRunner;
   now: () => Date;
   box: () => SecretBox;
-  oauth: () => GoogleOAuthEnv | undefined;
+  oauth: () => GmailOAuthEnv | undefined;
   userId: () => string;
 };
 
@@ -62,7 +62,7 @@ const hasEveryScope = (granted: string | undefined): boolean => {
 /** What came back from Google, as far as it can be trusted: the state was already checked. */
 const finishConnect = async (
   deps: Deps,
-  oauth: GoogleOAuthEnv,
+  oauth: GmailOAuthEnv,
   code: string,
 ): Promise<GmailOutcome> => {
   const token = await exchangeCode(oauth, code);
@@ -87,7 +87,7 @@ export const gmailHandlers = (deps: Deps) => ({
       return jsonResponse(
         {
           error:
-            "Gmail isn't set up: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (see .env.example) and restart.",
+            "Gmail isn't set up: set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET (see .env.example) and restart.",
         },
         503,
       );
