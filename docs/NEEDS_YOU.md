@@ -18,6 +18,12 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **Laws for Tier 3 (`legal/statutes.json` is empty; the rules say I must ask before adding one):** the spec names four starting laws: UK Late Payment of Commercial Debts (Interest) Act 1998, EU Late Payment Directive 2011/7/EU, India MSMED Act 2006 (registered MSMEs only) and NYC Freelance Isn't Free Act. Each entry needs the exact citation sentence a notice may include, an official https source URL and the date you checked it (shape in `docs/DECISIONS.md`, M5 Legal gating). Approve them, or give me the wording, and I'll add them and run `npm run ai:prompts`. The India and NYC laws need a `condition`, so they'll never be cited automatically (the app can't check MSME registration or the city). Until then, a Tier 3 notice cites only the contract's late-fee clause, or nothing.
 
+- **Telegram bot (for real approvals on your phone; the Outbox works without it):**
+  1. In Telegram, message @BotFather, send `/newbot`, and keep the token and the username.
+  2. Put the username in your local env file as `TELEGRAM_BOT_USERNAME`, and make sure `INTERNAL_API_TOKEN` is set (see the AI router item above). Restart the dev server.
+  3. In n8n (http://localhost:5678), create a Telegram credential named `Telegram bot` with the token. The token goes only there.
+  4. Telegram needs a public HTTPS URL. Start a tunnel (`cloudflared tunnel --url http://localhost:5678`), put its address in your local env file as `WEBHOOK_URL`, and run `docker compose up -d n8n`. A new tunnel address means repeating this.
+  5. Activate "Approval handler" in n8n. I'll import it once the M6 cards are in it.
 - **Two commands were refused while I checked the Outbox (M6), for you to know:** nothing is blocked and I didn't route around either one.
   1. Clearing the Next.js build cache with `rm -rf apps/web/.next`, when the dev server was reloading every page in a loop (`HMR hash mismatch`). A plain restart of the dev server fixed the loop. If you ever see that loop, restart first.
   2. Running a small PowerShell script with `-ExecutionPolicy Bypass` to list processes and their start times. I used `tasklist` and `netstat` instead.

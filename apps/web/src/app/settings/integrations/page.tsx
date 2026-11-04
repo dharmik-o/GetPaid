@@ -1,19 +1,36 @@
 import Link from "next/link";
-import { ComingSoon } from "@/components/ComingSoon";
+import { TelegramConnect } from "@/components/TelegramConnect";
+import { telegramBotUsername } from "@/lib/env";
+import { runAsCurrentUser } from "@/lib/request-user";
+import { getTelegramStatus } from "@/lib/telegram-link";
 
-// Connect PayPal, Gmail and Telegram. Telegram comes in M6, Gmail in M7; PayPal uses the
-// sandbox app from the local env file for now.
+// Connections. Telegram is here; Gmail comes in M7. PayPal uses the sandbox app from the local
+// env file for now.
 
-const IntegrationsPage = () => (
-  <ComingSoon
-    title="Integrations"
-    what="Connect Telegram for approvals and Gmail for sending. PayPal already works through the sandbox app set up in your local env file."
-    milestone="M6 (Telegram) and M7 (Gmail)"
-  >
-    <Link className="button" href="/settings">
-      Back to settings
-    </Link>
-  </ComingSoon>
-);
+export const dynamic = "force-dynamic";
+
+const IntegrationsPage = async () => {
+  const { connected } = await runAsCurrentUser((db) => getTelegramStatus(db));
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>Integrations</h1>
+      </div>
+      <section className="card" aria-labelledby="integration-telegram">
+        <h2 id="integration-telegram">Telegram</h2>
+        <TelegramConnect connected={connected} configured={Boolean(telegramBotUsername())} />
+      </section>
+      <section className="card" aria-labelledby="integration-gmail">
+        <h2 id="integration-gmail">Gmail</h2>
+        <p className="muted">Connecting Gmail for sending arrives in M7.</p>
+      </section>
+      <section className="card" aria-labelledby="integration-paypal">
+        <h2 id="integration-paypal">PayPal</h2>
+        <p className="muted">Works through the sandbox app set up in your local env file.</p>
+      </section>
+      <Link href="/settings">Back to settings</Link>
+    </div>
+  );
+};
 
 export default IntegrationsPage;

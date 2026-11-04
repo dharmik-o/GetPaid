@@ -119,6 +119,14 @@ export const parseInternalEnv = (source: Record<string, string | undefined>): In
   return result.data;
 };
 
+/** The bot's public username for t.me links, or undefined when it's unset or not a username. */
+export const telegramBotUsername = (
+  source: Record<string, string | undefined> = process.env,
+): string | undefined => {
+  const name = source.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "");
+  return name && /^[A-Za-z0-9_]{5,32}$/.test(name) ? name : undefined;
+};
+
 /** The internal API token, or undefined when it isn't set up (the route then answers 503). */
 export const internalApiToken = (source: Record<string, string | undefined> = process.env) => {
   try {

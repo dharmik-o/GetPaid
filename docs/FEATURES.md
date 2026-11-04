@@ -60,7 +60,8 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 ## M6 Approvals [Reviewing drafts: Outbox and Telegram]
 
 - [x] **Outbox page:** filters (Waiting / Scheduled / Sent / Skipped); approve, edit, skip, reschedule.
-- [ ] **Connect Telegram:** one-time code deep link that saves the chat ID.
+- [x] **Connect Telegram:** one-time code deep link that saves the chat ID.
+  - Note: runs end to end against a relayed update on real Postgres. A real Telegram delivery hasn't run yet: it needs your bot and a public URL (see `docs/NEEDS_YOU.md`).
 - [ ] **Telegram cards** (n8n `03_approval_handler`): Approve / Edit / Skip; a plain-word edit triggers a redraft; drafts over 4096 characters are previewed with a link.
 - [ ] **Sync:** handled in one place means expired in the other; taps from other chats are ignored; one nudge after 24 hours, then held.
   - Done when: integration tests cover approving in each place, a double approve, a foreign chat ID, and the timeout.

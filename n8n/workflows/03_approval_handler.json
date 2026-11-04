@@ -1,1 +1,97 @@
-{ "name": "Approval handler: Outbox + Telegram cards, Approve/Edit/Skip", "nodes": [], "connections": {} }
+{
+  "name": "Approval handler: Outbox + Telegram cards, Approve/Edit/Skip",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message", "callback_query"],
+        "additionalFields": {}
+      },
+      "id": "2d7a6c10-0301-4f3b-8a2e-000000000301",
+      "name": "Telegram update",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "webhookId": "2d7a6c10-0301-4f3b-8a2e-0000000003a1",
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "Telegram bot" }
+      },
+      "notes": "A bot has one webhook, so every update comes through here. n8n checks Telegram's secret token on the webhook. Needs a public HTTPS URL (WEBHOOK_URL), see docs/NEEDS_YOU.md."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/telegram/update",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": { "response": { "neverError": true } },
+          "timeout": 60000
+        }
+      },
+      "id": "2d7a6c10-0302-4f3b-8a2e-000000000302",
+      "name": "Handle in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 0],
+      "credentials": {
+        "httpHeaderAuth": { "id": "app-internal-api-token", "name": "App internal API token" }
+      },
+      "notes": "The app decides everything: it treats Telegram text as untrusted, checks the chat, and answers with the reply to send, or none. Safe to re-run: a used code does nothing more."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "2d7a6c10-0303-4f3b-8a2e-0000000003b1",
+              "leftValue": "={{ Boolean($json.reply) }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2d7a6c10-0303-4f3b-8a2e-000000000303",
+      "name": "Has a reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [520, 0]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.reply.chatId }}",
+        "text": "={{ $json.reply.text }}",
+        "additionalFields": { "appendAttribution": false }
+      },
+      "id": "2d7a6c10-0304-4f3b-8a2e-000000000304",
+      "name": "Send the reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [780, -100],
+      "credentials": {
+        "telegramApi": { "id": "telegram-bot", "name": "Telegram bot" }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram update": {
+      "main": [[{ "node": "Handle in the app", "type": "main", "index": 0 }]]
+    },
+    "Handle in the app": {
+      "main": [[{ "node": "Has a reply?", "type": "main", "index": 0 }]]
+    },
+    "Has a reply?": {
+      "main": [[{ "node": "Send the reply", "type": "main", "index": 0 }], []]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}
