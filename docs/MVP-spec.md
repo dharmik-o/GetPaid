@@ -153,14 +153,14 @@ Reminders escalate on the freelancer's schedule, react to what the client says, 
 
 | Client says | What the app does |
 | --- | --- |
-| Promises a date | Pauses until the day after that date |
+| Promises a date | Suggests pausing until the day after that date |
 | Asks to pay in parts | Drafts an installment split of the unpaid remainder for the freelancer to approve; on approval the open invoice is replaced by the installment invoices |
-| Says they paid another way | Pauses and asks the freelancer to confirm |
-| Disputes the work | Stops reminders, alerts the freelancer, opens the evidence timeline |
-| Out of office | Reschedules for after their return date |
+| Says they paid another way | Keeps it on hold and asks the freelancer to confirm |
+| Disputes the work | Keeps reminders stopped, alerts the freelancer, links the evidence timeline |
+| Out of office | Suggests pausing until their return date |
 | Unclear or unrelated | Asks the freelancer what to do |
 
-The AI's sorting can pause or suggest. It can never mark an invoice paid or change an amount on its own.
+Any reply puts that invoice's reminders on hold, whatever it says, because the hold can only delay a reminder. The AI's sorting only suggests: a pause, a split or a resume happens when the freelancer chooses it. It can never mark an invoice paid, change an amount or change a schedule on its own.
 
 **Approval.** Every draft waits for review in the Outbox and on Telegram (next section). A draft that isn't answered is held, not sent. Approved messages go out from the freelancer's own Gmail, on the original invoice thread.
 
@@ -319,7 +319,7 @@ The stack from v1 stays. The scheduler now runs hourly instead of daily, so mess
 2. **Drafter:** builds the context, calls the AI Router, validates the JSON, stores the draft. The n8n workflow relays to the app, which does all four with the same router code as `07_ai_router`, so the content checks share its retry-then-template rule.
 3. **Approval handler:** posts each draft to the Outbox and to Telegram (a card with buttons, sent by the n8n Telegram node at the app's request), then acts on Approve, Edit or Skip from either place. A Telegram Trigger catches plain-word edit replies and sends them back to the Drafter.
 4. **Sender:** sends via Gmail on the original thread and logs it. The first reminder starts the thread, because PayPal's own emails are off; every follow-up keeps its thread ID, subject and In-Reply-To and References headers.
-5. **Reply listener:** catches client replies, calls the AI Router to sort them, and pauses or branches.
+5. **Reply listener:** reads only the thread IDs stored when sending (with `threads.get`, never a list or search), sorts each new reply through the AI Router, holds the invoice, and asks the freelancer.
 6. **PayPal webhook handler:** verifies the signature, then updates invoice and milestone status.
 7. **AI Router** (sub-workflow): picks the model per task and handles fallback.
 

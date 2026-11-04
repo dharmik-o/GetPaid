@@ -21,8 +21,10 @@ export type ReminderContext = {
     dueDate: string;
     link: string | null;
     installment: { number: number; count: number } | null;
-    /** A client's reply put this invoice on hold, or it's paused until a date. */
-    onHold: boolean;
+    /** A client's reply put this invoice on hold. */
+    held: boolean;
+    /** The freelancer paused it until this date, in the client's zone. */
+    pausedUntil: string | null;
   };
   /** null for a retainer invoice (drafted from M8). */
   milestone: { name: string; deliverable: string | null } | null;
@@ -47,6 +49,8 @@ type Row = {
   link: string | null;
   installment_number: number | null;
   installment_count: number | null;
+  held: boolean;
+  paused_until: string | null;
   milestone_name: string | null;
   deliverable: string | null;
   milestone_settings: unknown;
@@ -66,7 +70,8 @@ const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.draft IS NOT NULL AS has_draft,
     i.id::text AS invoice_id, i.invoice_number, i.status AS invoice_status,
     i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.due_date::text, i.link,
-    i.installment_number, i.installment_count,
+    i.installment_number, i.installment_count, i.reminders_held_at IS NOT NULL AS held,
+    i.reminders_paused_until::text AS paused_until,
     m.name AS milestone_name, m.deliverable, m.settings AS milestone_settings,
     p.title, p.contract_terms, p.late_fee_clause, p.settings AS project_settings,
     c.name AS client_name, c.country, c.time_zone, c.settings AS client_settings,
@@ -106,7 +111,8 @@ export const loadReminderContext = async (
       dueDate: row.due_date,
       link: row.link,
       installment,
-      onHold: false,
+      held: row.held,
+      pausedUntil: row.paused_until,
     },
     milestone:
       row.milestone_name === null

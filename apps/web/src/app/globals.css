@@ -595,9 +595,17 @@ label.inline {
   gap: var(--space-4);
 }
 
+.outbox-head {
+  margin-bottom: var(--space-3);
+}
+
 .outbox-head h2,
 .outbox-head p {
   margin: 0;
+}
+
+.outbox-card .editor-form {
+  margin-bottom: var(--space-3);
 }
 
 .outbox-subject {

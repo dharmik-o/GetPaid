@@ -5,6 +5,7 @@ import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, notFound, readJson, serverError } from "./http";
 import type { Law } from "./legal";
 import { logEvent } from "./log";
+import { countPendingReplies } from "./reply-review";
 import { outboxCounts } from "./outbox";
 import {
   approveDraft,
@@ -92,8 +93,10 @@ export const outboxHandlers = ({ runAsUser, now, laws }: Deps) => {
 
     summary: async (): Promise<Response> => {
       try {
-        const counts = await runAsUser((db) => outboxCounts(db));
-        return jsonResponse({ waiting: counts.waiting });
+        const waiting = await runAsUser(
+          async (db) => (await outboxCounts(db)).waiting + (await countPendingReplies(db)),
+        );
+        return jsonResponse({ waiting });
       } catch (error) {
         return serverError("outbox.summary_failed", error);
       }

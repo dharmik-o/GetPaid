@@ -125,6 +125,10 @@ const stop = async (db: Db, id: string, why: string): Promise<Step> => {
 const isSnoozed = (ctx: ReminderContext, now: Date): boolean =>
   ctx.settings.snoozeUntil !== null && todayIn(now, ctx.client.timeZone) < ctx.settings.snoozeUntil;
 
+const isHeld = ({ invoice, client }: ReminderContext, now: Date): boolean =>
+  invoice.held ||
+  (invoice.pausedUntil !== null && todayIn(now, client.timeZone) < invoice.pausedUntil);
+
 /** The whole chain on this invoice's thread, oldest first. */
 const loadReferences = async (db: Db, threadId: string | null): Promise<string[]> => {
   if (!threadId) return [];
@@ -155,7 +159,7 @@ const prepare = async (deps: SenderDeps, db: Db, id: string, now: Date): Promise
     return held("no_pay_link");
   }
   if (ctx.settings.paused || isSnoozed(ctx, now)) return held("paused");
-  if (ctx.invoice.onHold) return held("on_hold");
+  if (isHeld(ctx, now)) return held("on_hold");
   const oauth = deps.oauth();
   const refreshToken =
     oauth && row.gmail_status === "connected" && row.own_email

@@ -19,7 +19,7 @@ const isoDate = z.iso.date();
 /** How the AI sorts a client reply. A suggestion only: it never changes status or amounts. */
 export const classificationSchema = z.strictObject({
   label: z.enum(REPLY_LABELS),
-  /** For "promise": the date the client says they'll pay (YYYY-MM-DD), else null. */
+  /** "promise": the date they say they'll pay. "installments": the last date they name. Else null. */
   promisedDate: isoDate.nullable(),
   /** For "out_of_office": the date they're back (YYYY-MM-DD), else null. */
   returnDate: isoDate.nullable(),

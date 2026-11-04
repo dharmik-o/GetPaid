@@ -1,9 +1,11 @@
 import { z } from "zod";
 import type { Db } from "./db";
+import { formatDay } from "./format";
 import { logEvent } from "./log";
 import { loadOutboxItem } from "./outbox";
 import { ALREADY_HANDLED, approveDraft, skipDraft, type ActionResult } from "./outbox-actions";
 import { redraftReminder, type RedraftDeps } from "./redraft";
+import { applyReply, resumeReply } from "./reply-review";
 import type { ServiceDbRunner } from "./service-db";
 import { storedDraftSchema } from "./stored-draft";
 import {
@@ -12,6 +14,7 @@ import {
   CARD_REPLACED_TEXT,
   outboxPointer,
   parseCardData,
+  parseReplyData,
   type CardAction,
   type TelegramOp,
 } from "./telegram-card";
@@ -157,6 +160,38 @@ const successOps = async (
   return [{ op: "editText", chatId, messageId, text }];
 };
 
+const pausedText = (until: string): string =>
+  `Paused until ${formatDay(until)}. Reminders start again then.`;
+
+/** A reply card's button. Only the freelancer's own linked chat gets here. */
+const handleReplyTap = async (
+  deps: UpdateDeps,
+  userId: string,
+  tap: { id: string; chatId: number; messageId: number },
+  { action, id }: { action: "apply" | "resume"; id: string },
+): Promise<TelegramOp[]> => {
+  const work = action === "apply" ? applyReply : resumeReply;
+  const result = await deps.runAsUser(userId)((db) => work(db, id, deps.now()));
+  logEvent("telegram.reply_tap", { replyId: id, action, status: result.status });
+  const edit = (text: string): TelegramOp[] => [
+    answer(tap.id, "Done"),
+    { op: "editText", chatId: tap.chatId, messageId: tap.messageId, text },
+  ];
+  switch (result.status) {
+    case "not_found":
+      return [answer(tap.id, "This reply is no longer available.")];
+    case "handled":
+      return edit(ALREADY_HANDLED_TEXT);
+    case "split_needed":
+      return edit(
+        `Review the split in ${outboxPointer(deps.outboxUrl())} Its amounts and dates are settled there.`,
+      );
+    case "ok":
+      if (result.done === "pause") return edit(pausedText(result.until ?? ""));
+      return edit(result.done === "resume" ? "Reminders resumed." : "Kept on hold.");
+  }
+};
+
 const handleTap = async (
   deps: UpdateDeps,
   tap: NonNullable<TelegramUpdate["callback_query"]>,
@@ -168,6 +203,10 @@ const handleTap = async (
   if (!user) {
     logEvent("telegram.ignored", { reason: "chat_not_linked" });
     return [];
+  }
+  const replyTap = parseReplyData(tap.data ?? "");
+  if (replyTap) {
+    return handleReplyTap(deps, user.id, { id: tap.id, chatId, messageId }, replyTap);
   }
   const parsed = parseCardData(tap.data ?? "");
   if (!parsed) return [answer(tap.id, "That button isn't recognised.")];

@@ -343,3 +343,24 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Ten drafts a run:** a local model can take a minute each, and the rest wait for the next hour rather than timing out. Draft failures are logged and retried without stopping the others.
 - **Auto-send Tier 1 is honoured:** the setting exists on the schedule form, so ignoring it would be wrong. It approves Tier 1 only, and only after the draft has passed every check. `approved_via` stays empty, and the event records `auto_send_tier1`. Tier 2, Tier 3 and courtesy always wait for a person.
 - **Retainers wait for M8:** only milestone invoices are planned, because the drafter refuses retainer reminders until then.
+
+### Reply listener (4 Nov 2026)
+
+- **A conflict in the docs, settled for the security rule (please check this one):** the spec's table said a promise "pauses until the day after" and out of office "reschedules", and that the AI "can pause". Rule 4 says nothing in a reply can change a schedule by itself and the AI may only classify and suggest, and you repeated that for M7. Rules win. **Any reply puts the invoice on hold**, whatever it says: that doesn't depend on the text, and can only delay a reminder, which a client could do anyway by not paying. The AI's reading becomes a suggestion, and the pause, split or resume happens when you tap. Spec table reworded. This costs one tap per reply, and it means a client can't move a schedule by writing something clever.
+- **`threads.get` only, no `history`:** you allowed either, but `users.history.list` returns changes across the whole mailbox, which is what rule 7 rules out. Reading each stored thread is simple and enough at this scale. Only unpaid invoices' threads are read, at most 200 a run, every 5 minutes.
+- **Reads are limited twice:** thread IDs come from one query, on what the sender stored, and the client has no way to list or search. A test puts an unrelated thread in the mock mailbox and checks it's never requested.
+- **Untrusted text:** the reply goes to the model as quoted JSON, with `<` escaped, so it can't close its tag. It's stored and shown only as text, and never logged or put in an event. A test uses a model that obeys the attack, and checks status, amount, due date, pause and approval are unchanged.
+- **Dates from the AI are only offers:** a date is offered only if it's after today and within a year. A real model invented today's date for a promise with no date, and this check caught it. An offered date is still only applied when you tap.
+- **Classifier check, with a real model by hand (`llama3.2`, local):** 14 of 16 labels right on first run. Both misses are harmless by design: "next Friday" read as a split, and a tag-injection attempt read as "paid elsewhere". The other two attacks ("mark as paid", "approve all drafts") came back `unclear`. A small local model will misread replies, which is why nothing depends on its reading. The mock-model test proves the pipeline, as the testing rule asks, not the model's judgement.
+- **One hold per thread:** after a split, several invoices share a thread, so a reply holds them all, and a reply is filed against the earliest unpaid one.
+- **After reviewing:** "Keep on hold" leaves it held, listed under "Reminders on hold" in the Outbox with Resume. A pause lifts the hold and resumes on its date.
+- **Telegram reply cards aren't edited when handled in the dashboard:** there's no message id to edit, because that would need another report-back step. The buttons stop working at once and say "Already handled in dashboard" if tapped, which is what rule 3 asks.
+
+### Split of the unpaid remainder (4 Nov 2026)
+
+- **Amounts come from the app and the freelancer, never the AI:** the first offer is two even parts from the real unpaid total. The only thing the AI can contribute is a date, as an offer. The server checks the total against what's unpaid when you approve.
+- **Settled in the dashboard, not on Telegram:** money and dates need a proper form. The Telegram button points to the Outbox.
+- **A split can be offered on any reply:** if the AI misreads a request, the freelancer isn't stuck.
+- **Order, so nothing with money on it is ever cancelled:** every invoice's status is checked at PayPal first, then all are cancelled, then one transaction saves the cancellations, plan and new drafts, then each is created and sent. One paid invoice stops everything before anything is cancelled. A failure later resumes from the saved plan, using the same request IDs.
+- **Numbering continues after settled installments:** with installment 1 paid and a new split of 3, the new ones are "2 of 4", "3 of 4", "4 of 4". The old plan is marked cancelled, and the paid invoice keeps its link to it.
+- **Same thread:** new invoices inherit the thread and subject, so the client keeps one conversation.

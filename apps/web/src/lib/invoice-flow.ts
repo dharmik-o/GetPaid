@@ -90,7 +90,7 @@ const saveDrafts = async (
  * The template and text for new invoices: the freelancer's pick, or the defaults. Their own
  * text is held to the AI's rule (no amounts or dates): those come from the records.
  */
-const documentChoice = async (
+export const documentChoice = async (
   db: Db,
   context: MilestoneContext,
   body: IssueBody,
@@ -153,9 +153,11 @@ const prepare = (deps: FlowDeps, milestoneId: string, raw: unknown): Promise<Pre
 export const textFor = (record: InvoiceRecord, context: MilestoneContext) => {
   const { plan, open, milestone, project } = context;
   if (!record.installment || !plan) return { description: project.title, note: null };
+  // A split of what's left continues after the installments already settled.
+  const offset = record.installment.count - plan.items.length;
   const others = plan.items
     .map((item, index) => {
-      const number = index + 1;
+      const number = index + 1 + offset;
       const invoice = open.find((r) => r.installment?.number === number);
       return {
         number,
@@ -180,7 +182,7 @@ export const textFor = (record: InvoiceRecord, context: MilestoneContext) => {
   });
 };
 
-const draftFor = (
+export const draftFor = (
   record: InvoiceRecord,
   context: MilestoneContext,
   issuedOn: string,
@@ -202,7 +204,7 @@ const draftFor = (
 };
 
 /** Creates (or finds) the PayPal invoice and sends it; returns the client's pay link. */
-const sendThroughPaypal = async (
+export const sendThroughPaypal = async (
   deps: FlowDeps,
   record: InvoiceRecord,
   draft: InvoiceDraft,
@@ -231,7 +233,7 @@ const sendThroughPaypal = async (
 };
 
 /** The PDF follows the sent invoice; if it fails, the download or the next email makes it. */
-const makePdf = async (deps: FlowDeps, invoiceId: string): Promise<void> => {
+export const makePdf = async (deps: FlowDeps, invoiceId: string): Promise<void> => {
   if (!deps.pdf) return;
   try {
     await deps.pdf(invoiceId);

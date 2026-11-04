@@ -6,8 +6,11 @@ import {
   CARD_REPLACED_TEXT,
   cardData,
   cardText,
+  replyData,
   type TelegramOp,
 } from "./telegram-card";
+import { primaryLabel } from "./reply-labels";
+import { loadRepliesById } from "./reply-review";
 
 // Server-only, as the service role (n8n's card run covers every freelancer; callers must have
 // checked the internal token). Works out which cards to send from the database, so a repeated run
@@ -127,6 +130,49 @@ const reconnectNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
   return rows.map((row) => ({ op: "sendText", chatId: Number(row.chat_id), text: RECONNECT_TEXT }));
 };
 
+const REPLY_QUOTE_MAX = 1000;
+
+/** One card per reply: the client's words, the AI's reading, and the freelancer's choice. */
+const replyCards = async (db: Db, now: Date): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{ id: string; user_id: string; chat_id: string }>(
+    `SELECT msg.id::text, msg.user_id::text, u.telegram_chat_id::text AS chat_id
+     FROM public.messages msg JOIN public.users u ON u.id = msg.user_id
+     WHERE msg.review_status = 'pending' AND msg.telegram_notified_at IS NULL
+       AND u.telegram_chat_id IS NOT NULL
+     ORDER BY msg.created_at LIMIT 50`,
+  );
+  if (rows.length === 0) return [];
+  await db.query(
+    "UPDATE public.messages SET telegram_notified_at = $1 WHERE id = ANY($2::uuid[])",
+    [now.toISOString(), rows.map((row) => row.id)],
+  );
+  const replies = await loadRepliesById(
+    db,
+    rows.map((row) => row.id),
+    now,
+  );
+  return rows.flatMap((row): TelegramOp[] => {
+    const reply = replies.get(row.id);
+    if (!reply) return [];
+    const data = replyData(reply.id);
+    const quote = reply.text.slice(0, REPLY_QUOTE_MAX);
+    const evidence =
+      reply.label === "dispute"
+        ? "\n\nThe evidence timeline is on the client's page in the dashboard."
+        : "";
+    return [
+      {
+        op: "sendReply",
+        chatId: Number(row.chat_id),
+        text: `${reply.clientName} replied about ${reply.what}:\n\n"${quote}"\n\nAI suggestion: ${reply.summary}\n\nThis invoice is on hold: no reminder goes out until you decide.${evidence}`,
+        primaryText: primaryLabel(reply.suggestion),
+        primaryData: data.primary,
+        resumeData: data.resume,
+      },
+    ];
+  });
+};
+
 /** Cards showing old wording or an old time: closed here, and sent again by `cardsToSend`. */
 const replaceStale = async (db: Db): Promise<TelegramOp[]> => {
   const { rows } = await db.query<{ chat_id: string; message_id: string }>(
@@ -190,6 +236,7 @@ export const telegramRun = async (
   outboxUrl: string | undefined,
 ): Promise<TelegramOp[]> => [
   ...(await reconnectNotices(db, now)),
+  ...(await replyCards(db, now)),
   ...(await sentNotices(db, now)),
   ...(await closeHandled(db, now)),
   ...(await replaceStale(db)),

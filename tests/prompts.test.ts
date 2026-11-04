@@ -37,7 +37,7 @@ describe("prompts/*.md", () => {
   it("covers every kind of draft", () => {
     expect([...DRAFT_PROMPTS].sort()).toEqual(
       PROMPT_FILES.filter(
-        (name) => !["invoice_text", "redraft_from_feedback"].includes(name),
+        (name) => !["invoice_text", "redraft_from_feedback", "classify_reply"].includes(name),
       ).sort(),
     );
   });

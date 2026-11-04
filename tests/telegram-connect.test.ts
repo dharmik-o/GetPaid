@@ -85,6 +85,7 @@ describe("03_approval_handler workflow", () => {
       "sendText",
       "editText",
       "answer",
+      "sendReply",
     ] satisfies TelegramOp["op"][]);
     expect(workflow.connections["Which step"]?.main).toHaveLength(routed?.length ?? 0);
   });

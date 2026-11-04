@@ -36,6 +36,9 @@ const calendarDate = (iso: string): DateTime => DateTime.fromISO(iso, { zone: "u
 
 const addDays = (iso: string, days: number): string => isoDateOf(calendarDate(iso).plus({ days }));
 
+/** A calendar date this many days on. */
+export const addCalendarDays = addDays;
+
 const daysBetween = (from: string, to: string): number =>
   Math.round(calendarDate(to).diff(calendarDate(from), "days").days);
 

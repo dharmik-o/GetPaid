@@ -1,7 +1,7 @@
 import type { Db } from "./db";
 import { draftReminder, type DrafterDeps } from "./drafter";
 import { errorKind, logEvent } from "./log";
-import { nextSend, type PastReminder, type Tier } from "./schedule";
+import { nextSend, todayIn, type PastReminder, type Tier } from "./schedule";
 import type { ServiceDbRunner } from "./service-db";
 import { mergeSettings, type ScheduleSettings } from "./settings";
 
@@ -19,6 +19,7 @@ const DRAFT_LIMIT = 10;
 
 type PlanRow = {
   tier: Tier | null;
+  paused_until: string | null;
   due_date: string;
   time_zone: string;
   account_settings: unknown;
@@ -37,7 +38,8 @@ const settingsOf = (row: PlanRow): ScheduleSettings =>
 
 const loadPlanRow = async (db: Db, invoiceId: string): Promise<PlanRow | undefined> => {
   const { rows } = await db.query<PlanRow>(
-    `SELECT NULL AS tier, i.due_date::text, c.time_zone, u.default_settings AS account_settings,
+    `SELECT NULL AS tier, i.reminders_paused_until::text AS paused_until, i.due_date::text, c.time_zone,
+       u.default_settings AS account_settings,
        c.settings AS client_settings, p.settings AS project_settings,
        m.settings AS milestone_settings
      FROM public.invoices i
@@ -45,7 +47,8 @@ const loadPlanRow = async (db: Db, invoiceId: string): Promise<PlanRow | undefin
      JOIN public.projects p ON p.id = m.project_id
      JOIN public.clients c ON c.id = p.client_id
      JOIN public.users u ON u.id = i.user_id
-     WHERE i.id = $1 AND i.status IN ('sent', 'partially_paid') AND i.due_date IS NOT NULL`,
+     WHERE i.id = $1 AND i.status IN ('sent', 'partially_paid') AND i.due_date IS NOT NULL
+       AND i.reminders_held_at IS NULL`,
     [invoiceId],
   );
   return rows[0];
@@ -64,6 +67,7 @@ const loadHistory = async (db: Db, invoiceId: string): Promise<PastReminder[]> =
 const planInvoice = async (db: Db, invoiceId: string, now: Date): Promise<boolean> => {
   const row = await loadPlanRow(db, invoiceId);
   if (!row) return false;
+  if (row.paused_until && todayIn(now, row.time_zone) < row.paused_until) return false;
   const next = nextSend({
     settings: settingsOf(row),
     dueDate: row.due_date,
@@ -89,6 +93,7 @@ const planAll = async (deps: SchedulerDeps, now: Date): Promise<number> => {
     const { rows } = await db.query<{ id: string; user_id: string }>(
       `SELECT i.id::text, i.user_id::text FROM public.invoices i
        WHERE i.status IN ('sent', 'partially_paid') AND i.milestone_id IS NOT NULL
+         AND i.reminders_held_at IS NULL
          AND NOT EXISTS (
            SELECT 1 FROM public.reminders r WHERE r.invoice_id = i.id AND r.sent_at IS NULL
              AND r.approval_status IN ('waiting', 'approved'))
@@ -107,7 +112,8 @@ const planAll = async (deps: SchedulerDeps, now: Date): Promise<number> => {
 const autoApproveIfChosen = (deps: SchedulerDeps, userId: string, reminderId: string) =>
   deps.runAsUser(userId)(async (db) => {
     const { rows } = await db.query<PlanRow>(
-      `SELECT r.tier, i.due_date::text, c.time_zone, u.default_settings AS account_settings,
+      `SELECT r.tier, NULL AS paused_until, i.due_date::text, c.time_zone,
+         u.default_settings AS account_settings,
          c.settings AS client_settings, p.settings AS project_settings,
          m.settings AS milestone_settings
        FROM public.reminders r

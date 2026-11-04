@@ -224,6 +224,29 @@
               },
               "renameOutput": true,
               "outputKey": "Answer tap"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.op }}",
+                    "rightValue": "sendReply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Send reply card"
             }
           ]
         },
@@ -400,6 +423,54 @@
         }
       },
       "notes": "Saves Telegram's message id, so the card can be changed once the draft is handled. Safe to re-run: only the first answer counts."
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.primaryText }}",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.primaryData }}"
+                    }
+                  },
+                  {
+                    "text": "Resume reminders",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.resumeData }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "2d7a6c10-0312-4f3b-8a2e-000000000312",
+      "name": "Send reply card",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1040,
+        520
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-bot",
+          "name": "Telegram bot"
+        }
+      }
     }
   ],
   "connections": {
@@ -484,6 +555,13 @@
         [
           {
             "node": "Answer tap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send reply card",
             "type": "main",
             "index": 0
           }

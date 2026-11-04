@@ -75,9 +75,10 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
   - Note: runs against a mocked Gmail in tests. A real send needs your OAuth client and `DEV_EMAIL_ALLOWLIST`.
 - [x] **Scheduler** (n8n `01_scheduler`): plans each unpaid invoice's next reminder from `lib/schedule.ts` and drafts it.
   - Note: added to this list. The spec has it, but no item built it, and without it no reminder is ever created. Retainers and maintenance join it in M8.
-- [ ] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
+- [x] **Reply listener** (n8n `05_reply_listener`): classify (promise / installments / paid elsewhere / dispute / out of office / unclear), then branch per the spec table.
   - Installments branch: drafts a split of the unpaid remainder (amounts and due dates) for the freelancer to approve. On approval, in one step, the open unpaid invoices are cancelled and the installment invoices are created (`created_from: client_request`). An invoice with money on it is never cancelled.
   - Done when: all fixtures in `tests/fixtures/client-replies.json` are labelled correctly, no reply text can change status or amount, and an approved split replaces the open invoice with installments while a paid invoice is never cancelled.
+  - Note: labelled correctly with the mock model, as the rule asks. With a real local model (`llama3.2`), 14 of 16 labels were right; a wrong one can only mislead a suggestion, since nothing changes without you. Gmail is mocked in tests: reading a real reply needs your OAuth client.
 
 ## M8 Retainers and maintenance [Retainers and maintenance reminders]
 
