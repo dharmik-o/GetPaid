@@ -40,7 +40,7 @@ const ClientsPage = async () => {
           </Link>
         </div>
       ) : (
-        <table className="table">
+        <table className="table table-stack">
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -56,11 +56,11 @@ const ClientsPage = async () => {
           <tbody>
             {clients.map((client) => (
               <tr key={client.id}>
-                <td>
+                <td data-label="Name">
                   <Link href={`/clients/${client.id}`}>{client.name}</Link>
                 </td>
-                <td>{client.countryName}</td>
-                <td className="money">
+                <td data-label="Country">{client.countryName}</td>
+                <td className="money" data-label="Open balance">
                   <OpenBalance client={client} />
                 </td>
                 <td className="hide-small">

@@ -109,6 +109,40 @@ test.describe("Outbox", () => {
   });
 });
 
+test.describe("Clients", () => {
+  const CLIENT = "/clients/00000000-0000-4000-8000-0000000000c1";
+
+  test("a client's balance is left-aligned with its label, in the heading font", async ({
+    page,
+  }) => {
+    await page.goto(CLIENT, { waitUntil: "networkidle" });
+    const balance = page.locator(".balance-value");
+    await expect(balance).not.toHaveCSS("text-align", "right");
+    await expect(balance).toHaveCSS("font-family", /Clash Display/);
+  });
+
+  test("the timeline has its dotted line, behind the icons", async ({ page }) => {
+    await page.goto(CLIENT, { waitUntil: "networkidle" });
+    const line = await page.locator(".timeline").evaluate((list) => {
+      const style = getComputedStyle(list, "::before");
+      return { border: style.borderLeftStyle, width: style.borderLeftWidth };
+    });
+    expect(line).toEqual({ border: "dotted", width: "2px" });
+  });
+
+  test("on a phone, the list and details stack, with nothing beside them", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto("/clients", { waitUntil: "networkidle" });
+    await expect(page.locator('main td[data-label="Open balance"]').first()).toBeVisible();
+    await expect(page.locator("main .table-stack thead")).toHaveCSS("position", "absolute");
+    await page.goto(CLIENT, { waitUntil: "networkidle" });
+    const columns = await page
+      .locator("dl.details")
+      .evaluate((list) => getComputedStyle(list).gridTemplateColumns.split(" ").length);
+    expect(columns).toBe(1);
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

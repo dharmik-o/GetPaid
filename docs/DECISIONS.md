@@ -673,3 +673,8 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A handled draft collapses away, and a new one opens up, through one small `AnimatedList`.** Nothing animates on page load, or when you change tab, so the page stays calm. It uses `height`, which the brief otherwise rules out, because the brief asks for exactly this on list add and remove. The motion lasts 0.18s to 0.3s, and is off with reduced motion.
 - **The amount on a draft is in the heading font,** so what you're approving reads first. The tier chip and send time now sit in one row that wraps.
 - **Tested with a real payment:** with the Outbox open, the invoice's webhook arrives, and its draft collapses away by itself on the next refresh.
+### Clients restyle (5 Nov 2026)
+
+- **A bug the redesign showed up:** Open balance was meant to be left-aligned, but `.money`'s `!important` beat the inline style, so it sat alone on the right. It now uses its own `balance-value` class, in the heading font.
+- **The timeline has the brief's dotted line** behind its icons, replacing the row dividers, so it reads as one history.
+- **On phones, the label-and-value list stacks,** so a long email address has the full width, and the client and project tables become labelled rows.

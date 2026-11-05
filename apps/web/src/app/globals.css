@@ -412,6 +412,15 @@ h3 {
   line-height: 1.2;
 }
 
+/* A heading and its button, inside a card. */
+.card .page-header {
+  margin-bottom: var(--space-4);
+}
+
+.card .page-header h2 {
+  margin: 0;
+}
+
 /* Buttons --------------------------------------------------------------------------------- */
 .button {
   display: inline-flex;
@@ -811,6 +820,16 @@ dl.details {
 
 .details dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.balance-value {
+  font-family: var(--font-display);
+  font-synthesis: none;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 /* Flat colour that breathes: the dotted triangle holds the only gradient in the UI. */
@@ -1161,30 +1180,50 @@ button.chip:hover {
 
 /* Client timeline */
 .timeline {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* The dotted line that runs behind the icons, the brief's secondary detail. */
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: var(--space-4);
+  bottom: var(--space-4);
+  left: 11px;
+  border-left: 2px dotted var(--accent-ink);
 }
 
 .timeline-row {
   display: flex;
   gap: var(--space-3);
   padding: var(--space-3) 0;
-  border-top: 1px solid var(--line);
-}
-
-.timeline-row:first-child {
-  border-top: 0;
 }
 
 .timeline-icon {
+  position: relative;
   flex: none;
   width: 24px;
   height: 24px;
   border: 1px solid var(--line-control);
   border-radius: var(--radius-pill);
+  background: var(--surface);
   line-height: 22px;
   text-align: center;
+}
+
+.timeline-body time {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timeline-body summary {
+  padding-top: var(--space-1);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
 .timeline-payment {
@@ -1199,7 +1238,15 @@ button.chip:hover {
 }
 
 .timeline-title {
-  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 var(--space-1);
+}
+
+.timeline-title .chip {
+  margin-right: 0;
 }
 
 .timeline-text {
@@ -1527,6 +1574,24 @@ button.chip:hover {
   .milestone-table td {
     display: block;
     width: 100%;
+  }
+
+  dl.details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .details dt {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .details dd {
+    margin-bottom: var(--space-3);
+  }
+
+  .details dd:last-child {
+    margin-bottom: 0;
   }
 
   .table-stack caption {

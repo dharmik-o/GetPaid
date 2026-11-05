@@ -50,7 +50,7 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           <dt>Time zone</dt>
           <dd>{client.timeZone}</dd>
           <dt>Open balance</dt>
-          <dd className="money" style={{ textAlign: "left" }}>
+          <dd className="balance-value">
             {client.openBalances.length === 0
               ? "Nothing owed"
               : client.openBalances.map((b) => formatMoney(b.cents, b.currency)).join(", ")}
@@ -71,7 +71,7 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
           </p>
         ) : (
           <div className="table-scroll">
-            <table className="table">
+            <table className="table table-stack">
               <thead>
                 <tr>
                   <th scope="col">Project</th>
@@ -84,11 +84,15 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
               <tbody>
                 {projects.map((project) => (
                   <tr key={project.id}>
-                    <td>
+                    <td data-label="Project">
                       <Link href={`/projects/${project.id}`}>{project.title}</Link>
                     </td>
-                    <td>{project.deadline ? formatDay(project.deadline) : "Not set"}</td>
-                    <td className="money">{formatMoney(project.totalCents, project.currency)}</td>
+                    <td data-label="Deadline">
+                      {project.deadline ? formatDay(project.deadline) : "Not set"}
+                    </td>
+                    <td className="money" data-label="Total">
+                      {formatMoney(project.totalCents, project.currency)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
