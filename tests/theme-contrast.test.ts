@@ -70,14 +70,34 @@ describe.each([
   it.each(OUTLINE_PAIRS)("%s meets 3:1", (_what, line, fill) => {
     expect(contrast(color(line), color(fill))).toBeGreaterThanOrEqual(3);
   });
+});
 
-  // WCAG sets no ratio for a card's edge, as it isn't a control. The redesign's --line is the mock's
-  // own value, and a card also stands out by its fill, so this floor only catches a line that vanishes.
-  it.each([
-    ["a card", "surface"],
-    ["the page", "bg"],
-  ])("the card and table border is visible on %s", (_where, fill) => {
-    expect(contrast(color("line"), color(fill))).toBeGreaterThanOrEqual(1.2);
+// WCAG sets no ratio for a card's edge, as it isn't a control. On white, the mock's own line was too
+// faint to see, so light mode has this project's 1.6:1 floor, and shadows as well. On black the mock's
+// value stays, and this floor only catches a line that vanishes.
+describe("card and table borders", () => {
+  it.each(SURFACES)("are plainly visible on %s in light mode", (fill) => {
+    expect(contrast(LIGHT.line ?? "", LIGHT[fill] ?? "")).toBeGreaterThanOrEqual(1.6);
+  });
+
+  it.each(["surface", "bg"])("don't vanish on %s in dark mode", (fill) => {
+    expect(contrast(DARK.line ?? "", DARK[fill] ?? "")).toBeGreaterThanOrEqual(1.2);
+  });
+});
+
+describe("shadows", () => {
+  const SHADOWS = ["shadow-card", "shadow-panel", "shadow-control", "shadow-bar"];
+  const valueIn = (block: string, name: string): string =>
+    new RegExp(`--${name}:\\s*([^;]+);`).exec(block)?.[1]?.trim() ?? "";
+
+  it.each(SHADOWS)("--%s is off in dark mode, where a black page can't show it", (name) => {
+    expect(valueIn(blockAfter(":root {"), name)).toBe("none");
+  });
+
+  it.each(SHADOWS)("--%s is a soft black shadow in light mode, never a coloured glow", (name) => {
+    const value = valueIn(blockAfter('[data-theme="light"] {'), name);
+    expect(value).toMatch(/rgba\(0, 0, 0, 0\.\d+\)/);
+    expect(value.replace(/rgba\(0, 0, 0, 0\.\d+\)/g, "")).not.toMatch(/rgb|#/);
   });
 });
 
@@ -127,12 +147,12 @@ describe("the themes", () => {
     expect(blockAfter(".dot-tri {")).toContain("radial-gradient(");
   });
 
-  it("has no glows or soft shadows: every box-shadow is a hard edge, with no blur", () => {
+  it("has soft shadows only through the tokens: any other box-shadow is a hard edge", () => {
     const shadows = [...CSS.matchAll(/box-shadow:\s*([^;]+);/g)].map(([, value = ""]) => value);
     expect(shadows.length).toBeGreaterThan(0);
     for (const shadow of shadows) {
       for (const layer of shadow.split(",")) {
-        if (layer.trim() === "none") continue;
+        if (layer.trim() === "none" || layer.trim().startsWith("var(--shadow-")) continue;
         const blur = /(?:inset\s+)?-?\d+(?:px)?\s+-?\d+(?:px)?\s+(-?[\d.]+)/.exec(layer.trim());
         expect(blur?.[1], `blur in "${layer.trim()}"`).toBe("0");
       }

@@ -35,6 +35,7 @@ type Measured = {
   behind: string;
   border: string;
   width: number;
+  shadow: string;
 };
 
 /** Colours as drawn: a see-through background shows whatever is behind it. */
@@ -59,6 +60,7 @@ const measure = (page: Page, selector: string): Promise<Measured[]> =>
           behind: element.parentElement ? fillBehind(element.parentElement) : "rgb(255, 255, 255)",
           border: style.borderTopColor,
           width: parseFloat(style.borderTopWidth),
+          shadow: style.boxShadow,
         };
       });
   }, selector);
@@ -80,7 +82,15 @@ const buttonProblems = (buttons: Measured[]): string[] =>
 
 const FIELDS = 'main input:not([type="checkbox"]):not([type="radio"]), main select, main textarea';
 const PANELS =
-  "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body";
+  "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body, main .template-preview";
+
+/** On white, boxes need a shadow to show their edges. On black, a shadow can't show, so none. */
+const shadowProblems = (items: Measured[], colorScheme: "light" | "dark"): string[] =>
+  items.flatMap(({ label, shadow }) => {
+    if (colorScheme === "light" && shadow === "none") return [`${label}: no shadow`];
+    if (colorScheme === "dark" && shadow !== "none") return [`${label}: has a shadow`];
+    return [];
+  });
 
 /** Fields need 3:1 at the edge and readable text. Panels need an edge you can see. */
 const fieldProblems = (fields: Measured[]): string[] =>
@@ -92,10 +102,11 @@ const fieldProblems = (fields: Measured[]): string[] =>
     return problems;
   });
 
-const panelProblems = (panels: Measured[]): string[] =>
+const panelProblems = (panels: Measured[], colorScheme: "light" | "dark"): string[] =>
   panels.flatMap(({ label, fill, border, width }) => {
     if (width < 1) return [`${label}: no border`];
-    return contrast(border, fill) < 1.2 ? [`${label}: border is too faint`] : [];
+    const floor = colorScheme === "light" ? 1.6 : 1.2;
+    return contrast(border, fill) < floor ? [`${label}: border is too faint`] : [];
   });
 
 /**
@@ -328,7 +339,8 @@ for (const colorScheme of ["light", "dark"] as const) {
               await measure(page, "main button, main a.button, .app-header button"),
             ),
             ...fieldProblems(await measure(page, FIELDS)),
-            ...panelProblems(await measure(page, PANELS)),
+            ...panelProblems(await measure(page, PANELS), colorScheme),
+            ...shadowProblems(await measure(page, `${PANELS}, ${FIELDS}`), colorScheme),
           ];
           found.push(...problems.map((line) => `${path}: ${line}`));
           found.push(...(await spills(page)).map((line) => `${path}: ${line}`));

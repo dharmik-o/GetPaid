@@ -44,6 +44,10 @@
   --danger: #ff6b4a;
   --focus: #e8a800;
   --edge: transparent;
+  --shadow-card: none;
+  --shadow-panel: none;
+  --shadow-control: none;
+  --shadow-bar: none;
 
   --font-display: "Clash Display", "Arial Black", system-ui, sans-serif;
   --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -70,7 +74,7 @@
   --bg: #ffffff;
   --surface: #f4f4f4;
   --surface-2: #ebebeb;
-  --line: #dddddd;
+  --line: #b8b8b8;
   --line-control: #858585;
   --text: #000000;
   --muted: #565656;
@@ -80,6 +84,10 @@
   --danger: #b83a1c;
   --focus: #875b00;
   --edge: #000000;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.1);
+  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.14);
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-bar: 0 0 10px rgba(0, 0, 0, 0.14);
 }
 
 * {
@@ -122,6 +130,7 @@ a {
   border: 1px solid var(--line-control);
   border-radius: var(--radius-control);
   background: var(--surface-2);
+  box-shadow: var(--shadow-control);
   color: var(--text);
   transition: border-color 0.2s ease;
 }
@@ -241,6 +250,7 @@ h3 {
   overflow: hidden auto;
   background: var(--bg);
   border-right: 1px solid var(--line);
+  box-shadow: var(--shadow-bar);
   padding: var(--space-6) 0;
 }
 
@@ -361,6 +371,7 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   padding: var(--space-6);
   margin-bottom: var(--space-4);
 }
@@ -380,6 +391,7 @@ h3 {
   border: 1.5px solid var(--edge);
   border-radius: var(--radius-pill);
   background: var(--accent);
+  box-shadow: var(--shadow-control);
   color: var(--on-accent);
   font: inherit;
   font-weight: 600;
@@ -443,6 +455,7 @@ h3 {
   border: 1px solid var(--line-control);
   border-radius: var(--radius-control);
   background: transparent;
+  box-shadow: var(--shadow-control);
   color: var(--text);
   font: inherit;
   font-size: 14px;
@@ -482,6 +495,7 @@ h3 {
   border: 1px solid var(--line-control);
   border-radius: 50%;
   background: transparent;
+  box-shadow: var(--shadow-control);
   color: var(--text);
   cursor: pointer;
   transition:
@@ -532,7 +546,12 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
+}
+
+.card .table {
+  box-shadow: var(--shadow-panel);
 }
 
 .table th,
@@ -633,6 +652,7 @@ h3 {
 .schedule-group {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  box-shadow: var(--shadow-panel);
   padding: var(--space-3) var(--space-4);
   margin: 0;
 }
@@ -655,6 +675,7 @@ h3 {
   background: var(--surface-2);
   border: 1px solid var(--accent-ink);
   border-radius: var(--radius-control);
+  box-shadow: var(--shadow-panel);
   padding: var(--space-3) var(--space-4);
   margin: 0;
 }
@@ -673,6 +694,7 @@ label.inline {
   border-radius: var(--radius-control);
   background: var(--surface);
   border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
 }
 
 .banner-error {
@@ -806,7 +828,7 @@ dl.details {
 }
 
 .badge-draft {
-  border-color: transparent;
+  border-color: var(--line);
   background: var(--surface-2);
 }
 
@@ -814,6 +836,7 @@ button.chip {
   font: inherit;
   font-size: 14px;
   background: transparent;
+  box-shadow: var(--shadow-control);
   color: var(--text);
   cursor: pointer;
 }
@@ -870,6 +893,7 @@ button.chip:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: #ffffff;
+  box-shadow: var(--shadow-panel);
 }
 
 .template-notes {
@@ -929,6 +953,7 @@ button.chip:hover {
   align-items: center;
   min-height: 44px;
   padding: 0 var(--space-5);
+  border: 1.5px solid transparent;
   border-radius: var(--radius-pill);
   color: var(--muted);
   font-weight: 600;
@@ -939,9 +964,15 @@ button.chip:hover {
   color: var(--text);
 }
 
+/* On white, a tab with no outline doesn't look like something you can press. */
+[data-theme="light"] .tabs a {
+  border-color: var(--line-control);
+  box-shadow: var(--shadow-control);
+}
+
 .tabs a[aria-current="page"] {
   background: var(--accent);
-  box-shadow: inset 0 0 0 1.5px var(--edge);
+  border-color: var(--edge);
   color: var(--on-accent);
 }
 
@@ -977,6 +1008,7 @@ button.chip:hover {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  box-shadow: var(--shadow-panel);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1056,6 +1088,7 @@ button.chip:hover {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  box-shadow: var(--shadow-panel);
 }
 
 .metric-tile p {
@@ -1074,8 +1107,10 @@ button.chip:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* The padding leaves room for the table's shadow, which the scroll box would otherwise cut off. */
 .table-scroll {
   overflow-x: auto;
+  padding: 2px 2px 4px;
 }
 
 .table-scroll caption {
