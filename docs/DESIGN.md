@@ -42,6 +42,9 @@ The rules for the dashboard and landing page in `apps/web`. The look comes from 
 - **CurrencyNote:** one line under every currency dropdown, saying why INR isn't there. On the project form, Total and Currency share a row, so the note runs under the whole row.
 - **UpcomingList:** grouped by week; each row shows the type (maintenance / renewal / retainer), client, date and amount.
 - **StatusBadge:** the pill for a payment or milestone status. Takes the status, and always shows its label.
+- **AnimatedList:** wraps a list of cards, so a new one opens up and a removed one collapses. Nothing moves on page load.
+- **PaidMoment and PaidBadge:** the Paid stamp on a row, and the badge that pops with it (see The Paid stamp).
+- **MoreMenu:** the phone's More button and its small menu.
 - **DottedTriangle:** the brand's decoration (see below).
 - **Logo:** the GetPaid stamp (`public/getpaid-stamp.svg`) and the name, replacing the mock's yellow triangle. The stamp is gold in dark mode and `--accent-ink` ochre in light, through `--logo-ink`. It's also the browser tab's icon. The name lives in one constant, `BRAND_NAME` (`lib/brand.ts`), but the stamp's lettering is part of the drawing, so a rename also needs a new stamp.
 - **ThemeToggle:** a 44px round button in the header, named "Switch to light mode" or "Switch to dark mode".
@@ -72,13 +75,13 @@ All of these live in `globals.css`, the project's one styling system. Dark is th
   - `--shadow-pop`: `0 4px 8px rgba(20,18,10,.08), 0 24px 48px -12px rgba(20,18,10,.22)`. Menus, dropdowns, dialogs and toasts.
   - The primary yellow button keeps only its hard offset hover shadow (`0 6px 0 0 var(--text)`), never a soft one.
 - **Depth (dark mode):** shadows barely show on black, so cards stand out by being lighter than the page. `--shadow-card` and `--shadow-panel` are `inset 0 1px 0 rgba(255,255,255,.04)`, `--shadow-card-hover` is `inset 0 1px 0 rgba(255,255,255,.06)`, `--shadow-control` and `--shadow-button` are none, and `--shadow-pop` is `0 0 0 1px #2c2c2c, 0 24px 48px rgba(0,0,0,.6)`.
-- **Tables:** no zebra stripes; rows are split by `--line`; money is right-aligned in tabular numbers; row hover is `--surface-2`. On phones, a wide table scrolls inside its own box or becomes cards.
+- **Tables:** no zebra stripes; rows are split by `--line`; money is right-aligned in tabular numbers; row hover is `--surface-2`. On phones, tables with `table-stack` become labelled rows (each cell has a `data-label`), so an amount never hides behind a scroll. Milestone tables have six columns of fields, so they do the same below 1200px.
 - **Spacing:** 4, 8, 12, 16, 20, 24, 32, 40, 56, 72, 96, 120, 150. App pages use 24 to 40; landing sections use 120 to 150.
 - **Money:** right-aligned, tabular numbers, always with the currency code (USD 1,500.00), never a symbol such as ₹.
 
 ## Dotted triangles
 
-`<DottedTriangle />`: a triangle filled with a grid of dots, never solid colour, and always `aria-hidden`. App pages get at most one, small, at 0.25 to 0.4 opacity, in an empty corner or the empty state. The landing page gets one to three per section, mostly on the left and right edges and partly off-screen, never behind body text. Under 640px they shrink to about 60%. On the yellow band they use black dots (`variant="ink"`).
+`<DottedTriangle />`: a triangle filled with a grid of dots, never solid colour, and always `aria-hidden`. App pages get at most one, small, at 0.25 to 0.4 opacity: in the corner of an empty card if the page has one, and otherwise in the sidebar's corner. CSS gives an empty card its triangle, so it needs no markup. The landing page gets one to three per section, mostly on the left and right edges and partly off-screen, never behind body text. Under 640px they shrink to about 60%. On the yellow band they use black dots (`variant="ink"`).
 
 Props: `size` (width; height is about 0.9 × width), `rotate`, `opacity` (0.4 to 0.9 on the landing page), position (`top`, `left`, `right`, `bottom`), `parallax`, and `variant` (`accent` uses `--dots`, `ink` uses black). Per landing section, mix at most one large (300–380px), one medium (200–260px) and one small (80–120px), with rotations between -30° and 200°, never symmetrical. Content sits above them at `z-index: 2`.
 

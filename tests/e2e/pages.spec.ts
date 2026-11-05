@@ -243,6 +243,52 @@ test.describe("Maintenance", () => {
   });
 });
 
+test.describe("Settings", () => {
+  test("fieldsets have the design's edge, not the browser's square box", async ({ page }) => {
+    await page.goto("/settings/ai", { waitUntil: "networkidle" });
+    const group = page.locator("main fieldset").first();
+    await expect(group).toHaveCSS("border-top-left-radius", "14px");
+    await expect(group.locator("legend")).toHaveCSS("font-weight", "600");
+  });
+
+  test("the save button doesn't touch the group above it", async ({ page }) => {
+    await page.goto("/settings/ai", { waitUntil: "networkidle" });
+    const last = await page.locator("main form fieldset").last().boundingBox();
+    const save = await page.getByRole("button", { name: "Save AI settings" }).boundingBox();
+    expect(save?.y ?? 0).toBeGreaterThanOrEqual((last?.y ?? 0) + (last?.height ?? 0) + 8);
+  });
+
+  test("a checkbox sits on the same line as its words", async ({ page }) => {
+    await page.goto("/settings/ai", { waitUntil: "networkidle" });
+    const label = page.locator("main fieldset label.inline").first();
+    await expect(label).toHaveCSS("display", "flex");
+    await expect(label).toHaveCSS("font-weight", "400");
+  });
+
+  test("links to other settings pages are secondary: yellow is for the main action", async ({
+    page,
+  }) => {
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    for (const name of ["Open AI settings", "Open invoice templates", "Integrations"]) {
+      await expect(page.locator("main").getByRole("link", { name, exact: true })).toHaveClass(
+        /button-secondary/,
+      );
+    }
+  });
+
+  test("the default template's chip doesn't touch its name", async ({ page }) => {
+    await page.goto("/settings/templates", { waitUntil: "networkidle" });
+    await expect(page.locator("main .table .chip-after").first()).toHaveCSS("margin-left", "8px");
+  });
+
+  test("on a phone, the templates table becomes labelled rows", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto("/settings/templates", { waitUntil: "networkidle" });
+    await expect(page.locator('main td[data-label="Actions"]').first()).toBeVisible();
+    await expect(page.locator("main .table-stack thead")).toHaveCSS("position", "absolute");
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

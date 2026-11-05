@@ -33,7 +33,7 @@ const SettingsPage = async () => (
     <section className="card" aria-labelledby="settings-ai">
       <h2 id="settings-ai">AI model</h2>
       <p>Pick a cloud or local model, enter its key, and test the connection.</p>
-      <Link className="button" href="/settings/ai">
+      <Link className="button button-secondary" href="/settings/ai">
         Open AI settings
       </Link>
     </section>
@@ -42,14 +42,16 @@ const SettingsPage = async () => (
       <p>
         Pick or write the template for your invoice PDFs, and add your business details and logo.
       </p>
-      <Link className="button" href="/settings/templates">
+      <Link className="button button-secondary" href="/settings/templates">
         Open invoice templates
       </Link>
     </section>
     <section className="card" aria-labelledby="settings-integrations">
       <h2 id="settings-integrations">Integrations</h2>
       <p>Connect Telegram to approve drafts from your phone, and Gmail to send reminders.</p>
-      <Link href="/settings/integrations">Integrations</Link>
+      <Link className="button button-secondary" href="/settings/integrations">
+        Integrations
+      </Link>
     </section>
     {process.env.NODE_ENV === "production" ? null : (
       <section className="card" aria-labelledby="settings-demo-clock">

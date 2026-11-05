@@ -622,6 +622,10 @@ h3 {
   box-shadow: var(--shadow-card-hover);
 }
 
+.chip-after {
+  margin-left: var(--space-2);
+}
+
 .money {
   text-align: right !important;
   font-variant-numeric: tabular-nums;
@@ -722,6 +726,37 @@ h3 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+/* A group of fields inside a form, in place of the browser's square black box. */
+fieldset {
+  min-width: 0;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-control);
+}
+
+legend {
+  padding: 0 var(--space-1);
+  font-weight: 600;
+}
+
+fieldset.form {
+  max-width: none;
+}
+
+.form > label.inline {
+  display: flex;
+  margin: 0;
+  font-size: inherit;
+  font-weight: normal;
+}
+
+.form > label.inline input {
+  flex: none;
+  width: 18px;
 }
 
 .schedule-form {

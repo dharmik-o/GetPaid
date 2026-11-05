@@ -69,7 +69,7 @@ export const AiTestPanel = ({ hasSettings }: { hasSettings: boolean }) => {
           <p role="status">
             {passed} of {results.length} passed.
           </p>
-          <table className="table">
+          <table className="table table-stack">
             <thead>
               <tr>
                 <th scope="col">Task</th>
@@ -80,11 +80,13 @@ export const AiTestPanel = ({ hasSettings }: { hasSettings: boolean }) => {
             <tbody>
               {results.map((row) => (
                 <tr key={row.task}>
-                  <td>{row.task}</td>
-                  <td>
-                    <span className="chip">{row.pass ? "Pass" : "Fail"}</span>
+                  <td data-label="Task">{row.task}</td>
+                  <td data-label="Result">
+                    <span className={row.pass ? "chip" : "badge badge-overdue"}>
+                      {row.pass ? "Pass" : "Fail"}
+                    </span>
                   </td>
-                  <td>{row.detail}</td>
+                  <td data-label="Details">{row.detail}</td>
                 </tr>
               ))}
             </tbody>

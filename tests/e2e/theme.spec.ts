@@ -82,7 +82,7 @@ const buttonProblems = (buttons: Measured[]): string[] =>
 
 const FIELDS = 'main input:not([type="checkbox"]):not([type="radio"]), main select, main textarea';
 const PANELS =
-  "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body, main .template-preview";
+  "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body, main .template-preview, main fieldset";
 
 /** In light mode the shadows do the separating. In dark mode only a faint inset highlight is used. */
 const shadowProblems = (items: Measured[], colorScheme: "light" | "dark"): string[] =>
@@ -288,7 +288,9 @@ test.describe("depth in light mode", () => {
     expect(await style(page, "main input", "boxShadow")).toContain("inset");
     expect(await style(page, ".icon-button", "boxShadow")).not.toBe("none");
     expect(await style(page, ".sidebar", "boxShadow")).toContain("16px");
-    expect(await style(page, "main a.button", "boxShadow")).toBe("none");
+    expect(
+      await style(page, "main .button:not(.button-secondary, .button-danger)", "boxShadow"),
+    ).toBe("none");
   });
 
   test("a clickable card or row only changes its shadow on hover", async ({ page }) => {
@@ -312,7 +314,7 @@ test.describe("reduced motion", () => {
 
   test("a primary button doesn't move on hover", async ({ page }) => {
     await page.goto("/settings", { waitUntil: "networkidle" });
-    const button = page.locator("main a.button").first();
+    const button = page.locator("main .button:not(.button-secondary, .button-danger)").first();
     await button.hover();
     const moved = await button.evaluate((element) => getComputedStyle(element).transform);
     expect(moved).toBe("none");

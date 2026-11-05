@@ -54,7 +54,7 @@ export const TemplateList = ({ templates, defaultTemplateId, classicId }: Props)
 
   return (
     <div>
-      <table className="table">
+      <table className="table table-stack">
         <thead>
           <tr>
             <th scope="col">Template</th>
@@ -67,12 +67,12 @@ export const TemplateList = ({ templates, defaultTemplateId, classicId }: Props)
         <tbody>
           {templates.map((template) => (
             <tr key={template.id}>
-              <td>
+              <td data-label="Template">
                 {template.name}
-                {template.id === current ? <span className="chip">Default</span> : null}
+                {template.id === current ? <span className="chip chip-after">Default</span> : null}
               </td>
               <td className="hide-small">{template.kind === "builtin" ? "Built-in" : "Yours"}</td>
-              <td className="row-actions">
+              <td className="row-actions" data-label="Actions">
                 <Link href={`/settings/templates/${template.id}`}>
                   {template.kind === "builtin" ? "Preview" : "Edit"}
                 </Link>

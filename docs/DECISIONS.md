@@ -692,3 +692,9 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 ### Maintenance restyle (5 Nov 2026)
 
 - **Mostly inherited.** A job's facts now share one row, its checklist has proper spacing, and a stopped job collapses away, using the same `AnimatedList`. A test checks that its six buttons wrap inside the card at 375px and stay at least 44px tall.
+### Settings restyle (5 Nov 2026)
+
+- **Fieldsets had the browser's square black box,** on the AI settings page and in the installment editor. One base rule now gives them the design's edge, and the e2e measures them on every page.
+- **Links to other settings pages are secondary buttons.** Three yellow buttons for navigation spent the accent on nothing, and "Integrations" was a plain link beside them. Yellow now marks the Save on each page. The wording didn't change.
+- **A failed AI test uses the Overdue style,** so it stands out from a pass, and still says "Fail" in words.
+- **Tests that had gone quietly wrong:** the primary-button checks picked the first `a.button`, which became a secondary link on Settings, so the reduced-motion check stopped testing a primary button. Both now choose a real primary button.
