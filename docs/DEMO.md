@@ -43,14 +43,14 @@ The Sender and the Telegram cards run every minute by themselves.
 
 ### 2. Deposit (40 seconds)
 
-- **Click:** under Invoices on the Design row, type `900.00` as the deposit, then **Create deposit invoice**. Open **PayPal pay link** and pay as the sandbox buyer.
+- **Click:** under Bill your milestones on the Design row, type `900.00` as the deposit, then **Create deposit invoice**. Open **PayPal pay link** and pay as the sandbox buyer.
 - **Say:** "The deposit protects the freelancer before work starts. The app gets PayPal's word for it, not the client's."
 - **On screen:** after the webhook arrives, refresh: Design shows **Paid**.
 - **If it's slow:** the webhook goes PayPal, tunnel, n8n, app, so give it 30 seconds. Say what's happening and carry on: nothing later depends on it.
 
 ### 3. Overdue (60 seconds)
 
-- **Click:** under Milestones on the Build row, **Mark in progress**, then **Mark delivered**. Under Invoices, **Create invoice** on Build. Then **Settings > Demo clock**, enter `21`, and press **Set the clock** (Net 7 plus 14 days overdue). Run the Scheduler. Open the Outbox and leave it showing.
+- **Click:** under Milestones on the Build row, **Mark in progress**, then **Mark delivered**. Under Bill your milestones, **Create invoice** on Build. Then **Settings > Demo clock**, enter `21`, and press **Set the clock** (Net 7 plus 14 days overdue). Run the Scheduler. Open the Outbox and leave it showing.
 - **Say:** "Three weeks later and nobody's paid. The AI writes a firm reminder, but nothing goes out until I approve it."
 - **On screen:** a banner saying the clock is 21 days ahead. A **Tier 2** draft for USD 1,500.00, with the send time in both zones.
 - **On Telegram:** within a minute, a card with the client, amount, tier and message. Tap **Approve**.
