@@ -758,3 +758,11 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Scroll reveals use opacity, not visibility,** so Tab can still reach the final Open dashboard link before you've scrolled to it.
 - **The optional fifth panel, Your AI, your choice, is in,** as a full-width row after the 3:2 and 2:3 rows.
 - **The landing copy is used as you wrote it,** including "nothing is ever sent without your approval". The optional Auto-send Tier 1 setting makes that untrue for an account that turns it on, though it's off by default. The Devpost text states the exception.
+
+### Hackathon submission (5 Nov 2026)
+
+- **The MIT copyright line says `dharmik-o`,** the git user name, because nothing in the repo gives another. Change it if you'd rather use your full name.
+- **The Devpost text leaves out two claims from the spec:** "65% wait more than 30 days" and PayPal's launch date in new markets, because the repo has no source for either. It also has no personal story, as that's yours to tell.
+- **It lists name and email redaction under What's next.** The spec describes it as an option, but it isn't built.
+- **The README's fast path is `npx playwright test demo`,** which needs no accounts. A judge can see the loop run without PayPal keys, and the full setup follows.
+- **The video runs 2:50, from scenes recorded separately,** because the live demo is about 5 minutes, mostly waiting. It cuts waits, and doesn't fake results.

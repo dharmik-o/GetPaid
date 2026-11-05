@@ -55,7 +55,9 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **Gmail's Testing mode ends the connection after 7 days.** Sends are then held, and you're told on Telegram and in the dashboard to press Reconnect Gmail.
 
-- **Before making this repo public, deal with the Clash Display font files.** They're committed in `apps/web/public/fonts`. The font's licence lets you self-host it on your own site, but not redistribute the files through a repository or a public server for others to take. The repo is private today, so nothing is needed now. If it goes public (for the hackathon, say), move them out of git first and have each person download their own copy from fontshare.com. Without them the app falls back to its backup fonts and still works.
+- **Before you push: the Clash Display font files.** They're committed in `apps/web/public/fonts`, and only in commits that haven't been pushed yet. The font's licence forbids making the files available to anyone else through a repository, which includes judges who are given access, and the MIT licence can't cover them. So the cheapest time to take them out is before the first push. The steps are in `docs/SUBMISSION-CHECKLIST.md`. Your local copy keeps working, and anyone else gets a backup font, or downloads their own from fontshare.com, as the README says.
+
+- **Before you submit:** work through `docs/SUBMISSION-CHECKLIST.md`. It has the checks only you can do: the copyright name, a setup test on a clean machine, a live rehearsal, and recording the video.
 
 - **The invoice archive holds client data: back it up.** It's at `INVOICE_ARCHIVE_DIR`, by default `Documents/GetPaid/Invoices` under your home folder, and Settings shows the path. The app won't let it sit anywhere git could commit it, but it does nothing to back it up. If you use OneDrive or similar, check whether that folder syncs, and whether you want client invoices there.
 
