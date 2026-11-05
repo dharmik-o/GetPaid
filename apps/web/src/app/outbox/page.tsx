@@ -6,6 +6,7 @@ import { HeldInvoiceRow } from "@/components/HeldInvoiceRow";
 import { ReplyCard, type SplitOffer } from "@/components/ReplyCard";
 import { appNow } from "@/lib/clock";
 import { getGmailAccount } from "@/lib/gmail-account";
+import { getFreelancerDetails, signatureChoiceFrom } from "@/lib/invoice-details";
 import { splitOffer } from "@/lib/invoice-split";
 import {
   listHeldInvoices,
@@ -41,7 +42,7 @@ type Props = { searchParams: Promise<{ tab?: string | string[] }> };
 const OutboxPage = async ({ searchParams }: Props) => {
   const tab = tabOf((await searchParams).tab);
   const now = appNow();
-  const { items, counts, replies, held, gmail } = await runAsCurrentUser(async (db) => {
+  const { items, counts, replies, held, gmail, signature } = await runAsCurrentUser(async (db) => {
     const pending = await listPendingReplies(db, now);
     const withOffers: { reply: ReplyItem; offer: SplitOffer | null }[] = [];
     for (const reply of pending) {
@@ -58,6 +59,7 @@ const OutboxPage = async ({ searchParams }: Props) => {
       replies: withOffers,
       held: await listHeldInvoices(db, now),
       gmail: await getGmailAccount(db),
+      signature: signatureChoiceFrom(await getFreelancerDetails(db)),
     };
   });
   return (
@@ -77,7 +79,7 @@ const OutboxPage = async ({ searchParams }: Props) => {
           <h2 id="outbox-replies">Replies to review ({replies.length})</h2>
           <AnimatedList>
             {replies.map(({ reply, offer }) => (
-              <ReplyCard key={reply.id} reply={reply} offer={offer} />
+              <ReplyCard key={reply.id} reply={reply} offer={offer} signature={signature} />
             ))}
           </AnimatedList>
         </section>

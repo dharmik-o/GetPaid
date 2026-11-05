@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RetainerForm, type RetainerClient } from "@/components/RetainerForm";
 import { getOwnTimeZone } from "@/lib/account";
 import { appNow } from "@/lib/clock";
+import { getFreelancerDetails, signatureChoiceFrom } from "@/lib/invoice-details";
 import type { Db } from "@/lib/db";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { todayIn } from "@/lib/schedule";
@@ -31,9 +32,10 @@ const loadClients = async (db: Db): Promise<RetainerClient[]> => {
 };
 
 const NewRetainerPage = async () => {
-  const { clients, timeZone } = await runAsCurrentUser(async (db) => ({
+  const { clients, timeZone, details } = await runAsCurrentUser(async (db) => ({
     clients: await loadClients(db),
     timeZone: await getOwnTimeZone(db),
+    details: await getFreelancerDetails(db),
   }));
   return (
     <div className="page">
@@ -49,7 +51,11 @@ const NewRetainerPage = async () => {
           </Link>
         </div>
       ) : (
-        <RetainerForm clients={clients} today={todayIn(appNow(), timeZone)} />
+        <RetainerForm
+          clients={clients}
+          today={todayIn(appNow(), timeZone)}
+          signature={signatureChoiceFrom(details)}
+        />
       )}
     </div>
   );

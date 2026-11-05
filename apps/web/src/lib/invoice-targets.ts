@@ -33,6 +33,8 @@ export const issueBodySchema = z.strictObject({
   templateId: z.uuid({ error: "must be picked from the list" }).optional(),
   /** The document's text tags, as the freelancer approved them; omit for the fixed text. */
   text: invoiceTextSchema.optional(),
+  /** "Include my signature"; omit for this milestone's earlier choice, or the account's default. */
+  includeSignature: z.boolean({ error: "must be on or off" }).optional(),
 });
 
 export type IssueBody = z.infer<typeof issueBodySchema>;

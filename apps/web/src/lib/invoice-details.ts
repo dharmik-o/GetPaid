@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Db } from "./db";
 import { toFieldIssues, type FieldIssue } from "./field-issues";
 import { getTemplate } from "./invoice-templates";
+import { SIGNATURE_MAX_CHARS, signatureImageProblem } from "./signature-rules";
 
 // Server-only: what the invoice document shows about the freelancer and each client, and their
 // default templates. Read and written as the signed-in user (RLS).
@@ -20,6 +21,16 @@ const optionalText = (max: number) =>
 
 const templateId = z.uuid({ error: "must be picked from the list" }).nullable();
 
+/** Checked before the content, so an enormous upload is refused without being examined. */
+const signatureImage = z
+  .string({ error: "must be a PNG or JPG image" })
+  .max(SIGNATURE_MAX_CHARS, "is too large: use an image under 500 KB")
+  .superRefine((value, context) => {
+    const problem = signatureImageProblem(value);
+    if (problem) context.addIssue({ code: "custom", message: problem });
+  })
+  .nullable();
+
 export const freelancerDetailsSchema = z.strictObject({
   businessName: optionalText(120),
   address: optionalText(500),
@@ -31,6 +42,12 @@ export const freelancerDetailsSchema = z.strictObject({
   defaultTemplateId: templateId,
   invoicePaper: z.enum(["A4", "Letter"], { error: "must be A4 or Letter" }),
   invoiceShowQr: z.boolean({ error: "must be on or off" }),
+  signatureSource: z.enum(["upload", "typed"], { error: "must be upload or typed" }).nullable(),
+  signatureImageDataUrl: signatureImage,
+  signatureTypedName: optionalText(120),
+  signatureName: optionalText(120),
+  signatureTitle: optionalText(120),
+  signatureDefault: z.boolean({ error: "must be on or off" }),
 });
 
 export const clientDetailsSchema = z.strictObject({
@@ -63,9 +80,16 @@ export const getFreelancerDetails = async (db: Db): Promise<FreelancerDetails | 
     default_template_id: string | null;
     invoice_paper: "A4" | "Letter";
     invoice_show_qr: boolean;
+    signature_source: "upload" | "typed" | null;
+    signature_image_data_url: string | null;
+    signature_typed_name: string | null;
+    signature_name: string | null;
+    signature_title: string | null;
+    signature_default: boolean;
   }>(
     `SELECT name, email, business_name, address, logo_data_url, default_template_id::text,
-       invoice_paper, invoice_show_qr
+       invoice_paper, invoice_show_qr, signature_source, signature_image_data_url,
+       signature_typed_name, signature_name, signature_title, signature_default
      FROM public.users WHERE id = (SELECT auth.uid())`,
   );
   const row = rows[0];
@@ -79,8 +103,33 @@ export const getFreelancerDetails = async (db: Db): Promise<FreelancerDetails | 
         defaultTemplateId: row.default_template_id,
         invoicePaper: row.invoice_paper,
         invoiceShowQr: row.invoice_show_qr,
+        signatureSource: row.signature_source,
+        signatureImageDataUrl: row.signature_image_data_url,
+        signatureTypedName: row.signature_typed_name,
+        signatureName: row.signature_name,
+        signatureTitle: row.signature_title,
+        signatureDefault: row.signature_default,
       }
     : undefined;
+};
+
+/** What "Include my signature" starts from, wherever an invoice is created. */
+export const signatureChoiceFrom = (
+  details: FreelancerDetails | undefined,
+): { available: boolean; byDefault: boolean } => ({
+  available: Boolean(details?.signatureImageDataUrl),
+  byDefault: details?.signatureDefault ?? false,
+});
+
+/** The signature fields as they must be saved together, or why they can't be. */
+const signatureFields = (input: FreelancerDetails): FieldIssue[] => {
+  if (input.signatureSource === "upload" && !input.signatureImageDataUrl) {
+    return [{ field: "signatureImageDataUrl", message: "is required: choose a PNG or JPG image" }];
+  }
+  if (input.signatureSource === "typed" && !input.signatureTypedName) {
+    return [{ field: "signatureTypedName", message: "is required: type the name to draw" }];
+  }
+  return [];
 };
 
 export const saveFreelancerDetails = async (
@@ -94,11 +143,17 @@ export const saveFreelancerDetails = async (
   const current = await getFreelancerDetails(db);
   if (!current) throw new Error("Your account wasn't found. Sign in again.");
   const input = { ...current, ...parsed.data };
-  const errors = await templateIssues(db, input.defaultTemplateId);
+  const errors = [
+    ...(await templateIssues(db, input.defaultTemplateId)),
+    ...signatureFields(input),
+  ];
   if (errors.length > 0) return { ok: false, errors };
+  const hasSignature = input.signatureSource !== null;
   await db.query(
     `UPDATE public.users SET business_name = $1, address = $2, logo_data_url = $3,
-       default_template_id = $4, invoice_paper = $5, invoice_show_qr = $6
+       default_template_id = $4, invoice_paper = $5, invoice_show_qr = $6,
+       signature_source = $7, signature_image_data_url = $8, signature_typed_name = $9,
+       signature_name = $10, signature_title = $11, signature_default = $12
      WHERE id = (SELECT auth.uid())`,
     [
       input.businessName,
@@ -107,6 +162,12 @@ export const saveFreelancerDetails = async (
       input.defaultTemplateId,
       input.invoicePaper,
       input.invoiceShowQr,
+      input.signatureSource,
+      hasSignature ? input.signatureImageDataUrl : null,
+      input.signatureSource === "typed" ? input.signatureTypedName : null,
+      hasSignature ? input.signatureName : null,
+      hasSignature ? input.signatureTitle : null,
+      input.signatureDefault,
     ],
   );
   const saved = await getFreelancerDetails(db);

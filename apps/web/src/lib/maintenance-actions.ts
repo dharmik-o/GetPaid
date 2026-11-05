@@ -143,7 +143,7 @@ export type JobInvoiceDeps = Omit<FlowDeps, "runAsUser"> & { runAsUser: UserDbRu
 export const createJobInvoice = async (
   deps: JobInvoiceDeps,
   taskId: string,
-  { depositCents }: { depositCents?: number } = {},
+  { depositCents, includeSignature }: { depositCents?: number; includeSignature?: boolean } = {},
 ): Promise<JobInvoiceResult> => {
   const prepared = await deps.runAsUser(async (db): Promise<Job | "no_cost" | undefined> => {
     const task = await getMaintenanceTask(db, taskId, deps.now);
@@ -156,7 +156,10 @@ export const createJobInvoice = async (
   const result = await issueMilestoneInvoice(
     deps,
     prepared.milestoneId,
-    depositCents === undefined ? {} : { depositCents },
+    {
+      ...(depositCents === undefined ? {} : { depositCents }),
+      ...(includeSignature === undefined ? {} : { includeSignature }),
+    },
   );
   if (!result.ok) return result;
   return {

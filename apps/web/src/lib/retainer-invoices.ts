@@ -39,13 +39,14 @@ type CycleRow = {
   account_settings: unknown;
   client_settings: unknown;
   project_settings: unknown;
+  include_signature: boolean;
 };
 
 const SELECT_CYCLE_ROW = `
   SELECT r.user_id::text, r.amount_cents::text, r.currency, r.interval_unit, r.interval_count,
     r.starts_on::text, r.ends_on::text, r.status, c.time_zone,
     u.default_settings AS account_settings, c.settings AS client_settings,
-    p.settings AS project_settings
+    p.settings AS project_settings, r.include_signature
   FROM public.retainers r
   JOIN public.clients c ON c.id = r.client_id
   JOIN public.users u ON u.id = r.user_id
@@ -66,8 +67,8 @@ export const insertCycleInvoice = async (
 ): Promise<boolean> => {
   const { rowCount } = await db.query(
     `INSERT INTO public.invoices (user_id, retainer_id, amount_cents, currency, due_date,
-       retainer_cycle_on, retainer_cycle_reason)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       retainer_cycle_on, retainer_cycle_reason, include_signature)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (retainer_id, retainer_cycle_on)
        WHERE status <> 'cancelled' AND retainer_cycle_on IS NOT NULL
      DO NOTHING`,
@@ -79,6 +80,7 @@ export const insertCycleInvoice = async (
       cycle.dueDate,
       cycle.on,
       cycle.reason,
+      row.include_signature,
     ],
   );
   return rowCount > 0;

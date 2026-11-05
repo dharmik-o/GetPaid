@@ -74,6 +74,8 @@ const createSchema = z
     startsOn: z.iso.date({ error: "must be a date like 2026-12-31" }),
     endsOn: z.iso.date({ error: "must be a date like 2026-12-31" }).nullable().optional(),
     method: z.enum(["auto_pay", "invoice"], { error: "must be auto-pay or invoice each cycle" }),
+    /** "Include my signature" on each cycle's invoice; omit for the account's default. */
+    includeSignature: z.boolean({ error: "must be on or off" }).optional(),
   })
   .superRefine((value, ctx) => {
     const max = value.unit === "week" ? MAX_WEEKS : MAX_MONTHS;
@@ -129,8 +131,9 @@ export const createRetainer = async (db: Db, raw: unknown, now: Date): Promise<R
   }
   const { rows } = await db.query<{ id: string }>(
     `INSERT INTO public.retainers (user_id, client_id, project_id, name, amount_cents, currency,
-       interval_unit, interval_count, starts_on, ends_on, method, status)
-     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       interval_unit, interval_count, starts_on, ends_on, method, status, include_signature)
+     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+       coalesce($12, (SELECT signature_default FROM public.users WHERE id = (SELECT auth.uid()))))
      RETURNING id::text`,
     [
       input.clientId,
@@ -144,6 +147,7 @@ export const createRetainer = async (db: Db, raw: unknown, now: Date): Promise<R
       input.endsOn ?? null,
       input.method,
       input.method === "auto_pay" ? "pending_approval" : "active",
+      input.includeSignature ?? null,
     ],
   );
   const id = rows[0]?.id;

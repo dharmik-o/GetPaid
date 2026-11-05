@@ -19,14 +19,18 @@ import {
   updateTemplate,
   type SaveTemplateResult,
 } from "./invoice-templates";
-import { logEvent } from "./log";
+import { errorKind, logEvent } from "./log";
 import { DOCUMENT_CSP, renderInvoiceHtml } from "./template-render";
 import { sanitizeTemplate } from "./template-sanitize";
 
 // Server-only: Settings > Invoice templates, the template editor's live preview, and the
 // invoice details for the freelancer and each client. Everything runs as the signed-in user.
 
-type Deps = { runAsUser: UserDbRunner };
+type Deps = {
+  runAsUser: UserDbRunner;
+  /** Draws a typed name. Only the route that saves the details needs it. */
+  renderSignature?: (name: string) => Promise<string>;
+};
 type IdContext = { params: Promise<{ id: string }> };
 
 const TEMPLATE = "Template";
@@ -37,6 +41,35 @@ const previewSchema = z.strictObject({
   html: z.string({ error: "is required" }),
   css: z.string().default(""),
 });
+
+const typedRequest = z.looseObject({
+  signatureSource: z.literal("typed"),
+  signatureTypedName: z.string().trim().min(1).max(120),
+});
+
+/**
+ * A typed signature's image always comes from here, never from the request. It's drawn before the
+ * transaction, as it starts a browser, and only when the name changed.
+ */
+const withDrawnSignature = async (deps: Deps, raw: unknown): Promise<unknown> => {
+  const typed = typedRequest.safeParse(raw);
+  if (!typed.success) return raw;
+  const name = typed.data.signatureTypedName;
+  const current = await deps.runAsUser((db) => getFreelancerDetails(db));
+  if (current?.signatureTypedName === name && current.signatureImageDataUrl) {
+    return { ...typed.data, signatureImageDataUrl: current.signatureImageDataUrl };
+  }
+  if (!deps.renderSignature) throw new Error("This route can't draw a typed signature.");
+  try {
+    return { ...typed.data, signatureImageDataUrl: await deps.renderSignature(name) };
+  } catch (error) {
+    logEvent("invoice_details.signature_failed", { error: errorKind(error) });
+    return jsonResponse(
+      { error: "The typed signature couldn't be drawn. Upload an image instead, or try again." },
+      503,
+    );
+  }
+};
 
 const saved = (result: SaveTemplateResult | undefined, status = 200): Response => {
   if (!result) return notFound(TEMPLATE);
@@ -68,10 +101,17 @@ const previewDocument = (
           logoDataUrl: details.logoDataUrl,
         },
         invoice: { ...SAMPLE_DOCUMENT.invoice, showQr: details.invoiceShowQr },
+        signature: details.signatureImageDataUrl
+          ? {
+              imageDataUrl: details.signatureImageDataUrl,
+              name: details.signatureName,
+              title: details.signatureTitle,
+            }
+          : SAMPLE_DOCUMENT.signature,
       }
     : SAMPLE_DOCUMENT;
 
-export const templateHandlers = ({ runAsUser }: Deps) => ({
+export const templateHandlers = ({ runAsUser, renderSignature }: Deps) => ({
   list: async (): Promise<Response> => {
     try {
       const result = await runAsUser(async (db) => ({
@@ -197,9 +237,18 @@ export const templateHandlers = ({ runAsUser }: Deps) => ({
     const body = await readJson(request);
     if (!body.ok) return body.response;
     try {
-      const result = await runAsUser((db) => saveFreelancerDetails(db, body.body));
+      const prepared = await withDrawnSignature(
+        { runAsUser, ...(renderSignature ? { renderSignature } : {}) },
+        body.body,
+      );
+      if (prepared instanceof Response) return prepared;
+      const result = await runAsUser((db) => saveFreelancerDetails(db, prepared));
       if (!result.ok) return fieldErrors(result.errors);
-      logEvent("invoice_details.saved", { hasLogo: result.value.logoDataUrl !== null });
+      // Whether there's a signature, and never the image.
+      logEvent("invoice_details.saved", {
+        hasLogo: result.value.logoDataUrl !== null,
+        hasSignature: result.value.signatureSource !== null,
+      });
       return jsonResponse({ details: result.value });
     } catch (error) {
       return serverError("invoice_details.save_failed", error);

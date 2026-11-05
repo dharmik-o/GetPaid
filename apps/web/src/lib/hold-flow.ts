@@ -294,8 +294,10 @@ const ensureInvoice = async (
     invoice_number: string;
     paypal_request_id: string;
   }>(
-    `INSERT INTO public.invoices (user_id, milestone_id, paypal_order_id, amount_cents, currency, due_date)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO public.invoices (user_id, milestone_id, paypal_order_id, amount_cents, currency, due_date,
+       include_signature)
+     VALUES ($1, $2, $3, $4, $5, $6,
+       (SELECT signature_default FROM public.users WHERE id = $1))
      RETURNING id::text, invoice_number, paypal_request_id::text`,
     [
       hold.user_id,

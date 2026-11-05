@@ -29,7 +29,8 @@ const INVOICE_STATUS_NAMES: Record<string, string> = {
 const APPROVAL_EMAIL_TEXT: Record<Retainer["approvalEmail"], string> = {
   none: "The client hasn't been asked to approve auto-pay. Draft the email, then review it in the Outbox.",
   waiting: "The email asking the client to approve auto-pay is waiting for you in the Outbox.",
-  scheduled: "The email asking the client to approve auto-pay is approved, and goes out in their send window.",
+  scheduled:
+    "The email asking the client to approve auto-pay is approved, and goes out in their send window.",
   sent: "The client has been emailed the approval link. This changes once they approve.",
 };
 

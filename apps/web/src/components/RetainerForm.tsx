@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 import { CurrencyNote } from "@/components/CurrencyNote";
+import {
+  IncludeSignature,
+  NO_SIGNATURE,
+  startsTicked,
+  type SignatureChoice,
+} from "@/components/IncludeSignature";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount, PAYPAL_CURRENCIES } from "@/lib/currencies";
 
@@ -29,7 +35,15 @@ const FIELD_NAMES: Record<string, string> = {
   method: "Payment method",
 };
 
-export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; today: string }) => {
+export const RetainerForm = ({
+  clients,
+  today,
+  signature = NO_SIGNATURE,
+}: {
+  clients: RetainerClient[];
+  today: string;
+  signature?: SignatureChoice;
+}) => {
   const router = useRouter();
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [projectId, setProjectId] = useState("");
@@ -41,6 +55,7 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
   const [startsOn, setStartsOn] = useState(today);
   const [endsOn, setEndsOn] = useState("");
   const [method, setMethod] = useState("invoice");
+  const [includeSignature, setIncludeSignature] = useState(startsTicked(signature));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const projects = clients.find((client) => client.id === clientId)?.projects ?? [];
@@ -68,6 +83,7 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
         startsOn,
         endsOn: endsOn || null,
         method,
+        includeSignature,
       },
       FIELD_NAMES,
     );
@@ -222,6 +238,13 @@ export const RetainerForm = ({ clients, today }: { clients: RetainerClient[]; to
           <option value="auto_pay">Auto-pay: the client approves once in PayPal</option>
         </select>
       </div>
+      {method === "invoice" ? (
+        <IncludeSignature
+          available={signature.available}
+          checked={includeSignature}
+          onChange={setIncludeSignature}
+        />
+      ) : null}
       {error ? (
         <p className="banner banner-error" role="alert">
           {error}

@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  IncludeSignature,
+  NO_SIGNATURE,
+  startsTicked,
+  type SignatureChoice,
+} from "@/components/IncludeSignature";
 import { fieldLabel, sendJson } from "@/lib/api-client";
 import { formatAmountInput, parseAmount } from "@/lib/currencies";
 import { formatMoney } from "@/lib/format";
@@ -21,7 +27,7 @@ import { primaryLabel, REPLY_LABEL_NAMES } from "@/lib/reply-labels";
 
 export type SplitOffer = { remainderCents: number; items: InstallmentItem[] };
 
-type Props = { reply: ReplyItem; offer: SplitOffer | null };
+type Props = { reply: ReplyItem; offer: SplitOffer | null; signature?: SignatureChoice };
 
 const FIELD_NAMES = { items: "Installments" };
 
@@ -43,13 +49,16 @@ const SplitForm = ({
   offer,
   busy,
   act,
+  signature,
 }: {
   reply: ReplyItem;
   offer: SplitOffer;
   busy: boolean;
   act: (payload: object) => Promise<void>;
+  signature: SignatureChoice;
 }) => {
   const { currency } = reply;
+  const [includeSignature, setIncludeSignature] = useState(startsTicked(signature));
   const [rows, setRows] = useState<Row[]>(() => toRows(offer.items, currency));
   const [problem, setProblem] = useState<string>();
 
@@ -77,7 +86,7 @@ const SplitForm = ({
       items.push({ amountCents: parsed.minor, dueDate: row.dueDate || null });
     }
     setProblem(undefined);
-    await act({ action: "split", items });
+    await act({ action: "split", items, includeSignature });
   };
 
   return (
@@ -130,6 +139,11 @@ const SplitForm = ({
           </div>
         </div>
       ))}
+      <IncludeSignature
+        available={signature.available}
+        checked={includeSignature}
+        onChange={setIncludeSignature}
+      />
       {problem ? (
         <p className="banner banner-error" role="alert">
           {problem}
@@ -151,7 +165,7 @@ const SplitForm = ({
   );
 };
 
-export const ReplyCard = ({ reply, offer }: Props) => {
+export const ReplyCard = ({ reply, offer, signature = NO_SIGNATURE }: Props) => {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
@@ -199,7 +213,9 @@ export const ReplyCard = ({ reply, offer }: Props) => {
           {error}
         </p>
       ) : null}
-      {splitting && offer ? <SplitForm reply={reply} offer={offer} busy={busy} act={act} /> : null}
+      {splitting && offer ? (
+        <SplitForm reply={reply} offer={offer} busy={busy} act={act} signature={signature} />
+      ) : null}
       <div className="actions">
         {reply.suggestion.kind === "split" ? null : (
           <button

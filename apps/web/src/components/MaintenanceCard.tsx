@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  IncludeSignature,
+  NO_SIGNATURE,
+  startsTicked,
+  type SignatureChoice,
+} from "@/components/IncludeSignature";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount } from "@/lib/currencies";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -20,8 +26,17 @@ const FIELD_NAMES: Record<string, string> = {
   paymentTerms: "Payment terms",
 };
 
-export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today: string }) => {
+export const MaintenanceCard = ({
+  task,
+  today,
+  signature = NO_SIGNATURE,
+}: {
+  task: MaintenanceTask;
+  today: string;
+  signature?: SignatureChoice;
+}) => {
   const router = useRouter();
+  const [includeSignature, setIncludeSignature] = useState(startsTicked(signature));
   const [mode, setMode] = useState<Mode>("view");
   const [deposit, setDeposit] = useState("");
   const [nextDue, setNextDue] = useState(task.nextDue);
@@ -46,7 +61,10 @@ export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today:
 
   const invoice = () => {
     if (deposit.trim() === "") {
-      void act({ action: "invoice" }, "Invoice created. Its reminders wait for your approval.");
+      void act(
+        { action: "invoice", includeSignature },
+        "Invoice created. Its reminders wait for your approval.",
+      );
       return;
     }
     const parsed = parseAmount(deposit, task.currency);
@@ -55,7 +73,7 @@ export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today:
       return;
     }
     void act(
-      { action: "invoice", depositCents: parsed.minor },
+      { action: "invoice", depositCents: parsed.minor, includeSignature },
       "Deposit invoice created. Invoice the rest from the job's project page.",
     );
   };
@@ -112,6 +130,11 @@ export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today:
             onChange={(event) => {
               setDeposit(event.target.value);
             }}
+          />
+          <IncludeSignature
+            available={signature.available}
+            checked={includeSignature}
+            onChange={setIncludeSignature}
           />
           <div className="actions">
             <button className="button" type="button" disabled={busy} onClick={invoice}>

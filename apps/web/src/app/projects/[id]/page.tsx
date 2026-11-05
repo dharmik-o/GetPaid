@@ -8,6 +8,7 @@ import { appNow } from "@/lib/clock";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
 import { listActivePlansForProject } from "@/lib/installment-plans";
+import { getFreelancerDetails, signatureChoiceFrom } from "@/lib/invoice-details";
 import { listInvoicesForProject } from "@/lib/invoices";
 import { listHoldsForProject } from "@/lib/milestone-holds";
 import { listMilestones } from "@/lib/milestones";
@@ -32,7 +33,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
   const now = appNow();
-  const { project, clients, milestones, invoices, plans, templates, holds } =
+  const { project, clients, milestones, invoices, plans, templates, holds, signature } =
     await runAsCurrentUser(async (db) => {
       const found = await getProject(db, id);
       return {
@@ -43,6 +44,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         plans: found ? await listActivePlansForProject(db, found.id) : [],
         templates: await listTemplates(db),
         holds: found ? await listHoldsForProject(db, found.id, now) : [],
+        signature: signatureChoiceFrom(await getFreelancerDetails(db)),
       };
     });
   if (!project) notFound();
@@ -120,6 +122,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         <h2 id="invoices">Invoices</h2>
         <InvoicePanel
           templates={templates.map(({ id: templateId, name }) => ({ id: templateId, name }))}
+          signature={signature}
           currency={project.currency}
           today={today}
           rows={milestones.map((m) => {
@@ -141,6 +144,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
                   dueDate: i.dueDate,
                   link: i.link,
                   installment: i.installment,
+                  includeSignature: i.includeSignature,
                 })),
               plan: plan ? { createdFrom: plan.createdFrom, items: plan.items } : null,
             };

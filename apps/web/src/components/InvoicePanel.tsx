@@ -7,6 +7,12 @@ import {
   type DocumentFields,
   type TemplateChoice,
 } from "@/components/InvoiceDocumentFields";
+import {
+  IncludeSignature,
+  NO_SIGNATURE,
+  startsTicked,
+  type SignatureChoice,
+} from "@/components/IncludeSignature";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
 import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -31,6 +37,7 @@ export type InvoiceRowInvoice = {
   dueDate: string;
   link: string | null;
   installment: { number: number; count: number } | null;
+  includeSignature?: boolean;
 };
 
 export type InvoiceRowData = {
@@ -50,6 +57,7 @@ type Props = {
   rows: InvoiceRowData[];
   /** For the invoice document's template pick. */
   templates?: TemplateChoice[];
+  signature?: SignatureChoice;
 };
 
 const INVOICE_LABELS: Record<string, string> = {
@@ -135,11 +143,32 @@ const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; curren
   </PaidMoment>
 );
 
-export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) => {
+export const InvoicePanel = ({
+  currency,
+  today,
+  rows,
+  templates = [],
+  signature = NO_SIGNATURE,
+}: Props) => {
   const router = useRouter();
   const [deposits, setDeposits] = useState<Record<string, string>>({});
   const [documents, setDocuments] = useState<Record<string, DocumentFields>>({});
   const documentOf = (milestoneId: string) => documents[milestoneId] ?? NO_DOCUMENT_CHOICE;
+  const [signatures, setSignatures] = useState<Record<string, boolean>>({});
+  /** The rest of a deposit starts from what the deposit's invoice chose. */
+  const includesSignature = (row: InvoiceRowData): boolean =>
+    signatures[row.milestoneId] ??
+    openInvoices(row)[0]?.includeSignature ??
+    startsTicked(signature);
+  const signatureField = (row: InvoiceRowData) => (
+    <IncludeSignature
+      available={signature.available}
+      checked={includesSignature(row)}
+      onChange={(checked) => {
+        setSignatures((current) => ({ ...current, [row.milestoneId]: checked }));
+      }}
+    />
+  );
   const [busy, setBusy] = useState<string>();
   const [message, setMessage] = useState<{ text: string; error: boolean }>();
 
@@ -158,7 +187,13 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
 
   const create = (row: InvoiceRowData) => {
     const document = documentOf(row.milestoneId);
-    let body: { depositCents?: number; templateId?: string; text?: DocumentFields["text"] } = {
+    let body: {
+      depositCents?: number;
+      templateId?: string;
+      text?: DocumentFields["text"];
+      includeSignature: boolean;
+    } = {
+      includeSignature: includesSignature(row),
       ...(document.templateId ? { templateId: document.templateId } : {}),
       ...(document.text ? { text: document.text } : {}),
     };
@@ -183,7 +218,7 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
     void call(
       row.milestoneId,
       `/api/milestones/${row.milestoneId}/invoice`,
-      { installment: number },
+      { installment: number, includeSignature: includesSignature(row) },
       `Installment ${String(number)} created for ${row.name}.`,
     );
   };
@@ -218,6 +253,7 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
       const unpaid = open.every((i) => ["draft", "sent"].includes(i.status));
       return (
         <>
+          {next ? signatureField(row) : null}
           {next ? (
             <button
               type="button"
@@ -287,6 +323,7 @@ export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) =
             }}
           />
         ) : null}
+        {!blocked ? signatureField(row) : null}
         {!blocked ? (
           <button
             type="button"

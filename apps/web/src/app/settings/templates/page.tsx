@@ -53,6 +53,12 @@ const TemplatesPage = async () => {
             logoDataUrl: details.logoDataUrl,
             invoicePaper: details.invoicePaper,
             invoiceShowQr: details.invoiceShowQr,
+            signatureSource: details.signatureSource,
+            signatureImageDataUrl: details.signatureImageDataUrl,
+            signatureTypedName: details.signatureTypedName,
+            signatureName: details.signatureName,
+            signatureTitle: details.signatureTitle,
+            signatureDefault: details.signatureDefault,
           }}
         />
       </section>

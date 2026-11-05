@@ -31,9 +31,23 @@ type Extra = {
   pdf_path: string | null;
   created_at: Date | string;
   user_id: string;
+  include_signature: boolean;
 };
 
 const paperOf = (freelancer: FreelancerDetails): PaperSize => freelancer.invoicePaper;
+
+/** On when this invoice asks for it and one is set up. Read when the document is made. */
+const signatureOf = (
+  freelancer: FreelancerDetails,
+  include: boolean,
+): InvoiceDocument["signature"] =>
+  include && freelancer.signatureImageDataUrl
+    ? {
+        imageDataUrl: freelancer.signatureImageDataUrl,
+        name: freelancer.signatureName,
+        title: freelancer.signatureTitle,
+      }
+    : null;
 
 const installmentOf = (
   record: InvoiceRecord,
@@ -98,7 +112,7 @@ const loadRetainerDocument = async (
 ): Promise<LoadedDocument | undefined> => {
   const { rows } = await db.query<RetainerDocumentRow>(
     `SELECT i.template_id::text, i.invoice_text, i.pdf_path, i.created_at, i.user_id::text,
-       i.invoice_number, i.amount_cents::text, i.currency, i.due_date::text, i.link,
+       i.include_signature, i.invoice_number, i.amount_cents::text, i.currency, i.due_date::text, i.link,
        i.retainer_cycle_on::text, r.name AS retainer_name, c.id::text AS client_id,
        c.name AS client_name, c.email AS client_email, c.time_zone, p.title AS project_title,
        p.late_fee_clause, u.default_settings AS account_settings, c.settings AS client_settings,
@@ -181,7 +195,7 @@ const loadRetainerDocument = async (
       discountCents: 0,
       installment: null,
       text: storedText(row.invoice_text, facts),
-      signature: null,
+      signature: signatureOf(freelancer, row.include_signature),
     },
   };
 };
@@ -197,7 +211,8 @@ export const loadInvoiceDocument = async (
   if (source[0]?.retainer_id) return loadRetainerDocument(db, invoiceId);
   const record = await getInvoiceRecord(db, invoiceId);
   const { rows } = await db.query<Extra>(
-    `SELECT template_id::text, invoice_text, pdf_path, created_at, user_id::text
+    `SELECT template_id::text, invoice_text, pdf_path, created_at, user_id::text,
+       include_signature
      FROM public.invoices WHERE id = $1`,
     [invoiceId],
   );
@@ -251,7 +266,7 @@ export const loadInvoiceDocument = async (
       discountCents: 0,
       installment: installmentOf(record, context),
       text: storedText(extra.invoice_text, textFactsFor(context, freelancer.name)),
-      signature: null,
+      signature: signatureOf(freelancer, extra.include_signature),
     },
   };
 };

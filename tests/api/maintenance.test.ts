@@ -580,6 +580,13 @@ describe("the dashboard's buttons", () => {
     ]);
   });
 
+  it("Create invoice stores the signature choice on the invoice", async () => {
+    const response = await act({ action: "invoice", includeSignature: true });
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { invoices: { includeSignature: boolean }[] };
+    expect(body.invoices[0]?.includeSignature).toBe(true);
+  });
+
   it("Stop ends the reminders", async () => {
     await setTask("next_due = '2027-01-06'");
     expect((await act({ action: "stop" })).status).toBe(200);

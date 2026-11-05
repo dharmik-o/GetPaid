@@ -33,6 +33,8 @@ export type InvoiceView = {
   /** The PayPal page where the client pays; set once the invoice is sent. */
   link: string | null;
   installment: InstallmentRef | null;
+  /** The freelancer's choice for this invoice. */
+  includeSignature: boolean;
 };
 
 /** The row as the invoice flow needs it, including PayPal ids. Server-only. */
@@ -59,13 +61,15 @@ type InvoiceRow = {
   installment_number: number | null;
   installment_count: number | null;
   installment_plan_id: string | null;
+  include_signature: boolean;
 };
 
 const SELECT_INVOICES = `
   SELECT i.id::text, i.milestone_id::text, i.invoice_number, i.status, i.amount_cents::text,
     i.amount_paid_cents::text, i.currency, i.due_date::text, i.link,
     i.paypal_invoice_id, i.paypal_request_id::text, i.milestone_status_before,
-    i.installment_number, i.installment_count, i.installment_plan_id::text
+    i.installment_number, i.installment_count, i.installment_plan_id::text,
+    i.include_signature
   FROM public.invoices i`;
 
 const toRecord = (row: InvoiceRow): InvoiceRecord => ({
@@ -86,6 +90,7 @@ const toRecord = (row: InvoiceRow): InvoiceRecord => ({
   paypalRequestId: row.paypal_request_id,
   milestoneStatusBefore: row.milestone_status_before,
   installmentPlanId: row.installment_plan_id,
+  includeSignature: row.include_signature,
 });
 
 export const toView = (record: InvoiceRecord): InvoiceView => ({
@@ -99,6 +104,7 @@ export const toView = (record: InvoiceRecord): InvoiceView => ({
   dueDate: record.dueDate,
   link: record.link,
   installment: record.installment,
+  includeSignature: record.includeSignature,
 });
 
 export const getInvoiceRecord = async (db: Db, id: string): Promise<InvoiceRecord | undefined> => {
@@ -165,6 +171,7 @@ export type NewInvoice = {
   templateId?: string | null;
   /** The document's text tags, as approved by the freelancer. */
   invoiceText?: InvoiceText | null;
+  includeSignature?: boolean;
 };
 
 /**
@@ -175,8 +182,8 @@ export const insertDraftInvoice = async (db: Db, invoice: NewInvoice): Promise<I
   await db.query(
     `INSERT INTO public.invoices (user_id, milestone_id, amount_cents, currency, due_date,
        milestone_status_before, installment_number, installment_count, installment_plan_id,
-       template_id, invoice_text)
-     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       template_id, invoice_text, include_signature)
+     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (milestone_id, (coalesce(installment_number, 0))) WHERE status <> 'cancelled'
      DO NOTHING`,
     [
@@ -190,6 +197,7 @@ export const insertDraftInvoice = async (db: Db, invoice: NewInvoice): Promise<I
       invoice.installment?.planId ?? null,
       invoice.templateId ?? null,
       invoice.invoiceText ? JSON.stringify(invoice.invoiceText) : null,
+      invoice.includeSignature ?? false,
     ],
   );
   const saved = await findOpenInvoice(db, invoice.milestoneId, invoice.installment?.number ?? null);

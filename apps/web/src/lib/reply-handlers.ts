@@ -15,7 +15,11 @@ import { applyReply, resumeInvoice, resumeReply, type ReviewResult } from "./rep
 const actionSchema = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("apply") }),
   z.strictObject({ action: z.literal("resume") }),
-  z.strictObject({ action: z.literal("split"), items: z.unknown() }),
+  z.strictObject({
+    action: z.literal("split"),
+    items: z.unknown(),
+    includeSignature: z.boolean({ error: "must be on or off" }).optional(),
+  }),
 ]);
 
 const emptySchema = z.strictObject({});
@@ -46,7 +50,12 @@ type ReviewDeps = {
 };
 type IdContext = { params: Promise<{ id: string }> };
 
-const split = async (deps: ReviewDeps, id: string, items: unknown): Promise<Response> => {
+const split = async (
+  deps: ReviewDeps,
+  id: string,
+  items: unknown,
+  includeSignature: boolean | undefined,
+): Promise<Response> => {
   let paypal: PaypalClient;
   try {
     paypal = deps.paypal();
@@ -65,6 +74,7 @@ const split = async (deps: ReviewDeps, id: string, items: unknown): Promise<Resp
     },
     id,
     items,
+    includeSignature,
   );
   if (result.ok) return jsonResponse({ invoices: result.invoices });
   if ("notFound" in result) return notFound(REPLY);
@@ -82,7 +92,7 @@ export const replyHandlers = (deps: ReviewDeps) => ({
     if (!parsed.success) return fieldErrors(toFieldIssues(parsed.error, { noun: "field" }));
     const action = parsed.data;
     try {
-      if (action.action === "split") return await split(deps, id, action.items);
+      if (action.action === "split") return await split(deps, id, action.items, action.includeSignature);
       const work = action.action === "apply" ? applyReply : resumeReply;
       const result = await deps.runAsUser((db) => work(db, id, deps.now()));
       logEvent("replies.decided", { replyId: id, action: action.action, status: result.status });

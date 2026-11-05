@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { sendJson } from "@/lib/api-client";
+import { SIGNATURE_DISCLAIMER, SIGNATURE_MAX_BYTES, SIGNATURE_TYPES } from "@/lib/signature-rules";
 
 // Your details on every invoice document: business name, address, logo, paper size and whether
 // to show a QR code of the pay link. The logo is kept as an embedded image, so a PDF never loads
@@ -15,6 +16,12 @@ type Details = {
   logoDataUrl: string | null;
   invoicePaper: "A4" | "Letter";
   invoiceShowQr: boolean;
+  signatureSource: "upload" | "typed" | null;
+  signatureImageDataUrl: string | null;
+  signatureTypedName: string | null;
+  signatureName: string | null;
+  signatureTitle: string | null;
+  signatureDefault: boolean;
 };
 
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
@@ -26,7 +33,17 @@ const NAMES = {
   logoDataUrl: "Logo",
   invoicePaper: "Paper size",
   invoiceShowQr: "QR code",
+  signatureImageDataUrl: "Signature image",
+  signatureTypedName: "Typed name",
+  signatureName: "Signer's name",
+  signatureTitle: "Signer's title",
 };
+
+const SOURCES: { value: Details["signatureSource"]; label: string }[] = [
+  { value: null, label: "No signature" },
+  { value: "upload", label: "Upload an image" },
+  { value: "typed", label: "Type my name" },
+];
 
 const readAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -65,9 +82,41 @@ export const InvoiceDetailsForm = ({ initial, name }: { initial: Details; name: 
     }
   };
 
+  const pickSignature = async (file: File | undefined) => {
+    if (!file) return;
+    if (!SIGNATURE_TYPES.includes(file.type)) {
+      setMessage({ text: "Signature must be a PNG or JPG image.", error: true });
+      return;
+    }
+    if (file.size > SIGNATURE_MAX_BYTES) {
+      setMessage({ text: "Signature is too large: use an image under 500 KB.", error: true });
+      return;
+    }
+    try {
+      const signatureImageDataUrl = await readAsDataUrl(file);
+      setValues((v) => ({ ...v, signatureImageDataUrl }));
+      setMessage(undefined);
+    } catch {
+      setMessage({ text: "That image couldn't be read. Try another file.", error: true });
+    }
+  };
+
+  /** What the signature looks like now: a typed one is drawn on saving, then comes back. */
+  const signaturePreview =
+    values.signatureSource === "upload"
+      ? values.signatureImageDataUrl
+      : values.signatureSource === "typed" &&
+          initial.signatureSource === "typed" &&
+          initial.signatureTypedName === values.signatureTypedName
+        ? initial.signatureImageDataUrl
+        : null;
+
   const save = async () => {
     setSaving(true);
-    const result = await sendJson("/api/settings/invoice", "PUT", values, NAMES);
+    // A typed signature's image is drawn by the server, never sent.
+    const body =
+      values.signatureSource === "upload" ? values : { ...values, signatureImageDataUrl: undefined };
+    const result = await sendJson("/api/settings/invoice", "PUT", body, NAMES);
     setSaving(false);
     setMessage(
       result.ok
@@ -155,6 +204,92 @@ export const InvoiceDetailsForm = ({ initial, name }: { initial: Details; name: 
         />{" "}
         Show a QR code of the PayPal pay link
       </label>
+      <fieldset>
+        <legend>Signature</legend>
+        {SOURCES.map(({ value, label }) => (
+          <label key={label} className="inline">
+            <input
+              type="radio"
+              name="signatureSource"
+              checked={values.signatureSource === value}
+              onChange={() => {
+                setValues((v) => ({ ...v, signatureSource: value }));
+              }}
+            />{" "}
+            {label}
+          </label>
+        ))}
+        <p className="field-hint">{SIGNATURE_DISCLAIMER}</p>
+        {values.signatureSource === "upload" ? (
+          <div className="field">
+            <label htmlFor="signatureImage">Signature image</label>
+            <input
+              id="signatureImage"
+              type="file"
+              accept={SIGNATURE_TYPES.join(",")}
+              onChange={(e) => {
+                void pickSignature(e.target.files?.[0]);
+              }}
+            />
+            <div className="field-hint">PNG or JPG, under 500 KB. No SVG.</div>
+          </div>
+        ) : null}
+        {values.signatureSource === "typed" ? (
+          <div className="field">
+            <label htmlFor="signatureTypedName">Name to draw</label>
+            <input
+              id="signatureTypedName"
+              maxLength={120}
+              value={values.signatureTypedName ?? ""}
+              onChange={(e) => {
+                setValues((v) => ({ ...v, signatureTypedName: e.target.value }));
+              }}
+            />
+            <div className="field-hint">Drawn in a handwriting font when you save.</div>
+          </div>
+        ) : null}
+        {signaturePreview ? (
+          // A data URL from this form or the database: nothing loads from the network.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="signature-preview" src={signaturePreview} alt="Your signature" />
+        ) : null}
+        {values.signatureSource ? (
+          <>
+            <div className="field">
+              <label htmlFor="signatureName">Signer&apos;s name</label>
+              <input
+                id="signatureName"
+                maxLength={120}
+                value={values.signatureName ?? ""}
+                onChange={(e) => {
+                  setValues((v) => ({ ...v, signatureName: e.target.value }));
+                }}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="signatureTitle">Signer&apos;s title</label>
+              <input
+                id="signatureTitle"
+                maxLength={120}
+                value={values.signatureTitle ?? ""}
+                onChange={(e) => {
+                  setValues((v) => ({ ...v, signatureTitle: e.target.value }));
+                }}
+              />
+            </div>
+            <label className="inline">
+              <input
+                type="checkbox"
+                checked={values.signatureDefault}
+                onChange={(e) => {
+                  setValues((v) => ({ ...v, signatureDefault: e.target.checked }));
+                }}
+              />{" "}
+              Include my signature on new invoices
+            </label>
+          </>
+        ) : null}
+      </fieldset>
       <div className="actions">
         <button className="button" type="submit" disabled={saving}>
           {saving ? "Saving…" : "Save details"}

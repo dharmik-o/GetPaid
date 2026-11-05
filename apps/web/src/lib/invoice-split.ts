@@ -102,6 +102,8 @@ type Checked =
       reply: Reply;
       unpaid: InvoiceRecord[];
       items: InstallmentItem[];
+      /** "Include my signature"; omitted, the new invoices keep the old ones' choice. */
+      includeSignature?: boolean;
       /** How many installments are already settled: new ones are numbered after them. */
       offset: number;
     }
@@ -110,7 +112,12 @@ type Checked =
 const fail = (result: SplitResult): { ok: false; result: SplitResult } => ({ ok: false, result });
 
 /** One transaction: is this reply still open, and does this split fit what's really unpaid? */
-const check = (deps: FlowDeps, replyId: string, raw: unknown): Promise<Checked> =>
+const check = (
+  deps: FlowDeps,
+  replyId: string,
+  raw: unknown,
+  includeSignature: boolean | undefined,
+): Promise<Checked> =>
   deps.runAsUser(async (db): Promise<Checked> => {
     const reply = await loadReply(db, replyId);
     if (!reply) return fail(NOT_FOUND);
@@ -145,7 +152,15 @@ const check = (deps: FlowDeps, replyId: string, raw: unknown): Promise<Checked> 
       today: todayIn(deps.now, context.project.clientTimeZone),
     });
     if (errors.length > 0) return fail({ ok: false, errors });
-    return { ok: true, context, reply, unpaid, items: parsed.items, offset };
+    return {
+      ok: true,
+      context,
+      reply,
+      unpaid,
+      items: parsed.items,
+      offset,
+      ...(includeSignature === undefined ? {} : { includeSignature }),
+    };
   });
 
 /** Asks PayPal about every invoice first, so one paid invoice stops the whole split. */
@@ -187,7 +202,9 @@ const replaceRows = (
       items,
       createdFrom: "client_request",
     });
-    const document = await documentChoice(db, context, {});
+    const document = await documentChoice(db, context, {
+      includeSignature: checked.includeSignature ?? unpaid[0]?.includeSignature ?? false,
+    });
     if (!document.ok) throw new Error("The default invoice text failed its own checks.");
     const dates = invoiceDates(context.terms, deps.now, context.project.clientTimeZone);
     let number = offset;
@@ -276,9 +293,10 @@ export const replaceWithInstallments = async (
   deps: FlowDeps,
   replyId: string,
   raw: unknown,
+  includeSignature?: boolean,
 ): Promise<SplitResult> => {
   if (!isUuid(replyId)) return NOT_FOUND;
-  const checked = await check(deps, replyId, raw);
+  const checked = await check(deps, replyId, raw, includeSignature);
   if (!checked.ok) return checked.result;
   const { reply } = checked;
   if (!reply.split_plan_id) {

@@ -714,3 +714,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Noir's signature and QR code sit on white,** because dark ink vanishes on charcoal.
 - **The gallery's thumbnails are live pages in sandboxed frames,** from `/api/invoice-templates/[id]/thumbnail`, with the same Content-Security-Policy as the PDF. They lazy-load, so opening Settings doesn't render six documents at once.
 - **The white paper behind a preview is now a token** (`--paper`), so `globals.css` has no stray hex at all, and its test got stricter.
+
+### Signature (5 Nov 2026)
+
+- **A typed name is drawn to a PNG when it's saved,** with Chromium, in Mrs Saint Delafield (OFL). So a template only ever has one kind of signature to show, through the three tags you specified, and a custom template needs no font of its own. It's only drawn again when the name changes. The server always makes this image: one sent with a typed name is ignored.
+- **The image is checked by its contents too,** not only the type it claims, as a renamed file could be anything. SVG is refused outright, because it can carry scripts. The database has the same PNG-or-JPEG check.
+- **`{{signature.image}}` and friends only work inside `{{#signature}}`.** Outside it they're an error in the editor, so a custom template can't leave a broken image on an unsigned invoice.
+- **Choosing with no signature set up:** the box is off and disabled, and says where to add one. If an invoice was ticked and the signature was later removed, none shows.
+- **When a request doesn't say,** as with Telegram's buttons, which have no checkbox: a later installment keeps its milestone's earlier choice, a split keeps the replaced invoice's, and otherwise it's the account's default. A hold has no creation screen, so its invoice uses the default.
+- **A retainer stores the choice and copies it onto each cycle,** because the scheduler makes those invoices with nobody there to tick a box. The box only shows for "invoice each cycle".
+- **The signature is read when the document is made,** not copied onto the invoice. So replacing your signature changes later documents, and the archive keeps what was actually sent.

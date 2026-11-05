@@ -141,6 +141,38 @@ describe("the proposal", () => {
   });
 });
 
+describe("the signature on a split's invoices", () => {
+  const signed = async () => {
+    const { rows } = await handle.db.query<{ include_signature: boolean }>(
+      "SELECT include_signature FROM public.invoices WHERE milestone_id = $1 AND status <> 'cancelled'",
+      [MILESTONE],
+    );
+    return rows.map((row) => row.include_signature);
+  };
+
+  it("follows the box when it's ticked", async () => {
+    await act({ action: "split", items: ITEMS, includeSignature: true });
+    expect(await signed()).toEqual([true, true]);
+  });
+
+  it("follows the box when it's unticked, whatever the old invoice chose", async () => {
+    await handle.db.query("UPDATE public.invoices SET include_signature = true");
+    await act({ action: "split", items: ITEMS, includeSignature: false });
+    expect(await signed()).toEqual([false, false]);
+  });
+
+  it("keeps the old invoice's choice when asked with no box, as from Telegram", async () => {
+    await handle.db.query("UPDATE public.invoices SET include_signature = true");
+    await act({ action: "split", items: ITEMS });
+    expect(await signed()).toEqual([true, true]);
+  });
+
+  it("refuses anything but on or off", async () => {
+    const response = await act({ action: "split", items: ITEMS, includeSignature: "yes" });
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("approving a split", () => {
   it("cancels the open invoice and creates the installments, in one step", async () => {
     const response = await act({ action: "split", items: ITEMS });

@@ -38,6 +38,7 @@ const actionSchema = z.discriminatedUnion("action", [
       .min(1, "must be more than 0")
       .max(Number.MAX_SAFE_INTEGER, "is too large")
       .optional(),
+    includeSignature: z.boolean({ error: "must be on or off" }).optional(),
   }),
   z.strictObject({ action: z.literal("snooze") }),
   z.strictObject({
@@ -109,7 +110,12 @@ export const maintenanceHandlers = (deps: Deps) => ({
           const result = await createJobInvoice(
             { runAsUser: deps.runAsCurrent, paypal: deps.paypal(), now },
             id,
-            action.depositCents === undefined ? {} : { depositCents: action.depositCents },
+            {
+              ...(action.depositCents === undefined ? {} : { depositCents: action.depositCents }),
+              ...(action.includeSignature === undefined
+                ? {}
+                : { includeSignature: action.includeSignature }),
+            },
           );
           if (result.ok) {
             return jsonResponse(

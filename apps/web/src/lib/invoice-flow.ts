@@ -60,7 +60,7 @@ type Prepared =
 const recordsFor = (context: MilestoneContext, numbers: (number | null)[]): InvoiceRecord[] =>
   context.open.filter((record) => numbers.includes(record.installment?.number ?? null));
 
-type DocumentChoice = { templateId: string; invoiceText: InvoiceText };
+type DocumentChoice = { templateId: string; invoiceText: InvoiceText; includeSignature: boolean };
 
 const saveDrafts = async (
   db: Db,
@@ -110,7 +110,12 @@ export const documentChoice = async (
     picked: body.templateId ?? null,
     clientId: context.project.clientId,
   });
-  return { ok: true, choice: { templateId, invoiceText } };
+  const includeSignature =
+    body.includeSignature ??
+    context.open[0]?.includeSignature ??
+    freelancer?.signatureDefault ??
+    false;
+  return { ok: true, choice: { templateId, invoiceText, includeSignature } };
 };
 
 /** One transaction: the invoices already there, or checked and saved new draft rows. */
