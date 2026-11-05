@@ -53,7 +53,7 @@ afterAll(async () => {
 });
 
 describe("templates", () => {
-  it("lists the three built-ins first, then the user's own", async () => {
+  it("lists the built-ins first, then the user's own", async () => {
     await create({ name: "Mine", html: "<p>{{greeting}}</p>" });
     const { templates } = await json<{ templates: { name: string; kind: string }[] }>(
       await as().list(),
@@ -62,6 +62,9 @@ describe("templates", () => {
       ["Classic", "builtin"],
       ["Modern", "builtin"],
       ["Minimal", "builtin"],
+      ["Studio", "builtin"],
+      ["Ledger", "builtin"],
+      ["Noir", "builtin"],
       ["Mine", "custom"],
     ]);
   });
@@ -243,5 +246,63 @@ describe("invoice details", () => {
       id(USER_A.rows.clients),
     );
     expect(foreign.status).toBe(404);
+  });
+});
+
+describe("the gallery's thumbnail", () => {
+  const STUDIO = "00000000-0000-4000-8000-00000000c004";
+
+  it("is a built-in on sample data, in a page that can load and run nothing", async () => {
+    const response = await as().thumbnail(request("GET"), id(STUDIO));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    const policy = response.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("default-src 'none'");
+    expect(policy).toContain("sandbox");
+    const html = await response.text();
+    expect(html).toContain("FPR-000042");
+    expect(html).toContain("Thank you for your business");
+  });
+
+  it("shows the freelancer's own logo", async () => {
+    await as().saveDetails(request("PUT", { logoDataUrl: LOGO }));
+    const html = await (await as().thumbnail(request("GET"), id(STUDIO))).text();
+    expect(html).toContain("iVBORw0KGgoAAAANSUhEUg");
+  });
+
+  it("is not found for another user's template", async () => {
+    const saved = await json<Saved>(await create({ name: "Mine", html: "<p>{{greeting}}</p>" }));
+    const response = await as(USER_B.userId).thumbnail(request("GET"), id(saved.template.id));
+    expect(response.status).toBe(404);
+  });
+
+  it("is not found for something that isn't an id", async () => {
+    expect((await as().thumbnail(request("GET"), id("nope"))).status).toBe(404);
+  });
+});
+
+describe("the paper size and QR code settings", () => {
+  beforeEach(async () => {
+    await handle.db.query("UPDATE public.users SET invoice_paper = 'A4', invoice_show_qr = true");
+  });
+
+  type Details = { details: { invoicePaper: string; invoiceShowQr: boolean } };
+
+  it("default to A4 with the QR code on", async () => {
+    const { details } = await json<Details>(await as().saveDetails(request("PUT", {})));
+    expect(details).toMatchObject({ invoicePaper: "A4", invoiceShowQr: true });
+  });
+
+  it("save for this user only", async () => {
+    await as().saveDetails(request("PUT", { invoicePaper: "Letter", invoiceShowQr: false }));
+    const mine = await json<Details>(await as().saveDetails(request("PUT", {})));
+    expect(mine.details).toMatchObject({ invoicePaper: "Letter", invoiceShowQr: false });
+    const theirs = await json<Details>(await as(USER_B.userId).saveDetails(request("PUT", {})));
+    expect(theirs.details).toMatchObject({ invoicePaper: "A4", invoiceShowQr: true });
+  });
+
+  it("refuse a paper size that isn't A4 or Letter", async () => {
+    const response = await as().saveDetails(request("PUT", { invoicePaper: "A5" }));
+    expect(response.status).toBe(400);
   });
 });

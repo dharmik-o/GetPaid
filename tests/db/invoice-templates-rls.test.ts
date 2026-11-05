@@ -43,8 +43,16 @@ const names = async (userId: string | null) =>
 
 describe("invoice_templates RLS", () => {
   it("a user sees the built-ins and their own templates, not another user's", async () => {
-    expect(await names(USER_A.userId)).toEqual(["Classic", "Minimal", "Modern"]);
-    expect(await names(USER_B.userId)).toEqual(["B's own", "Classic", "Minimal", "Modern"]);
+    expect(await names(USER_A.userId)).toEqual(["Classic", "Ledger", "Minimal", "Modern", "Noir", "Studio"]);
+    expect(await names(USER_B.userId)).toEqual([
+      "B's own",
+      "Classic",
+      "Ledger",
+      "Minimal",
+      "Modern",
+      "Noir",
+      "Studio",
+    ]);
   });
 
   it("a session with no user sees nothing, and anon has no access", async () => {

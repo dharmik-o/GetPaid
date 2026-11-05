@@ -265,7 +265,8 @@ Each milestone, installment or retainer cycle gets one PayPal invoice, and the s
 
 PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal's layout. So a template produces **the freelancer's own invoice document, as a PDF**, with the same PayPal pay link used everywhere else. It's attached to the PayPal invoice if the Invoicing API allows attachments in the sandbox (checked 3 Nov 2026: the API has no file upload, so it isn't), always attached to the reminder emails sent from the freelancer's Gmail, and downloadable from the dashboard.
 
-- **Three built-in templates:** Classic (clean, formal), Modern (bold header, accent colour) and Minimal (plain, lots of white space). Each shows the freelancer's name and logo, client details, line items, totals, the installment line, payment terms and the pay link.
+- **Six built-in templates:** Classic (formal, serif), Modern (bold header, accent colour), Minimal (lots of white space, a large total), Studio (clean agency sheet, rotated strips down the right edge for Pay online and Terms), Ledger (warm paper, uppercase monospace, a two-cell header) and Noir (a dark charcoal page with a very large total; best on screen, as it uses a lot of ink if printed). Each shows the freelancer's name and logo, client details, line items, totals, the installment line when it applies, payment terms, the optional signature, and a **Pay online** block with the PayPal link and an optional QR code of the same link, generated locally. There are no bank or IBAN fields. Each fits one page with up to 12 line items, on A4 or US Letter (an account setting).
+- **Fonts:** self-hosted and embedded in the document as data, only for the families its CSS names: Instrument Sans, IBM Plex Sans, IBM Plex Mono, IBM Plex Serif and Mrs Saint Delafield. A custom template can use them by name.
 - **Custom templates:** the freelancer writes their own HTML and CSS with tags the app fills in. A live preview uses sample data. "Set as default" works per account, overridable per client.
 - **Tags:** logic-less placeholders in double braces. An unknown tag is an error shown in the editor, not a blank.
 
@@ -273,15 +274,16 @@ PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal
 | --- | --- |
 | Freelancer | `{{freelancer.name}}`, `{{freelancer.business_name}}`, `{{freelancer.email}}`, `{{freelancer.address}}`, `{{freelancer.logo}}` |
 | Client | `{{client.name}}`, `{{client.company}}`, `{{client.email}}`, `{{client.address}}` |
-| Invoice | `{{invoice.number}}`, `{{invoice.issue_date}}`, `{{invoice.due_date}}`, `{{invoice.title}}`, `{{invoice.pay_link}}`, `{{invoice.terms}}`, `{{invoice.late_fee_clause}}` |
+| Invoice | `{{invoice.number}}`, `{{invoice.issue_date}}`, `{{invoice.due_date}}`, `{{invoice.title}}`, `{{invoice.pay_link}}`, `{{invoice.pay_qr}}` (an embedded image; empty when off), `{{invoice.terms}}`, `{{invoice.late_fee_clause}}` |
 | Line items | `{{#items}} … {{/items}}` repeating `{{name}}`, `{{description}}`, `{{quantity}}`, `{{unit_price}}`, `{{amount}}`; also `{{expense_1}}`, `{{expense_2}}` … as shortcuts for the first rows |
 | Totals | `{{totals.subtotal}}`, `{{totals.tax}}`, `{{totals.discount}}`, `{{totals.total}}`, `{{currency}}` |
 | Installments | `{{installment.number}}`, `{{installment.count}}`, `{{installment.paid_so_far}}`, `{{installment.remaining}}`, `{{#installment.schedule}} … {{/installment.schedule}}` |
 | AI-written text | `{{greeting}}`, `{{thank_you_note}}`, `{{project_summary}}`, `{{notes}}` |
+| Signature | `{{#signature}} … {{/signature}}` (left out when this invoice has none), with `{{signature.image}}`, `{{signature.name}}`, `{{signature.title}}` inside |
 
 - **What the AI fills:** only the text tags (greeting, thank-you note, project summary, notes), through the AI router, checked against `prompts/schemas/invoice-text.schema.json`. The freelancer sees and can edit the text before the invoice is created. Everything else (names, amounts, dates, invoice numbers, installment figures, the pay link) comes from the database, with money from the one money formatter. AI text that mentions an amount or a date is rejected and regenerated, or the freelancer writes it.
 - **Security (custom HTML is untrusted input):** sanitise on save: strip `<script>`, event handlers (`on*=`), `<iframe>`, `<object>`, `<embed>`, forms, `javascript:` URLs and `@import`, and allow only a known set of tags and CSS properties. No outside resources: no remote images, fonts or stylesheets; images such as the logo are embedded by the app, so the PDF is the same every time and a template can't leak data to another server. Every tag value is HTML-escaped when filled (a logic-less engine such as Mustache). The preview is a sandboxed iframe with no scripts; the PDF is made by headless Chromium with JavaScript disabled and network access off. HTML plus CSS is limited to 100 KB per template.
-- **Screens:** Settings > Invoice templates (the built-ins and custom ones; Preview, Duplicate, Set as default), a template editor (HTML and CSS side by side, live preview, click-to-insert tag list, sanitiser errors inline), and on Create invoice a template pick plus the AI-written text with Edit.
+- **Screens:** Settings > Invoice templates (a gallery of the built-ins with a thumbnail of each from sample data, and custom ones; Preview, Duplicate, Set as default), a template editor (HTML and CSS side by side, live preview, click-to-insert tag list, sanitiser errors inline), and on Create invoice a template pick plus the AI-written text with Edit.
 
 ## Data model
 
@@ -289,7 +291,7 @@ Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 
 | Table | Key fields |
 | --- | --- |
-| users | id, name, email, time_zone, usual_days_late (self-reported baseline for days saved), Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image) |
+| users | id, name, email, time_zone, usual_days_late (self-reported baseline for days saved), Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image), invoice_paper (A4 / Letter), invoice_show_qr |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
 | clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |

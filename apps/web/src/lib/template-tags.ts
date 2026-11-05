@@ -28,6 +28,7 @@ export const TAG_GROUPS: readonly TagGroup[] = [
       "invoice.due_date",
       "invoice.title",
       "invoice.pay_link",
+      "invoice.pay_qr",
       "invoice.terms",
       "invoice.late_fee_clause",
     ],
@@ -53,15 +54,16 @@ export const TAG_GROUPS: readonly TagGroup[] = [
 export const LIST_SECTIONS: Readonly<Record<string, readonly string[]>> = {
   items: ["name", "description", "quantity", "unit_price", "amount"],
   "installment.schedule": ["number", "amount", "due_date", "status"],
+  signature: ["signature.image", "signature.name", "signature.title"],
 };
 
 const TOP_TAGS = new Set(TAG_GROUPS.flatMap((g) => g.tags));
 
-/** Tags that may only appear as a whole attribute value: href and src. */
-export const URL_TAGS: Readonly<Record<string, string>> = {
-  href: "invoice.pay_link",
-  src: "freelancer.logo",
-};
+/** The only tag an href may be, as its whole value. */
+export const HREF_TAG = "invoice.pay_link";
+
+/** The only tags a src may be, each as its whole value: all are embedded images. */
+export const SRC_TAGS: readonly string[] = ["freelancer.logo", "invoice.pay_qr", "signature.image"];
 
 export type TagIssue = { line: number; message: string };
 

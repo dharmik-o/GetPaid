@@ -209,8 +209,15 @@ describe("the built-in templates", () => {
     await handle.close();
   });
 
-  it("are Classic, Modern and Minimal", () => {
-    expect(builtins.map((b) => b.name)).toEqual(["Classic", "Modern", "Minimal"]);
+  it("are the six themes", () => {
+    expect(builtins.map((b) => b.name)).toEqual([
+      "Classic",
+      "Modern",
+      "Minimal",
+      "Studio",
+      "Ledger",
+      "Noir",
+    ]);
   });
 
   it("pass the sanitiser unchanged in meaning: nothing removed or refused", () => {

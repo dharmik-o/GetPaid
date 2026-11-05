@@ -278,14 +278,39 @@ test.describe("Settings", () => {
 
   test("the default template's chip doesn't touch its name", async ({ page }) => {
     await page.goto("/settings/templates", { waitUntil: "networkidle" });
-    await expect(page.locator("main .table .chip-after").first()).toHaveCSS("margin-left", "8px");
+    await expect(page.locator("main .template-tile .chip-after").first()).toHaveCSS(
+      "margin-left",
+      "8px",
+    );
   });
 
-  test("on a phone, the templates table becomes labelled rows", async ({ page }) => {
+  test("the gallery shows all six built-ins, each drawn from sample data", async ({ page }) => {
+    await page.goto("/settings/templates", { waitUntil: "networkidle" });
+    const tiles = page.locator("main .template-tile");
+    await expect(tiles).toHaveText([
+      /Classic/,
+      /Modern/,
+      /Minimal/,
+      /Studio/,
+      /Ledger/,
+      /Noir.*Best on screen; uses a lot of ink if printed/s,
+    ]);
+    for (const tile of await tiles.all()) {
+      const frame = tile.locator("iframe");
+      await frame.scrollIntoViewIfNeeded();
+      await expect(frame).toHaveAttribute("sandbox", "");
+      await expect(tile.getByRole("link", { name: "Preview" })).toBeVisible();
+      await expect(frame.contentFrame().getByText("FPR-000042").first()).toBeVisible();
+    }
+  });
+
+  test("on a phone, the gallery fits, and every tile can be reached", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 844 });
     await page.goto("/settings/templates", { waitUntil: "networkidle" });
-    await expect(page.locator('main td[data-label="Actions"]').first()).toBeVisible();
-    await expect(page.locator("main .table-stack thead")).toHaveCSS("position", "absolute");
+    for (const tile of await page.locator("main .template-tile").all()) {
+      const box = await tile.boundingBox();
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
+    }
   });
 });
 

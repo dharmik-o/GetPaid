@@ -2,7 +2,8 @@ import { invoiceTextSchema, type InvoiceText } from "./ai-schemas";
 import type { Db } from "./db";
 import { toCents } from "./db-values";
 import { formatFullDay, formatPaymentTerms } from "./format";
-import { getClientDetails, getFreelancerDetails } from "./invoice-details";
+import type { PaperSize } from "./invoice-pdf";
+import { getClientDetails, getFreelancerDetails, type FreelancerDetails } from "./invoice-details";
 import type { InvoiceDocument } from "./invoice-document";
 import { loadMilestoneContext, type MilestoneContext } from "./invoice-context";
 import { textFor } from "./invoice-flow";
@@ -21,6 +22,7 @@ export type LoadedDocument = {
   pdfPath: string | null;
   template: Template;
   document: InvoiceDocument;
+  paper: PaperSize;
 };
 
 type Extra = {
@@ -30,6 +32,8 @@ type Extra = {
   created_at: Date | string;
   user_id: string;
 };
+
+const paperOf = (freelancer: FreelancerDetails): PaperSize => freelancer.invoicePaper;
 
 const installmentOf = (
   record: InvoiceRecord,
@@ -139,6 +143,7 @@ const loadRetainerDocument = async (
     invoiceId,
     pdfPath: row.pdf_path,
     template,
+    paper: paperOf(freelancer),
     document: {
       freelancer: {
         name: freelancer.name,
@@ -159,6 +164,7 @@ const loadRetainerDocument = async (
         dueDate: row.due_date,
         title,
         payLink: row.link,
+        showQr: freelancer.invoiceShowQr,
         terms: formatPaymentTerms(paymentTerms),
         lateFeeClause: row.late_fee_clause,
       },
@@ -175,6 +181,7 @@ const loadRetainerDocument = async (
       discountCents: 0,
       installment: null,
       text: storedText(row.invoice_text, facts),
+      signature: null,
     },
   };
 };
@@ -211,6 +218,7 @@ export const loadInvoiceDocument = async (
     invoiceId,
     pdfPath: extra.pdf_path,
     template,
+    paper: paperOf(freelancer),
     document: {
       freelancer: {
         name: freelancer.name,
@@ -231,6 +239,7 @@ export const loadInvoiceDocument = async (
         dueDate: record.dueDate,
         title: `${context.project.title}: ${context.milestone.name}`,
         payLink: record.link,
+        showQr: freelancer.invoiceShowQr,
         terms: formatPaymentTerms(context.terms),
         lateFeeClause: context.project.lateFeeClause,
       },
@@ -242,6 +251,7 @@ export const loadInvoiceDocument = async (
       discountCents: 0,
       installment: installmentOf(record, context),
       text: storedText(extra.invoice_text, textFactsFor(context, freelancer.name)),
+      signature: null,
     },
   };
 };

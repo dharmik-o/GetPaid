@@ -1,4 +1,5 @@
 import Mustache from "mustache";
+import { documentFontCss } from "./document-fonts";
 import { checkTemplateTags, type TagIssue } from "./template-tags";
 
 // Fills a sanitised template with the invoice's values and wraps it in a full document. Every
@@ -29,7 +30,7 @@ export const renderInvoiceHtml = (
     "<!DOCTYPE html>",
     '<html lang="en"><head><meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${DOCUMENT_CSP}">`,
-    `<style>${template.css}</style>`,
+    `<style>${documentFontCss(template.css)}${template.css}</style>`,
     `</head><body>${body}</body></html>`,
   ].join("");
 };

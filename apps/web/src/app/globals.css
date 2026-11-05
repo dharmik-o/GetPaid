@@ -39,6 +39,7 @@
   --accent-ink: #e8a800;
   --on-accent: #000000;
   --ink: #000000;
+  --paper: #ffffff;
   --logo-ink: #ffc300;
   --dots: #e8a800;
   --danger: #ff6b4a;
@@ -1048,12 +1049,65 @@ button.chip:hover {
   font-size: 12px;
 }
 
+.template-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+}
+
+.template-tile {
+  width: 222px;
+}
+
+/* A page at its full size, drawn small. It can't be clicked, as it's only a picture of the theme. */
+.template-thumb {
+  position: relative;
+  width: 222px;
+  height: 314px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+}
+
+.template-thumb iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 794px;
+  height: 1123px;
+  border: 0;
+  background: var(--paper);
+  pointer-events: none;
+  transform: scale(0.2796);
+  transform-origin: top left;
+}
+
+.template-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
 .template-preview {
   width: 100%;
   height: 720px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
-  background: #ffffff;
+  background: var(--paper);
   box-shadow: var(--shadow-control);
 }
 

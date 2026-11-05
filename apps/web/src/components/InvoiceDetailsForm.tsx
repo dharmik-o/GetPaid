@@ -4,16 +4,29 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { sendJson } from "@/lib/api-client";
 
-// Your details on every invoice document: business name, address and logo. The logo is kept
-// as an embedded image, so a PDF never loads anything from the network.
+// Your details on every invoice document: business name, address, logo, paper size and whether
+// to show a QR code of the pay link. The logo is kept as an embedded image, so a PDF never loads
+// anything from the network.
 
-/** Only these three: the default template is set from the list above, separately. */
-type Details = { businessName: string | null; address: string | null; logoDataUrl: string | null };
+/** Not the default template: that's set from the gallery above, separately. */
+type Details = {
+  businessName: string | null;
+  address: string | null;
+  logoDataUrl: string | null;
+  invoicePaper: "A4" | "Letter";
+  invoiceShowQr: boolean;
+};
 
 const LOGO_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 const LOGO_MAX_BYTES = 200 * 1024;
 
-const NAMES = { businessName: "Business name", address: "Address", logoDataUrl: "Logo" };
+const NAMES = {
+  businessName: "Business name",
+  address: "Address",
+  logoDataUrl: "Logo",
+  invoicePaper: "Paper size",
+  invoiceShowQr: "QR code",
+};
 
 const readAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -121,6 +134,27 @@ export const InvoiceDetailsForm = ({ initial, name }: { initial: Details; name: 
         </button>
       ) : null}
       <div className="field-hint">PNG, JPEG, GIF or WebP, under 200 KB.</div>
+      <label htmlFor="invoicePaper">Paper size</label>
+      <select
+        id="invoicePaper"
+        value={values.invoicePaper}
+        onChange={(e) => {
+          setValues((v) => ({ ...v, invoicePaper: e.target.value === "Letter" ? "Letter" : "A4" }));
+        }}
+      >
+        <option value="A4">A4</option>
+        <option value="Letter">US Letter</option>
+      </select>
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={values.invoiceShowQr}
+          onChange={(e) => {
+            setValues((v) => ({ ...v, invoiceShowQr: e.target.checked }));
+          }}
+        />{" "}
+        Show a QR code of the PayPal pay link
+      </label>
       <div className="actions">
         <button className="button" type="submit" disabled={saving}>
           {saving ? "Saving…" : "Save details"}

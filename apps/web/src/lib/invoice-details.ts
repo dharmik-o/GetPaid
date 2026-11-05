@@ -29,6 +29,8 @@ export const freelancerDetailsSchema = z.strictObject({
     .regex(LOGO_DATA_URL, "must be a PNG, JPEG, GIF or WebP image")
     .nullable(),
   defaultTemplateId: templateId,
+  invoicePaper: z.enum(["A4", "Letter"], { error: "must be A4 or Letter" }),
+  invoiceShowQr: z.boolean({ error: "must be on or off" }),
 });
 
 export const clientDetailsSchema = z.strictObject({
@@ -59,8 +61,11 @@ export const getFreelancerDetails = async (db: Db): Promise<FreelancerDetails | 
     address: string | null;
     logo_data_url: string | null;
     default_template_id: string | null;
+    invoice_paper: "A4" | "Letter";
+    invoice_show_qr: boolean;
   }>(
-    `SELECT name, email, business_name, address, logo_data_url, default_template_id::text
+    `SELECT name, email, business_name, address, logo_data_url, default_template_id::text,
+       invoice_paper, invoice_show_qr
      FROM public.users WHERE id = (SELECT auth.uid())`,
   );
   const row = rows[0];
@@ -72,6 +77,8 @@ export const getFreelancerDetails = async (db: Db): Promise<FreelancerDetails | 
         address: row.address,
         logoDataUrl: row.logo_data_url,
         defaultTemplateId: row.default_template_id,
+        invoicePaper: row.invoice_paper,
+        invoiceShowQr: row.invoice_show_qr,
       }
     : undefined;
 };
@@ -91,9 +98,16 @@ export const saveFreelancerDetails = async (
   if (errors.length > 0) return { ok: false, errors };
   await db.query(
     `UPDATE public.users SET business_name = $1, address = $2, logo_data_url = $3,
-       default_template_id = $4
+       default_template_id = $4, invoice_paper = $5, invoice_show_qr = $6
      WHERE id = (SELECT auth.uid())`,
-    [input.businessName, input.address, input.logoDataUrl, input.defaultTemplateId],
+    [
+      input.businessName,
+      input.address,
+      input.logoDataUrl,
+      input.defaultTemplateId,
+      input.invoicePaper,
+      input.invoiceShowQr,
+    ],
   );
   const saved = await getFreelancerDetails(db);
   if (!saved) throw new Error("Your details could not be read back after saving.");

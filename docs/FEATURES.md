@@ -104,7 +104,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Demo clock** (`DEMO_CLOCK_OFFSET_DAYS`, dev only) and seed data for the $3,000 website project.
 - [x] **E2E:** a Playwright test runs the 8 demo steps end to end.
 
-## M11 Visual redesign and landing page [docs/design/redesign-brief.md]
+## Redesign and landing page [docs/design/redesign-brief.md]
 
 Presentation only: no changes to API calls, data, routes, form field names, validation or business logic. Each page is one commit, with `npm run check` and `npm run test:e2e` green, checked at 375px and 1280px in both themes.
 
@@ -119,6 +119,17 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [ ] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.
   - Includes the hero's Paid moment: Sent to Paid pill, then the GetPaid stamp (`public/getpaid-stamp.svg`) slams onto the example invoice and the card bounces 7px, with GSAP.
   - Done when: a Playwright check shows `/welcome` loads, its calls to action reach `/`, and it works with reduced motion.
+
+## M11 Invoice themes, signatures, archive and history [Invoice templates, Data model, Screens]
+
+- [x] **Three new built-in themes** (Studio, Ledger, Noir), Classic and Minimal restyled, Pay online with a QR code on all six, a thumbnail gallery, and A4 or US Letter.
+  - Done when: every built-in renders every tag in tests, fits one page in A4 and Letter, and passes the sanitiser.
+- [ ] **Signature:** upload or typed, signer name and title, a default, and "Include my signature" on every invoice creation.
+  - Done when: signature on or off is respected per invoice in tests.
+- [ ] **Local invoice archive:** every PDF sent to a client is kept, and a changed one is a new version.
+  - Done when: a sent invoice's PDF exists in the archive at the expected path with a matching sha256, a changed one becomes v2 without touching v1, and path tests cover unsafe names and traversal attempts.
+- [ ] **Invoice history** on the Project and Client pages, with filters and downloads.
+  - Done when: the Project and Client pages list the right invoices for the right user only (RLS test), and the Playwright demo still passes, plus a check that the Project page shows its invoices.
 
 ## Out of scope (Phase 2, don't build)
 

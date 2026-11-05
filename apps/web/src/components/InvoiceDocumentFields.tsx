@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { InvoiceText } from "@/lib/ai-schemas";
+import { BUILTIN_TEMPLATE_NOTES } from "@/lib/invoice-template-notes";
 
 // On Create invoice: pick the invoice document's template, and see (and edit) its text. The AI
 // writes only these four text parts; names, amounts, dates and the pay link come from your
@@ -67,6 +68,9 @@ export const InvoiceDocumentFields = ({ milestoneId, templates, value, onChange 
           </option>
         ))}
       </select>
+      {BUILTIN_TEMPLATE_NOTES[value.templateId] ? (
+        <p className="field-hint">{BUILTIN_TEMPLATE_NOTES[value.templateId]}</p>
+      ) : null}
       <p className="field-hint">
         Text without amounts or dates: those come from your records. Leave it empty for the fixed
         wording.

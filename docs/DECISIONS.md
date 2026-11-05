@@ -698,3 +698,19 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Links to other settings pages are secondary buttons.** Three yellow buttons for navigation spent the accent on nothing, and "Integrations" was a plain link beside them. Yellow now marks the Save on each page. The wording didn't change.
 - **A failed AI test uses the Overdue style,** so it stands out from a pass, and still says "Fail" in words.
 - **Tests that had gone quietly wrong:** the primary-button checks picked the first `a.button`, which became a secondary link on Settings, so the reduced-motion check stopped testing a primary button. Both now choose a real primary button.
+
+## M11 Invoice themes, signatures, archive and history
+
+### Themes (5 Nov 2026)
+
+- **The redesign's section in `docs/FEATURES.md` was also called M11.** I named it that myself, and yours is the real M11, so that section is now just "Redesign and landing page".
+- **Fonts are embedded by the renderer, not the template.** The sanitiser strips `@font-face`, and a PDF has the network off, so `lib/document-fonts.ts` reads the `@fontsource` files and embeds the families a template's CSS names, as data. Templates stay small, custom ones can use the same fonts by name, and the PDF only carries what it uses.
+- **New dependencies, each with `npm audit` clean in production and no install script:** `@fontsource/ibm-plex-mono` (Ledger's monospace and Noir's numbers), `@fontsource/ibm-plex-sans` (Noir's light heading, as Instrument Sans has no light weight, and Modern), `@fontsource/ibm-plex-serif` (Classic, in place of Georgia, which isn't on every machine), `@fontsource/mrs-saint-delafield` (typed signatures; OFL) and `qrcode-generator` (the pay link's QR code, made locally, with no dependencies of its own).
+- **The sanitiser now allows `transform`, `transform-origin` and `writing-mode`,** for Studio's rotated strips. None can load anything. A custom template gets them too.
+- **Paper size is an account setting, A4 by default.** You asked for both to fit, so something has to choose. A built-in sets no page size; a custom template's own `@page` size still wins.
+- **The QR code is an account setting too, on by default,** and appears only when the invoice has a pay link. It's a GIF, because that's what the library makes and the sanitiser already allows. A link too long to encode gets no code, rather than failing the invoice.
+- **Tax and discount always show, as USD 0.00 when zero,** as in your references. Only amounts from the database appear, and nothing sets them yet.
+- **Studio's late-fee clause sits in the body, not the Terms strip.** A clause can be long, and a rotated strip would have to cut it off. The strip holds the terms and due date.
+- **Noir's signature and QR code sit on white,** because dark ink vanishes on charcoal.
+- **The gallery's thumbnails are live pages in sandboxed frames,** from `/api/invoice-templates/[id]/thumbnail`, with the same Content-Security-Policy as the PDF. They lazy-load, so opening Settings doesn't render six documents at once.
+- **The white paper behind a preview is now a token** (`--paper`), so `globals.css` has no stray hex at all, and its test got stricter.

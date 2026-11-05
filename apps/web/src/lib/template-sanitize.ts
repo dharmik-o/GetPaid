@@ -1,6 +1,6 @@
 import sanitizeHtml from "sanitize-html";
 import { sanitizeCss, sanitizeInlineStyle } from "./template-css";
-import { checkTemplateTags, URL_TAGS, type TagIssue } from "./template-tags";
+import { checkTemplateTags, HREF_TAG, SRC_TAGS, type TagIssue } from "./template-tags";
 
 // Server-only: sanitises a custom template on save (custom HTML is untrusted input). Scripts,
 // event handlers, iframes, objects, embeds, forms and javascript: links are removed; anything
@@ -119,7 +119,7 @@ const onDisallowedTag = (name: string, attribs: Record<string, string>, notes: N
 
 const checkHref = (value: string, notes: Notes): string | undefined => {
   const trimmed = value.trim();
-  if (trimmed === `{{${URL_TAGS.href ?? ""}}}`) return trimmed;
+  if (trimmed === `{{${HREF_TAG}}}`) return trimmed;
   if (/^(https:\/\/|mailto:|#)/i.test(trimmed) && !trimmed.includes("{{")) return trimmed;
   note(notes.removed, "a link that isn't https, mailto or {{invoice.pay_link}}");
   return undefined;
@@ -127,7 +127,9 @@ const checkHref = (value: string, notes: Notes): string | undefined => {
 
 const checkSrc = (value: string, notes: Notes): string | undefined => {
   const trimmed = value.trim();
-  if (trimmed === `{{${URL_TAGS.src ?? ""}}}` || DATA_IMAGE.test(trimmed)) return trimmed;
+  if (SRC_TAGS.some((tag) => trimmed === `{{${tag}}}`) || DATA_IMAGE.test(trimmed)) {
+    return trimmed;
+  }
   if (REMOTE.test(trimmed) || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
     note(
       notes.refused,

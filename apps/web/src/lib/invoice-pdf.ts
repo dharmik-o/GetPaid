@@ -12,7 +12,10 @@ export const PDF_CONTEXT = {
   serviceWorkers: "block",
 } as const;
 
-export const renderPdf = async (documentHtml: string): Promise<Buffer> => {
+export type PaperSize = "A4" | "Letter";
+
+/** The paper is for a template that sets no @page size: a custom template's own size wins. */
+export const renderPdf = async (documentHtml: string, paper: PaperSize = "A4"): Promise<Buffer> => {
   let browser;
   try {
     browser = await chromium.launch({ headless: true, args: ["--disable-background-networking"] });
@@ -26,7 +29,7 @@ export const renderPdf = async (documentHtml: string): Promise<Buffer> => {
     await context.route("**/*", (route) => route.abort());
     const page = await context.newPage();
     await page.setContent(documentHtml, { waitUntil: "load", timeout: RENDER_TIMEOUT_MS });
-    return await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true });
+    return await page.pdf({ format: paper, printBackground: true, preferCSSPageSize: true });
   } finally {
     await browser.close();
   }

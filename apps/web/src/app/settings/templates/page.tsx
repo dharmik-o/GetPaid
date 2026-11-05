@@ -5,8 +5,8 @@ import { getFreelancerDetails } from "@/lib/invoice-details";
 import { CLASSIC_TEMPLATE_ID, listTemplates } from "@/lib/invoice-templates";
 import { runAsCurrentUser } from "@/lib/request-user";
 
-// Settings > Invoice templates: the three built-ins and your own (Preview, Duplicate, Set as
-// default), and your details on every invoice document.
+// Settings > Invoice templates: a gallery of the built-ins and your own (Preview, Duplicate, Set
+// as default), and your details on every invoice document.
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +51,8 @@ const TemplatesPage = async () => {
             businessName: details.businessName,
             address: details.address,
             logoDataUrl: details.logoDataUrl,
+            invoicePaper: details.invoicePaper,
+            invoiceShowQr: details.invoiceShowQr,
           }}
         />
       </section>

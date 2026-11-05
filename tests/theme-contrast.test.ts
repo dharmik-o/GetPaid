@@ -170,12 +170,17 @@ describe("the themes", () => {
     expect(CSS).not.toMatch(/:disabled[^{]*\{[^}]*opacity/);
   });
 
-  it("keeps colours in tokens, apart from the white paper behind an invoice preview", () => {
+  it("keeps every colour in a token, including the white paper behind an invoice preview", () => {
     const rules = CSS.slice(CSS.indexOf("* {"));
     const stray = [...rules.matchAll(/([^{}]+)\{[^}]*#[0-9a-f]{3,6}\b[^}]*\}/gi)].map(
       ([, selector = ""]) => selector.trim(),
     );
-    expect(stray).toEqual([".template-preview"]);
+    expect(stray).toEqual([]);
+  });
+
+  it("keeps the paper white in both themes, as it shows the PDF as the client gets it", () => {
+    expect(DARK.paper).toBe("#ffffff");
+    expect(LIGHT.paper).toBe("#ffffff");
   });
 
   it("has one gradient: the dot pattern in the dotted triangle", () => {

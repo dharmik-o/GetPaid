@@ -66,6 +66,9 @@ const PROPERTIES = new Set([
   "widows",
   "size",
   "overflow",
+  "writing-mode",
+  "transform",
+  "transform-origin",
 ]);
 
 const AT_RULES = new Set(["media", "page"]);

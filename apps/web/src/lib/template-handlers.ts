@@ -20,7 +20,7 @@ import {
   type SaveTemplateResult,
 } from "./invoice-templates";
 import { logEvent } from "./log";
-import { renderInvoiceHtml } from "./template-render";
+import { DOCUMENT_CSP, renderInvoiceHtml } from "./template-render";
 import { sanitizeTemplate } from "./template-sanitize";
 
 // Server-only: Settings > Invoice templates, the template editor's live preview, and the
@@ -67,6 +67,7 @@ const previewDocument = (
           address: details.address,
           logoDataUrl: details.logoDataUrl,
         },
+        invoice: { ...SAMPLE_DOCUMENT.invoice, showQr: details.invoiceShowQr },
       }
     : SAMPLE_DOCUMENT;
 
@@ -101,6 +102,30 @@ export const templateHandlers = ({ runAsUser }: Deps) => ({
       return saved(result, 201);
     } catch (error) {
       return serverError("templates.create_failed", error);
+    }
+  },
+
+  /** The gallery's thumbnail: the template on sample data, as a page that can do nothing. */
+  thumbnail: async (_request: Request, { params }: IdContext): Promise<Response> => {
+    const { id } = await params;
+    if (!isUuid(id)) return notFound(TEMPLATE);
+    try {
+      const loaded = await runAsUser(async (db) => ({
+        template: await getTemplate(db, id),
+        details: await getFreelancerDetails(db),
+      }));
+      if (!loaded.template) return notFound(TEMPLATE);
+      const html = renderInvoiceHtml(loaded.template, invoiceView(previewDocument(loaded.details)));
+      return new Response(html, {
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "content-security-policy": `${DOCUMENT_CSP}; sandbox; frame-ancestors 'self'`,
+          "x-content-type-options": "nosniff",
+          "cache-control": "private, no-store",
+        },
+      });
+    } catch (error) {
+      return serverError("templates.thumbnail_failed", error);
     }
   },
 

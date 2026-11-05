@@ -1,5 +1,7 @@
 import type { InvoiceText } from "./ai-schemas";
 import { formatFullDay, formatMoney } from "./format";
+import { payQrDataUrl } from "./pay-qr";
+import { SAMPLE_SIGNATURE_DATA_URL } from "./sample-signature";
 
 // What an invoice document shows, and the tag values a template is filled with. Every value
 // comes from the database (money from the one money formatter, dates as "18 Nov 2026");
@@ -21,6 +23,8 @@ export type InvoiceDocument = {
     dueDate: string;
     title: string;
     payLink: string | null;
+    /** Show a QR code of the pay link, when there is one. */
+    showQr: boolean;
     terms: string;
     lateFeeClause: string | null;
   };
@@ -41,6 +45,8 @@ export type InvoiceDocument = {
     }[];
   } | null;
   text: InvoiceText;
+  /** Null when this invoice goes without one, or none has been set up. */
+  signature: { imageDataUrl: string; name: string | null; title: string | null } | null;
 };
 
 export const EXPENSE_SHORTCUT_COUNT = 10;
@@ -67,7 +73,8 @@ export const invoiceView = (doc: InvoiceDocument): Record<string, unknown> => {
       return [`expense_${String(i + 1)}`, item ? `${item.name}: ${item.amount}` : ""];
     }),
   );
-  const { installment } = doc;
+  const { installment, signature } = doc;
+  const payLink = doc.invoice.payLink ?? "";
   return {
     freelancer: {
       name: doc.freelancer.name,
@@ -87,7 +94,8 @@ export const invoiceView = (doc: InvoiceDocument): Record<string, unknown> => {
       issue_date: formatFullDay(doc.invoice.issueDate),
       due_date: formatFullDay(doc.invoice.dueDate),
       title: doc.invoice.title,
-      pay_link: doc.invoice.payLink ?? "",
+      pay_link: payLink,
+      pay_qr: doc.invoice.showQr && payLink ? payQrDataUrl(payLink) : "",
       terms: doc.invoice.terms,
       late_fee_clause: doc.invoice.lateFeeClause ?? "",
     },
@@ -116,6 +124,14 @@ export const invoiceView = (doc: InvoiceDocument): Record<string, unknown> => {
     thank_you_note: doc.text.thank_you_note,
     project_summary: doc.text.project_summary,
     notes: doc.text.notes,
+    // False, not an empty object, so {{#signature}} leaves its whole block out.
+    signature: signature
+      ? {
+          image: signature.imageDataUrl,
+          name: signature.name ?? "",
+          title: signature.title ?? "",
+        }
+      : false,
   };
 };
 
@@ -140,6 +156,7 @@ export const SAMPLE_DOCUMENT: InvoiceDocument = {
     dueDate: "2026-11-17",
     title: "Website redesign: Build",
     payLink: "https://www.sandbox.paypal.com/invoice/p/#INV2-SAMP-LE00-0000",
+    showQr: true,
     terms: "Net 14",
     lateFeeClause: "Late invoices incur 1.5% interest per month.",
   },
@@ -171,4 +188,5 @@ export const SAMPLE_DOCUMENT: InvoiceDocument = {
       "This invoice covers the Build milestone for Website redesign: the new website.",
     notes: "",
   },
+  signature: { imageDataUrl: SAMPLE_SIGNATURE_DATA_URL, name: "Alex Rivera", title: "Founder" },
 };

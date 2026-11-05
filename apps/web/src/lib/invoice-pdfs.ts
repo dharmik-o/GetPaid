@@ -3,6 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import type { UserDbRunner } from "./db";
 import { loadInvoiceDocument } from "./invoice-document-data";
 import { invoiceView } from "./invoice-document";
+import type { PaperSize } from "./invoice-pdf";
 import { renderInvoiceHtml } from "./template-render";
 
 // Server-only: each invoice's PDF, made once and kept on disk (INVOICE_PDF_DIR, default
@@ -11,7 +12,7 @@ import { renderInvoiceHtml } from "./template-render";
 
 export type PdfDeps = {
   runAsUser: UserDbRunner;
-  renderPdf: (html: string) => Promise<Buffer>;
+  renderPdf: (html: string, paper: PaperSize) => Promise<Buffer>;
   /** Where PDFs are kept. */
   dir: string;
 };
@@ -55,7 +56,7 @@ export const invoicePdf = async (
     }
   }
   const html = renderInvoiceHtml(loaded.template, invoiceView(loaded.document));
-  const pdf = await deps.renderPdf(html);
+  const pdf = await deps.renderPdf(html, loaded.paper);
   const relative = pdfPathFor(loaded.userId, invoiceId);
   const file = absolute(deps.dir, relative);
   await mkdir(dirname(file), { recursive: true });
