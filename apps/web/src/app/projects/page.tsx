@@ -27,7 +27,7 @@ const ProjectsPage = async () => {
           </Link>
         </div>
       ) : (
-        <table className="table">
+        <table className="table table-stack">
           <thead>
             <tr>
               <th scope="col">Project</th>
@@ -43,16 +43,18 @@ const ProjectsPage = async () => {
           <tbody>
             {projects.map((project) => (
               <tr key={project.id}>
-                <td>
+                <td data-label="Project">
                   <Link href={`/projects/${project.id}`}>{project.title}</Link>
                 </td>
-                <td>
+                <td data-label="Client">
                   <Link href={`/clients/${project.clientId}`}>{project.clientName}</Link>
                 </td>
-                <td className="hide-small">
+                <td data-label="Deadline">
                   {project.deadline ? formatDay(project.deadline) : "Not set"}
                 </td>
-                <td className="money">{formatMoney(project.totalCents, project.currency)}</td>
+                <td className="money" data-label="Total">
+                  {formatMoney(project.totalCents, project.currency)}
+                </td>
               </tr>
             ))}
           </tbody>

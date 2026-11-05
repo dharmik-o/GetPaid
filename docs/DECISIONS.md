@@ -678,3 +678,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A bug the redesign showed up:** Open balance was meant to be left-aligned, but `.money`'s `!important` beat the inline style, so it sat alone on the right. It now uses its own `balance-value` class, in the heading font.
 - **The timeline has the brief's dotted line** behind its icons, replacing the row dividers, so it reads as one history.
 - **On phones, the label-and-value list stacks,** so a long email address has the full width, and the client and project tables become labelled rows.
+### Projects restyle (5 Nov 2026)
+
+- **Milestone tables stack below 1200px, not only on phones.** They have six columns of fields, and beside the 240px sidebar there isn't room for them on a small laptop or tablet. Tested at 768, 1000, 1200, 1280 and 1440px, as the theme checks only cover 375 and 1280.
+- **At 1280px and up, the arrows share a line, with Remove below,** so rows are shorter. To make room, the share field is 5.5em wide rather than 7em, and the name field can narrow to 5em.
+- **A form's step headings ("1. Details") are 18px,** because they sit under the card's own 22px title. 18px isn't in the brief's type scale, but with the same size for both, the hierarchy disappears.
+- **An empty cell on a stacked row is hidden,** so "Action" doesn't appear with nothing under it.
+- **Project deadlines now show on phones,** because stacked rows have the room. They were hidden before.

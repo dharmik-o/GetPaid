@@ -877,8 +877,30 @@ dl.details {
   padding-inline: var(--space-2);
 }
 
+/* Enough for the up and down arrows to share a line, with Remove below them. */
 .milestone-table .row-actions {
+  min-width: 108px;
   white-space: normal;
+}
+
+/* Step headings inside a card's form, a level under the card's own title. */
+.form > h2 {
+  margin: var(--space-4) 0 0;
+  font-size: 18px;
+}
+
+/* Several holds in one card. */
+.card article + article {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.schedule-group .field-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
 }
 
 .share {
@@ -887,7 +909,7 @@ dl.details {
 }
 
 .share input {
-  width: 7em;
+  width: 5.5em;
 }
 
 .money-hint {
@@ -970,7 +992,7 @@ button.chip:hover {
 /* The name gives up width first, so the bordered row actions stay inside the card. */
 .milestone-table td:first-child input {
   width: 100%;
-  min-width: 7em;
+  min-width: 5em;
 }
 
 .milestone-total {
@@ -1395,6 +1417,78 @@ button.chip:hover {
   }
 }
 
+/* Milestone rows have six columns of fields, which need more room than a phone or a small laptop
+   has beside the sidebar: each row becomes a card of labelled lines. */
+@media (max-width: 1200px) {
+  .milestone-table,
+  .milestone-table tbody,
+  .milestone-table tr,
+  .milestone-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .milestone-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .milestone-table tr {
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .milestone-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .milestone-table td {
+    padding: var(--space-1) var(--space-3);
+    border-bottom: none;
+  }
+
+  .milestone-table td:empty {
+    display: none;
+  }
+
+  .milestone-table td.money {
+    text-align: left !important;
+  }
+
+  .milestone-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .milestone-table input,
+  .milestone-table select {
+    width: 100%;
+  }
+
+  .milestone-table .share input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .milestone-table .share select {
+    width: auto;
+  }
+
+  .milestone-table .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+  }
+}
+
 /* Phones: the sidebar becomes a bottom bar with Home, Outbox, Clients and More. */
 @media (max-width: 760px) {
   .shell {
@@ -1567,11 +1661,7 @@ button.chip:hover {
   .table-stack,
   .table-stack tbody,
   .table-stack tr,
-  .table-stack td,
-  .milestone-table,
-  .milestone-table tbody,
-  .milestone-table tr,
-  .milestone-table td {
+  .table-stack td {
     display: block;
     width: 100%;
   }
@@ -1600,8 +1690,7 @@ button.chip:hover {
     padding: var(--space-2) var(--space-3);
   }
 
-  .table-stack thead,
-  .milestone-table thead {
+  .table-stack thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1610,56 +1699,29 @@ button.chip:hover {
     white-space: nowrap;
   }
 
-  .table-stack tr,
-  .milestone-table tr {
+  .table-stack tr {
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--line);
   }
 
-  .table-stack tr:last-child,
-  .milestone-table tr:last-child {
+  .table-stack tr:last-child {
     border-bottom: none;
   }
 
-  .table-stack td,
-  .milestone-table td {
+  .table-stack td {
     padding: var(--space-1) var(--space-3);
     border-bottom: none;
   }
 
-  .table-stack td.money,
-  .milestone-table td.money {
+  .table-stack td.money {
     text-align: left !important;
   }
 
-  .table-stack td[data-label]::before,
-  .milestone-table td[data-label]::before {
+  .table-stack td[data-label]::before {
     content: attr(data-label);
     display: block;
     color: var(--muted);
     font-size: 14px;
-  }
-
-  .milestone-table input,
-  .milestone-table select {
-    width: 100%;
-  }
-
-  .milestone-table .share input {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
-
-  .milestone-table .share select {
-    width: auto;
-  }
-
-  .milestone-table .row-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding-top: var(--space-2);
   }
 
   /* A fieldset's default min-width, and a grid column sized to its content, would push a form off a phone. */

@@ -32,8 +32,8 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
   const now = appNow();
-  const { project, clients, milestones, invoices, plans, templates, holds } = await runAsCurrentUser(
-    async (db) => {
+  const { project, clients, milestones, invoices, plans, templates, holds } =
+    await runAsCurrentUser(async (db) => {
       const found = await getProject(db, id);
       return {
         project: found,
@@ -44,8 +44,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         templates: await listTemplates(db),
         holds: found ? await listHoldsForProject(db, found.id, now) : [],
       };
-    },
-  );
+    });
   if (!project) notFound();
 
   const schedule = { ...project.inherited, ...project.settings };
@@ -67,7 +66,7 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             <Link href={`/clients/${project.clientId}`}>{project.clientName}</Link>
           </dd>
           <dt>Total</dt>
-          <dd>{formatMoney(project.totalCents, project.currency)}</dd>
+          <dd className="balance-value">{formatMoney(project.totalCents, project.currency)}</dd>
           <dt>Delivery deadline</dt>
           <dd>{project.deadline ? formatDay(project.deadline) : "Not set"}</dd>
           <dt>Status</dt>

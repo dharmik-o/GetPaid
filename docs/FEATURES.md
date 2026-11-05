@@ -112,7 +112,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **Home**
 - [x] **Outbox**
 - [x] **Clients** (list, new, detail)
-- [ ] **Projects** (list, new, detail)
+- [x] **Projects** (list, new, detail)
 - [ ] **Retainers** (list, new)
 - [ ] **Maintenance** (list, new)
 - [ ] **Settings** (schedule, AI, integrations, templates)

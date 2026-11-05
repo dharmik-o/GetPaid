@@ -143,6 +143,54 @@ test.describe("Clients", () => {
   });
 });
 
+test.describe("Projects", () => {
+  const PROJECT = "/projects/00000000-0000-4000-8000-0000000000d1";
+
+  const fits = (page: Page) =>
+    page.evaluate(() =>
+      [...document.querySelectorAll("main .card")]
+        .filter((card) => !card.querySelector(".paid-stamp"))
+        .flatMap((card) => {
+          const edge = card.getBoundingClientRect().right;
+          return [...card.querySelectorAll("button, input, select, textarea, td")]
+            .filter((element) => element.getBoundingClientRect().right > edge + 1)
+            .map((element) => element.tagName);
+        }),
+    );
+
+  for (const width of [768, 1000, 1200, 1280, 1440]) {
+    test(`a project's milestones and invoices fit at ${String(width)}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(PROJECT, { waitUntil: "networkidle" });
+      await expect(page.locator("main h1").first()).toBeVisible();
+      await page.waitForTimeout(900);
+      expect(await fits(page)).toEqual([]);
+    });
+  }
+
+  test("on a desktop, a milestone's arrows share a line", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const row = page.locator("main .milestone-table tbody tr").first();
+    const up = await row.getByRole("button", { name: /up$/ }).boundingBox();
+    const down = await row.getByRole("button", { name: /down$/ }).boundingBox();
+    expect(up?.y).toBe(down?.y);
+  });
+
+  test("a form's step headings sit a level under the card's title", async ({ page }) => {
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const title = await sizeOf(page, 'main h2[id="edit"]');
+    expect(await sizeOf(page, "main .form > h2")).toBeLessThan(title);
+  });
+
+  test("on a phone, the list keeps every column, including the deadline", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto("/projects", { waitUntil: "networkidle" });
+    await expect(page.locator('main td[data-label="Deadline"]').first()).toBeVisible();
+    await expect(page.locator('main td[data-label="Total"]').first()).toBeVisible();
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [
