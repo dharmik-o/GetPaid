@@ -70,28 +70,30 @@ const ClientPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             No projects yet. Create one to set the deadline, terms and reminders.
           </p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th scope="col">Project</th>
-                <th scope="col">Deadline</th>
-                <th scope="col" className="money">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <Link href={`/projects/${project.id}`}>{project.title}</Link>
-                  </td>
-                  <td>{project.deadline ? formatDay(project.deadline) : "Not set"}</td>
-                  <td className="money">{formatMoney(project.totalCents, project.currency)}</td>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Project</th>
+                  <th scope="col">Deadline</th>
+                  <th scope="col" className="money">
+                    Total
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {projects.map((project) => (
+                  <tr key={project.id}>
+                    <td>
+                      <Link href={`/projects/${project.id}`}>{project.title}</Link>
+                    </td>
+                    <td>{project.deadline ? formatDay(project.deadline) : "Not set"}</td>
+                    <td className="money">{formatMoney(project.totalCents, project.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

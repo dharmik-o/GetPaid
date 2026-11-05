@@ -8,6 +8,7 @@ import {
   type TemplateChoice,
 } from "@/components/InvoiceDocumentFields";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
+import { StatusBadge } from "@/components/StatusBadge";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount } from "@/lib/currencies";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -101,7 +102,9 @@ const nextDepositInstallment = (row: InvoiceRowData) => {
 
 const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; currency: string }) => (
   <div>
-    <span className="chip">{INVOICE_LABELS[invoice.status] ?? invoice.status}</span>
+    <StatusBadge status={invoice.status}>
+      {INVOICE_LABELS[invoice.status] ?? invoice.status}
+    </StatusBadge>{" "}
     {invoice.invoiceNumber}
     {invoice.installment ? (
       <div className="field-hint">

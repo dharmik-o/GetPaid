@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { StatusBadge } from "@/components/StatusBadge";
 import { formatAmountInput, parseAmount } from "@/lib/currencies";
 import { formatMoney } from "@/lib/format";
 import { checkPlan, milestoneCents, type PlanItem } from "@/lib/milestone-plan";
@@ -329,7 +330,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                   <td data-label="Status">
                     {row.status && row.id ? (
                       <>
-                        <span className="chip">{statusLabel(row.status)}</span>
+                        <StatusBadge status={row.status}>{statusLabel(row.status)}</StatusBadge>
                         {manualNextStatuses(row.status).map((next) => (
                           <button
                             key={next}

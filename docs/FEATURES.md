@@ -104,6 +104,21 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 - [x] **Demo clock** (`DEMO_CLOCK_OFFSET_DAYS`, dev only) and seed data for the $3,000 website project.
 - [x] **E2E:** a Playwright test runs the 8 demo steps end to end.
 
+## M11 Visual redesign and landing page [docs/design/redesign-brief.md]
+
+Presentation only: no changes to API calls, data, routes, form field names, validation or business logic. Each page is one commit, with `npm run check` and `npm run test:e2e` green, checked at 375px and 1280px in both themes.
+
+- [x] **Foundation:** tokens, fonts, theme switch, buttons, inputs, cards, badges, nav, dotted triangle. Stop here for the user to check both themes.
+- [ ] **Home**
+- [ ] **Outbox**
+- [ ] **Clients** (list, new, detail)
+- [ ] **Projects** (list, new, detail)
+- [ ] **Retainers** (list, new)
+- [ ] **Maintenance** (list, new)
+- [ ] **Settings** (schedule, AI, integrations, templates)
+- [ ] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.
+  - Done when: a Playwright check shows `/welcome` loads, its calls to action reach `/`, and it works with reduced motion.
+
 ## Out of scope (Phase 2, don't build)
 
 Cal.com scheduling, calendar view, meeting notes, transcripts, email auto-import, WhatsApp, multi-user PayPal partner onboarding.

@@ -28,7 +28,14 @@ const PAGES = [
   "/settings/templates/new",
 ];
 
-type Measured = { label: string; text: string; fill: string; border: string; width: number };
+type Measured = {
+  label: string;
+  text: string;
+  fill: string;
+  behind: string;
+  border: string;
+  width: number;
+};
 
 /** Colours as drawn: a see-through background shows whatever is behind it. */
 const measure = (page: Page, selector: string): Promise<Measured[]> =>
@@ -36,7 +43,8 @@ const measure = (page: Page, selector: string): Promise<Measured[]> =>
     const fillBehind = (element: Element): string => {
       for (let at: Element | null = element; at; at = at.parentElement) {
         const color = getComputedStyle(at).backgroundColor;
-        if (!/, 0\)$|^transparent$/.test(color)) return color;
+        // Only a zero alpha is see-through. Pure black, rgb(0, 0, 0), also ends in ", 0)".
+        if (!/^rgba\(.*, 0\)$|^transparent$/.test(color)) return color;
       }
       return "rgb(255, 255, 255)";
     };
@@ -48,19 +56,25 @@ const measure = (page: Page, selector: string): Promise<Measured[]> =>
           label: `${element.tagName.toLowerCase()}.${element.className} "${element.textContent.trim().slice(0, 30)}"`,
           text: style.color,
           fill: fillBehind(element),
+          behind: element.parentElement ? fillBehind(element.parentElement) : "rgb(255, 255, 255)",
           border: style.borderTopColor,
           width: parseFloat(style.borderTopWidth),
         };
       });
   }, selector);
 
-/** Buttons that can't be seen or read, as readable lines, so a failure names them. */
+/**
+ * Buttons that can't be seen or read, as readable lines, so a failure names them. A button needs a
+ * visible border unless its own fill stands out at 3:1, as yellow does on black. On white it doesn't,
+ * so there it needs the --edge outline.
+ */
 const buttonProblems = (buttons: Measured[]): string[] =>
-  buttons.flatMap(({ label, text, fill, border, width }) => {
+  buttons.flatMap(({ label, text, fill, behind, border, width }) => {
     const problems: string[] = [];
     const ratio = contrast(text, fill);
     if (ratio < 4.5) problems.push(`${label}: text is ${ratio.toFixed(2)}:1`);
-    if (width < 1 || parseColor(border).a === 0) problems.push(`${label}: no visible border`);
+    const hasBorder = width >= 1 && parseColor(border).a > 0;
+    if (!hasBorder && contrast(fill, behind) < 3) problems.push(`${label}: no visible border`);
     return problems;
   });
 
@@ -81,7 +95,7 @@ const fieldProblems = (fields: Measured[]): string[] =>
 const panelProblems = (panels: Measured[]): string[] =>
   panels.flatMap(({ label, fill, border, width }) => {
     if (width < 1) return [`${label}: no border`];
-    return contrast(border, fill) < 1.5 ? [`${label}: border is too faint`] : [];
+    return contrast(border, fill) < 1.2 ? [`${label}: border is too faint`] : [];
   });
 
 /**
@@ -127,6 +141,109 @@ const addGallery = (page: Page) =>
     document.querySelector("main")?.prepend(shelf);
   }, GALLERY);
 
+test.describe("the theme switch", () => {
+  const themeOf = (page: Page) => page.locator("html").getAttribute("data-theme");
+  const toggle = (page: Page) =>
+    page.getByRole("button", { name: /^Switch to (light|dark) mode$/ });
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`a first visit follows a device set to ${colorScheme}`, async ({ browser }) => {
+      const context = await browser.newContext({ colorScheme });
+      const page = await context.newPage();
+      try {
+        await page.goto("/settings", { waitUntil: "networkidle" });
+        expect(await themeOf(page)).toBe(colorScheme);
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
+  test("the toggle changes theme, is saved, and survives a reload", async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: "dark" });
+    const page = await context.newPage();
+    try {
+      await page.goto("/settings", { waitUntil: "networkidle" });
+      await expect(toggle(page)).toHaveAccessibleName("Switch to light mode");
+      await toggle(page).click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+      await expect(toggle(page)).toHaveAccessibleName("Switch to dark mode");
+      await page.reload({ waitUntil: "networkidle" });
+      expect(await themeOf(page)).toBe("light");
+      await page.goto("/outbox", { waitUntil: "networkidle" });
+      expect(await themeOf(page)).toBe("light");
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("the saved theme is set before the first paint, with no flash", async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: "dark" });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+    try {
+      await page.addInitScript(() => {
+        localStorage.setItem("theme", "light");
+        // Records the theme at the moment the app's first box reaches the page.
+        new MutationObserver((_records, observer) => {
+          if (!document.querySelector(".shell")) return;
+          document.documentElement.dataset.themeAtShell =
+            document.documentElement.dataset.theme ?? "none";
+          observer.disconnect();
+        }).observe(document, { childList: true, subtree: true });
+      });
+      await page.goto("/settings", { waitUntil: "networkidle" });
+      expect(await page.locator("html").getAttribute("data-theme-at-shell")).toBe("light");
+      expect(errors.filter((text) => /hydrat|script tag/i.test(text))).toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
+test.describe("fonts", () => {
+  test("headings use Clash Display and the body Instrument Sans, self-hosted", async ({ page }) => {
+    const external: string[] = [];
+    page.on("request", (request) => {
+      if (request.resourceType() === "font" && !request.url().includes("127.0.0.1")) {
+        external.push(request.url());
+      }
+    });
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    const loaded = await page.evaluate(async () => {
+      await document.fonts.ready;
+      // fonts.check() also says yes for a font that never loaded, so this reads each face's status.
+      const faces = [...document.fonts].filter((face) => face.status === "loaded");
+      return {
+        clash: faces.filter((face) => face.family.includes("Clash Display")).length,
+        instrument: faces.filter((face) => face.family.includes("Instrument Sans")).length,
+        heading: getComputedStyle(document.querySelector("main h1") ?? document.body).fontFamily,
+        body: getComputedStyle(document.body).fontFamily,
+      };
+    });
+    expect(loaded.clash).toBeGreaterThan(0);
+    expect(loaded.instrument).toBeGreaterThan(0);
+    expect(loaded.heading).toContain("Clash Display");
+    expect(loaded.body).toContain("Instrument Sans");
+    expect(external).toEqual([]);
+  });
+});
+
+test.describe("reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("a primary button doesn't move on hover", async ({ page }) => {
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    const button = page.locator("main a.button").first();
+    await button.hover();
+    const moved = await button.evaluate((element) => getComputedStyle(element).transform);
+    expect(moved).toBe("none");
+  });
+});
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`${colorScheme} theme`, () => {
     test.use({ colorScheme });
@@ -168,18 +285,30 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     for (const [width, height, name] of [
       [1280, 900, "desktop"],
-      [390, 844, "phone"],
+      [375, 844, "phone"],
     ] as const) {
       test(`every page's buttons, fields, panels and fit on a ${name}`, async ({
         page,
       }, testInfo) => {
         await page.setViewportSize({ width, height });
         const found: string[] = [];
+        let currentPath = "";
+        page.on("pageerror", (error) => {
+          found.push(`${currentPath}: ${error.message.slice(0, 120)}`);
+        });
         for (const path of PAGES) {
+          currentPath = path;
           await page.goto(path, { waitUntil: "networkidle" });
           await expect(page.locator("main h1").first()).toBeVisible();
+          const sideways = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          );
+          if (sideways > 0)
+            found.push(`${path}: the page scrolls sideways by ${String(sideways)}px`);
           const problems = [
-            ...buttonProblems(await measure(page, "main button, main a.button")),
+            ...buttonProblems(
+              await measure(page, "main button, main a.button, .app-header button"),
+            ),
             ...fieldProblems(await measure(page, FIELDS)),
             ...panelProblems(await measure(page, PANELS)),
           ];

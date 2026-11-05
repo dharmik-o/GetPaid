@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney } from "@/lib/format";
 import type { Metrics } from "@/lib/metrics";
 
@@ -32,9 +33,9 @@ export const NeedsAttention = ({ waiting, overdue }: Props) => {
               <Link href={`/clients/${line.clientId}#timeline`}>{line.clientName}</Link>
               <span className="muted"> · {line.invoiceNumber}</span>
               <span className="money-left"> {formatMoney(line.remainingCents, line.currency)}</span>
-              <span className="badge-overdue">
+              <StatusBadge status="overdue">
                 {line.days} {line.days === 1 ? "day" : "days"} overdue
-              </span>
+              </StatusBadge>
             </li>
           ))}
         </ul>

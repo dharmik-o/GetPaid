@@ -1,0 +1,151 @@
+/*
+ * Design kit reference, extracted from the Claude Design mock
+ * "Freelancer payment tool redesign" (design kit + landing boards, 5 Nov 2026).
+ *
+ * REFERENCE ONLY. Do not import this file as-is. Map these tokens and rules into
+ * apps/web/src/app/globals.css (the project's one styling system) and the components.
+ *
+ * Changes from the mock, on purpose:
+ *  - Added --line-control: the mock used --line (#DDDDDD) on inputs and secondary
+ *    buttons, which is ~1.4:1 on white. Anything you can press or type in needs 3:1.
+ *  - Theme attribute is [data-theme="light"] on <html> (the mock used a .light class).
+ *  - Amounts in the mock were rupees; the app never bills INR. Show "USD 3,000.00".
+ */
+
+/* ---------- Tokens: dark is the default ---------- */
+:root {
+  --bg: #000000;
+  --surface: #141414;
+  --surface-2: #1d1d1d;
+  --line: #2c2c2c;          /* dividers, card and table borders */
+  --line-control: #5e5e5e;  /* inputs, secondary buttons, toggles: ~3.2:1 on black */
+  --text: #ffffff;
+  --muted: #a8a8a8;
+  --accent: #e8a800;
+  --accent-hover: #ffc233;
+  --accent-press: #c98f00;
+  --accent-ink: #e8a800;    /* yellow used as text or icons */
+  --on-accent: #000000;
+  --dots: #e8a800;
+  --danger: #ff6b4a;
+  --focus: #e8a800;
+  --edge: transparent;      /* outline on yellow fills; black in light mode */
+
+  --font-display: 'Clash Display', 'Arial Black', system-ui, sans-serif;
+  --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f4f4f4;
+  --surface-2: #ebebeb;
+  --line: #dddddd;
+  --line-control: #8a8a8a;  /* ~3.4:1 on white */
+  --text: #000000;
+  --muted: #565656;
+  --accent-ink: #875b00;    /* never #E8A800 text on white (2:1) */
+  --dots: #d39700;
+  --danger: #b83a1c;
+  --focus: #875b00;
+  --edge: #000000;          /* gives yellow fills a visible shape on white */
+}
+
+html { transition: background-color .45s ease, color .45s ease; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+.disp { font-family: var(--font-display); font-synthesis: none; }
+.num  { font-variant-numeric: tabular-nums; }   /* every money amount */
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+/* ---------- Buttons ---------- */
+.b-primary {
+  background: var(--accent); color: var(--on-accent); border: 0; cursor: pointer;
+  font-weight: 600; border-radius: 999px; min-height: 48px; padding: 0 24px;
+  box-shadow: inset 0 0 0 1.5px var(--edge);
+  transition: background-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.b-primary:hover  { background: var(--accent-hover); transform: translateY(-2px);
+                    box-shadow: inset 0 0 0 1.5px var(--edge), 0 6px 0 0 var(--text); }
+.b-primary:active { background: var(--accent-press); transform: scale(.97);
+                    box-shadow: inset 0 0 0 1.5px var(--edge), 0 2px 0 0 var(--text); }
+.b-primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; transform: none; cursor: not-allowed; }
+
+.b-secondary {
+  background: transparent; color: var(--text); border: 1px solid var(--line-control);
+  cursor: pointer; font-weight: 600; border-radius: 999px; min-height: 48px; padding: 0 24px;
+  transition: background-color .2s ease, border-color .2s ease;
+}
+.b-secondary:hover { background: var(--surface-2); border-color: var(--text); }
+
+.b-icon { /* 44-48px round icon button, e.g. the theme toggle */
+  width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--text); border: 1px solid var(--line-control); cursor: pointer;
+}
+.b-icon:hover { background: var(--surface-2); border-color: var(--text); }
+
+/* Text link: 2px yellow underline that grows on hover */
+.t-link { position: relative; color: var(--text); text-decoration: none; font-weight: 600; }
+.t-link::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px;
+  background: var(--accent); transform: scaleX(.35); transform-origin: left;
+  transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
+.t-link:hover::after { transform: scaleX(1); }
+
+/* Segmented control (theme picker, Outbox tabs) */
+.seg { background: transparent; color: var(--muted); border: 0; cursor: pointer; font-weight: 600; border-radius: 999px; min-height: 44px; padding: 0 22px; }
+.seg[aria-pressed="true"], .seg[aria-selected="true"] { background: var(--accent); color: var(--on-accent); box-shadow: inset 0 0 0 1.5px var(--edge); }
+
+/* Loading dots inside a primary button (label keeps its width) */
+@keyframes dot { 0%, 80%, 100% { transform: translateY(0); opacity: .5 } 40% { transform: translateY(-5px); opacity: 1 } }
+.ld { width: 7px; height: 7px; border-radius: 50%; background: #000; animation: dot 1s infinite ease-in-out; }
+.ld:nth-child(2) { animation-delay: .15s } .ld:nth-child(3) { animation-delay: .3s }
+
+/* ---------- Inputs ---------- */
+.field {
+  width: 100%; height: 52px; padding: 0 16px; border-radius: 14px;
+  border: 1px solid var(--line-control); background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 16px; transition: border-color .2s ease;
+}
+.field::placeholder { color: var(--muted); }
+.field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--bg), 0 0 0 6px var(--focus); }
+.field.err, .field[aria-invalid="true"] { border-color: var(--danger); }
+.field-label { font-size: 14px; font-weight: 600; }            /* always above the field */
+.field-error { font-size: 14px; color: var(--danger); }        /* says what's wrong and how to fix it */
+
+/* ---------- Cards, rows, tables ---------- */
+.card  { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 40px; } /* landing only */
+.row   { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px;
+         padding: 0 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg);
+         transition: background-color .15s ease; }
+.row:hover { background: var(--surface-2); }   /* hover: colour only, no lift or scale */
+/* Tables: no zebra stripes, rows split by var(--line), money right-aligned with .num */
+
+/* ---------- Status badges (always with a text label, never colour alone) ---------- */
+.badge { display: inline-block; min-width: 74px; text-align: center; padding: 5px 15px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+.badge-paid    { background: var(--accent); color: var(--on-accent); font-weight: 700; padding: 6px 16px; box-shadow: inset 0 0 0 1.5px var(--edge); }
+.badge-sent    { border: 1px solid var(--line-control); color: var(--muted); }   /* also Pending, Waiting, Scheduled */
+.badge-overdue { border: 1px solid var(--danger); color: var(--danger); font-weight: 700; }
+.badge-draft   { background: var(--surface-2); color: var(--muted); padding: 6px 16px; }
+/* Paid moment: when a badge turns Paid, pop it from scale .6 to 1 with a spring (Motion). */
+
+/* ---------- Signature decoration: dotted triangle ---------- */
+/* The dot pattern is the ONLY allowed gradient in the UI. Always aria-hidden="true". */
+.dot-tri {
+  position: absolute; pointer-events: none; z-index: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background-image: radial-gradient(circle, var(--dots) 1.7px, transparent 2.1px);
+  background-size: 13px 13px;
+}
+.dot-tri.ink { background-image: radial-gradient(circle, #000 1.7px, transparent 2.1px); } /* on the yellow band */
+/* App pages: at most one per page, small, opacity .25-.4, in an empty corner or empty state. */
+
+/* Logo: a small solid yellow triangle + wordmark in Clash Display 700 */
+.logo-mark { width: 26px; height: 24px; background: var(--accent); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+
+/* Dotted timeline line (reminder schedule, client timeline) */
+.dotted-line { border-left: 2px dotted var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  html, .b-primary, .b-secondary, .t-link::after { transition: none; }
+  .b-primary:hover, .b-primary:active { transform: none; }
+  .ld { animation: none; }
+}

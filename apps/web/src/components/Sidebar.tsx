@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DottedTriangle } from "@/components/DottedTriangle";
+import { Logo } from "@/components/Logo";
 
 type NavItem = { href: string; label: string; onPhone: boolean };
 
@@ -50,7 +52,9 @@ export const Sidebar = () => {
   const waiting = useWaitingCount(pathname);
   return (
     <nav className="sidebar" aria-label="Main">
-      <div className="sidebar-brand">Payment Recovery</div>
+      <div className="sidebar-brand">
+        <Logo />
+      </div>
       <ul>
         {NAV.map((item) => (
           <li key={item.href} className={item.onPhone ? undefined : "desktop-only"}>
@@ -72,6 +76,9 @@ export const Sidebar = () => {
           <Link href="/settings">More</Link>
         </li>
       </ul>
+      <div className="sidebar-corner">
+        <DottedTriangle size={120} rotate={-24} opacity={0.35} bottom={-24} left={-32} />
+      </div>
     </nav>
   );
 };

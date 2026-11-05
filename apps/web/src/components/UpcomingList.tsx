@@ -54,36 +54,38 @@ export const UpcomingList = ({ upcoming }: { upcoming: Upcoming }) => {
         </p>
       ) : null}
       {upcoming.weeks.map((week) => (
-        <table key={week.weekOf} className="table">
-          <caption>Week of {formatDay(week.weekOf)}</caption>
-          <thead>
-            <tr>
-              <th scope="col">What</th>
-              <th scope="col">Date</th>
-              <th scope="col" className="money">
-                Amount
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {week.items.map((item) => (
-              <tr key={item.key}>
-                <td>
-                  <Link href={LINKS[item.kind]}>{item.name}</Link>
-                  <div className="muted">
-                    {KIND_NAMES[item.kind]} · {item.clientName}
-                  </div>
-                </td>
-                <td>{formatDay(item.date)}</td>
-                <td className="money">
-                  {item.amountCents === null || item.currency === null
-                    ? "No estimate"
-                    : formatMoney(item.amountCents, item.currency)}
-                </td>
+        <div key={week.weekOf} className="table-scroll">
+          <table className="table">
+            <caption>Week of {formatDay(week.weekOf)}</caption>
+            <thead>
+              <tr>
+                <th scope="col">What</th>
+                <th scope="col">Date</th>
+                <th scope="col" className="money">
+                  Amount
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {week.items.map((item) => (
+                <tr key={item.key}>
+                  <td>
+                    <Link href={LINKS[item.kind]}>{item.name}</Link>
+                    <div className="muted">
+                      {KIND_NAMES[item.kind]} · {item.clientName}
+                    </div>
+                  </td>
+                  <td>{formatDay(item.date)}</td>
+                  <td className="money">
+                    {item.amountCents === null || item.currency === null
+                      ? "No estimate"
+                      : formatMoney(item.amountCents, item.currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ))}
     </section>
   );
