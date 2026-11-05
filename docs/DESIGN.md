@@ -15,7 +15,7 @@ The rules for the dashboard and landing page in `apps/web`. The look comes from 
 - Header: the theme toggle, top right. On phones it also shows the logo.
 - **Lists first:** a list page shows only the list. A primary button in the page header ("Add client", "New project", "Add retainer", "Add maintenance job") opens the create form on its own page, and Cancel goes back. While the list is empty, the button moves into the empty state, so there's only ever one.
 - Content max width 1240px, with side padding of 40px on desktop and 20px on phones; one main column, with an optional right panel for details.
-- Mobile (under 760px): the sidebar collapses to a bottom bar with Home, Outbox, Clients and More, not a top drawer. Approving a draft must work well on a phone. Touch targets are at least 44×44px.
+- Mobile (under 760px): the sidebar collapses to a bottom bar with Home, Outbox, Clients and More, not a top drawer. More opens a small menu above the bar with Projects, Retainers, Maintenance and Settings. Approving a draft must work well on a phone. Touch targets are at least 44×44px.
 
 ## Screens
 

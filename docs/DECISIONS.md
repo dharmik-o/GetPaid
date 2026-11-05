@@ -652,3 +652,10 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The landing page's version** is on `docs/FEATURES.md`, to build with the page.
 - **On phones, timeline and Project rows with a stamp gain 80px of padding on the right,** so the stamp sits beside the text. Without it, the stamp landed on top of the amounts on the timeline. Home's table is left out, because the padding pushed its Amount column out of sight, so there the stamp sits over the "days late" text. The text reflows once as the stamp arrives, and a test checks that it doesn't cover the amount.
 - **Known small flaw:** on Home's table, the stamp on the last row loses a few pixels at the bottom, because the table clips its rounded corners.
+
+### The phone's More menu (5 Nov 2026)
+
+- **Your call:** More used to go straight to Settings, which left Projects, Retainers and Maintenance unreachable from a phone's navigation. It now opens a small menu with those three and Settings. No routes changed.
+- **It's a button that shows a list of links, not an ARIA `role="menu"`,** because this is navigation. Tab moves through the links, Escape closes it and puts focus back on More, and a tap elsewhere closes it.
+- **More shows the yellow bar on a page inside it,** so the bar always shows where you are.
+- **It's the first thing to use `--shadow-pop`,** and it opens as your design guide says: up 24px on the spring, closing in 0.18s, and simply appearing with reduced motion.

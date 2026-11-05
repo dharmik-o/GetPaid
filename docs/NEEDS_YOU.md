@@ -57,8 +57,6 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **Before making this repo public, deal with the Clash Display font files.** They're committed in `apps/web/public/fonts`. The font's licence lets you self-host it on your own site, but not redistribute the files through a repository or a public server for others to take. The repo is private today, so nothing is needed now. If it goes public (for the hackathon, say), move them out of git first and have each person download their own copy from fontshare.com. Without them the app falls back to its backup fonts and still works.
 
-- **Your choice: where should Projects, Retainers and Maintenance go on a phone?** The bottom bar's More goes to Settings, and Settings has no links to those three pages, so a phone can't reach them from the navigation. It was like this before the redesign. I've left it, since you asked for presentation only. A small More menu listing the four pages would fix it, and it changes no routes. Tell me if you want it.
-
 ## Later scope, not in the MVP
 
 - **Auto-accept:** capturing a hold after the acceptance window, when the contract allows it. Left out by your decision on 5 Nov 2026, so a hold is captured only when you mark the milestone Accepted. It would need a contract field first, and it moves money without you, so it's worth deciding carefully.
@@ -78,6 +76,7 @@ Nothing here is blocking work, and I didn't route around any of them.
 
 ## Done
 
+- **Phone navigation** (5 Nov 2026): you asked for the small More menu, and it's built. Phones can now reach Projects, Retainers, Maintenance and Settings.
 - **Answers to the M9 questions** (5 Nov 2026): the double-payment design stays as built, with the warning as backstop. Charge dates during an auto-pay pause stay alert-only. Approval email wording stays as it is. Dates and the currency check are fixed (`docs/DECISIONS.md`), and the Project page's phone overflow is part of M10.
 - **Real capture and void** (5 Nov 2026): you ran `npm run hold:check`, approved both orders with a sandbox buyer, and both passed. It first needed a fix (`892d524`): PayPal starts a hold order at `PAYER_ACTION_REQUIRED`, which the code took for approved. You then ran `-- keep`; the reauthorize it leaves open is under Open.
 - **Go-live and the real email** (4 Nov 2026): you ran `npm run n8n:go-live`, and all seven workflows are active. The FPR-000008 email reached your second inbox: you replied to it, Reply listener read the reply at 15:19 UTC and labelled it "promise", and you paused the invoice until 6 Nov from the card. Scheduler's first live run was at 16:00 UTC, and the new four-button card reached Telegram at 16:01.

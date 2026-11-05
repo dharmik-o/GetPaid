@@ -1251,13 +1251,87 @@ button.chip:hover {
     font-size: 14px;
   }
 
-  .sidebar a[aria-current="page"]::before {
+  .sidebar a[aria-current="page"]::before,
+  .more-button.is-current::before {
+    content: "";
+    position: absolute;
     top: 0;
     bottom: auto;
     left: var(--space-3);
     right: var(--space-3);
     width: auto;
     height: 3px;
+    background: var(--accent);
+    box-shadow: 0 0 0 1px var(--edge);
+  }
+
+  .more-box {
+    position: relative;
+  }
+
+  .more-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 56px;
+    padding: 0 var(--space-1);
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .more-button:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .more-button.is-current,
+  .more-button[aria-expanded="true"] {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .more-button:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .sidebar .more-menu {
+    position: absolute;
+    right: var(--space-2);
+    bottom: calc(100% + var(--space-2));
+    display: block;
+    width: 200px;
+    padding: var(--space-2) 0;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+  }
+
+  .sidebar .more-menu a {
+    justify-content: flex-start;
+    min-height: 48px;
+    padding: 0 var(--space-4);
+    font-size: 16px;
+  }
+
+  .sidebar .more-menu a[aria-current="page"]::before {
+    top: var(--space-2);
+    bottom: var(--space-2);
+    left: 0;
+    right: auto;
+    width: 3px;
+    height: auto;
   }
 
   .app-header {

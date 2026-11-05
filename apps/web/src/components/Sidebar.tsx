@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DottedTriangle } from "@/components/DottedTriangle";
 import { Logo } from "@/components/Logo";
+import { MoreMenu } from "@/components/MoreMenu";
 
 type NavItem = { href: string; label: string; onPhone: boolean };
 
@@ -73,7 +74,10 @@ export const Sidebar = () => {
           </li>
         ))}
         <li className="more">
-          <Link href="/settings">More</Link>
+          <MoreMenu
+            items={NAV.filter((item) => !item.onPhone)}
+            isCurrent={(href) => isActive(pathname, href)}
+          />
         </li>
       </ul>
       <div className="sidebar-corner">

@@ -50,6 +50,14 @@ describe("the bottom bar", () => {
       .map(([item]) => item.replace(/<[^>]+>/g, ""));
     expect(phone).toEqual(["Home", "Outbox", "Clients", "More"]);
   });
+
+  it("makes More a button that opens a menu, closed at first, not a link to Settings", () => {
+    const html = renderToStaticMarkup(createElement(Sidebar));
+    const more = /<li class="more">.*?<\/li>/.exec(html)?.[0] ?? "";
+    expect(more).toContain('<button type="button"');
+    expect(more).toContain('aria-expanded="false"');
+    expect(more).not.toContain("<a ");
+  });
 });
 
 describe("the logo", () => {
