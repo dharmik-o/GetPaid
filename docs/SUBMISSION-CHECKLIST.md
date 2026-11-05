@@ -25,7 +25,7 @@ Once it's pushed and you're happy, delete the backup with `git branch -D backup-
 **Stray files.** These aren't committed, because they aren't part of this work:
 
 - `DESIGN.md` and `getpaid-stamp-gold-clean.svg` at the root are identical copies of `docs/DESIGN.md` and the app's logo source, and are safe to delete.
-- `promo/` (a screenshot script and its images) appeared while this was being prepared. While it's in the repo folder, `npm run check` fails on lint, because the script doesn't follow the repo's lint rules. Move it out of the repo folder, or add `promo/**` to the ignores in `eslint.config.mjs`. Check its images for real client data before you commit any.
+- `promo/` (a screenshot script and its images) appeared while this was being prepared. It is gitignored, and ESLint now skips it, so it stays out of the repo and out of `npm run check`. If you ever commit its images, check them for real client data first.
 
 ## Before you submit
 

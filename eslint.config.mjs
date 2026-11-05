@@ -8,6 +8,8 @@ export default tseslint.config(
     ignores: [
       // Claude Code hook scripts: harness tooling, not project code.
       ".claude/**",
+      // Promo video tooling: gitignored, not project code.
+      "promo/**",
       "**/node_modules/**",
       "**/.next/**",
       "**/.next-e2e/**",
