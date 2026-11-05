@@ -84,11 +84,13 @@ const FIELDS = 'main input:not([type="checkbox"]):not([type="radio"]), main sele
 const PANELS =
   "main .card, main .table, main .banner, main .schedule-preview, main .schedule-group, main .metric-tile, main .outbox-body, main .template-preview";
 
-/** On white, boxes need a shadow to show their edges. On black, a shadow can't show, so none. */
+/** In light mode the shadows do the separating. In dark mode only a faint inset highlight is used. */
 const shadowProblems = (items: Measured[], colorScheme: "light" | "dark"): string[] =>
   items.flatMap(({ label, shadow }) => {
     if (colorScheme === "light" && shadow === "none") return [`${label}: no shadow`];
-    if (colorScheme === "dark" && shadow !== "none") return [`${label}: has a shadow`];
+    if (colorScheme === "dark" && shadow !== "none" && !shadow.includes("inset")) {
+      return [`${label}: has a drop shadow`];
+    }
     return [];
   });
 
@@ -105,7 +107,7 @@ const fieldProblems = (fields: Measured[]): string[] =>
 const panelProblems = (panels: Measured[], colorScheme: "light" | "dark"): string[] =>
   panels.flatMap(({ label, fill, border, width }) => {
     if (width < 1) return [`${label}: no border`];
-    const floor = colorScheme === "light" ? 1.6 : 1.2;
+    const floor = colorScheme === "light" ? 1.1 : 1.2;
     return contrast(border, fill) < floor ? [`${label}: border is too faint`] : [];
   });
 
@@ -257,6 +259,50 @@ test.describe("the logo", () => {
       await expect(mark).toBeVisible();
       expect((await mark.boundingBox())?.width).toBeGreaterThanOrEqual(40);
       await expect(page.locator(`${area} .logo-word`)).toBeVisible();
+    }
+  });
+});
+
+test.describe("depth in light mode", () => {
+  test.use({ colorScheme: "light" });
+
+  const style = (
+    page: Page,
+    selector: string,
+    property: "boxShadow" | "backgroundColor" | "transform",
+  ) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element, name) => getComputedStyle(element)[name], property);
+
+  test("white cards sit on a warm page, each kind of item with its own shadow", async ({
+    page,
+  }) => {
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    expect(
+      await page.locator("html").evaluate((html) => getComputedStyle(html).backgroundColor),
+    ).toBe("rgb(245, 244, 240)");
+    expect(await style(page, "main .card", "backgroundColor")).toBe("rgb(255, 255, 255)");
+    expect(await style(page, "main .card", "boxShadow")).toContain("-6px");
+    expect(await style(page, "main input", "boxShadow")).toContain("inset");
+    expect(await style(page, ".icon-button", "boxShadow")).not.toBe("none");
+    expect(await style(page, ".sidebar", "boxShadow")).toContain("16px");
+    expect(await style(page, "main a.button", "boxShadow")).toBe("none");
+  });
+
+  test("a clickable card or row only changes its shadow on hover", async ({ page }) => {
+    for (const [path, selector] of [
+      ["/outbox", "main .outbox-card"],
+      ["/clients", "main .table tbody tr"],
+    ] as const) {
+      await page.goto(path, { waitUntil: "networkidle" });
+      await expect(page.locator(selector).first()).toBeVisible();
+      await page.mouse.move(0, 0);
+      const before = await style(page, selector, "boxShadow");
+      await page.locator(selector).first().hover();
+      await expect.poll(() => style(page, selector, "boxShadow")).not.toBe(before);
+      expect(await style(page, selector, "transform")).toBe("none");
     }
   });
 });

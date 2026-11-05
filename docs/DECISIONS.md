@@ -619,7 +619,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A rename now also needs a new stamp,** because "GETPAID" is part of the drawing. `BRAND_NAME` alone changes only the wordmark and the page title.
 - **One file for the logo and the tab icon,** `apps/web/public/getpaid-stamp.svg`. It's plain paths with no scripts or links, which a test checks. At 16px in a tab it reads as a gold seal rather than as words.
 
-### Shadows in light mode (5 Nov 2026)
+### Shadows in light mode (5 Nov 2026, replaced by "Light mode depth" below)
 
 - **Your call:** the edges of boxes couldn't be seen in light mode, so everything there now has a shadow and a proper outline. This overrides the brief's "no drop shadows" and its #DDDDDD line, in light mode only.
 - **Stronger line:** light `--line` is #B8B8B8, at least 1.66:1 on every surface, up from 1.14:1 to 1.36:1. The tests go back to a 1.6:1 floor for light mode, and dark mode stays at the mock's value.
@@ -627,3 +627,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Dark mode has none,** as you only raised light mode and a shadow can't show on black. All four tokens are `none` there, and the e2e fails if a panel or field gains one.
 - **New outlines:** Outbox tabs have one in light mode, because a pill with no edge doesn't look pressable on white. Draft badges now have a `--line` edge in both themes, as their fill alone barely showed against a card.
 - **Tested on every page,** in both themes at both widths: `tests/e2e/theme.spec.ts` fails in light mode if any card, table, banner, tile, preview or field has no shadow, or a panel's border is under 1.6:1.
+
+### Light mode depth (5 Nov 2026)
+
+- **Your call: light mode now uses shadows, overriding the brief's "no shadows".** The page is a warm off-white (#F5F4F0) with white cards, a light hairline (#E4E2DB) and soft layered shadows, using your exact values. This replaces the #B8B8B8 line and the black shadows from earlier today.
+- **Contrast on the new page, all tested in `tests/theme-contrast.test.ts`:** body text 19:1, `--muted` 6.7:1, `--accent-ink` 5.4:1, `--danger` 5.2:1, and controls (`--line-control`) 3.35:1. On `--surface-2` they're all still above the limits, with controls at 3.2:1.
+- **The card border floor drops again,** to 1.1:1 in light mode, because you've asked for shadows to do the separating (#E4E2DB is 1.3:1 on white). The tests now also require a shadow on every panel and field in light mode.
+- **Where your list left a choice:** banners count as cards. Boxes nested inside a card (schedule groups, the schedule preview, email previews, the invoice preview) use `--shadow-control`, so they look recessed rather than stacked. `--shadow-button` also goes on danger buttons, small `link-button`s, the theme toggle, tag chips and Outbox tabs, as they're all secondary buttons in style.
+- **"List rows that open a page" means table rows with a link in them.** Milestone rows are forms, so they don't change.
+- **Nothing uses `--shadow-pop` yet, and there are no sticky headers yet.** The app has no menus, dropdowns, dialogs or toasts, so the token waits for the first one. The landing page's nav will be the first sticky header.

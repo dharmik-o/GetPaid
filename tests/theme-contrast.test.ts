@@ -72,12 +72,11 @@ describe.each([
   });
 });
 
-// WCAG sets no ratio for a card's edge, as it isn't a control. On white, the mock's own line was too
-// faint to see, so light mode has this project's 1.6:1 floor, and shadows as well. On black the mock's
-// value stays, and this floor only catches a line that vanishes.
+// WCAG sets no ratio for a card's edge, as it isn't a control. In light mode --line is a hairline and
+// the shadows do the separating. These floors only catch a line that vanishes.
 describe("card and table borders", () => {
-  it.each(SURFACES)("are plainly visible on %s in light mode", (fill) => {
-    expect(contrast(LIGHT.line ?? "", LIGHT[fill] ?? "")).toBeGreaterThanOrEqual(1.6);
+  it.each(["surface", "bg"])("don't vanish on %s in light mode", (fill) => {
+    expect(contrast(LIGHT.line ?? "", LIGHT[fill] ?? "")).toBeGreaterThanOrEqual(1.1);
   });
 
   it.each(["surface", "bg"])("don't vanish on %s in dark mode", (fill) => {
@@ -86,18 +85,54 @@ describe("card and table borders", () => {
 });
 
 describe("shadows", () => {
-  const SHADOWS = ["shadow-card", "shadow-panel", "shadow-control", "shadow-bar"];
+  const SHADOWS = [
+    "shadow-card",
+    "shadow-card-hover",
+    "shadow-panel",
+    "shadow-control",
+    "shadow-button",
+    "shadow-pop",
+  ];
   const valueIn = (block: string, name: string): string =>
-    new RegExp(`--${name}:\\s*([^;]+);`).exec(block)?.[1]?.trim() ?? "";
+    (new RegExp(`--${name}:\\s*([^;]+);`).exec(block)?.[1] ?? "").replace(/\s+/g, " ").trim();
+  const dark = (name: string) => valueIn(blockAfter(":root {"), name);
+  const light = (name: string) => valueIn(blockAfter('[data-theme="light"] {'), name);
 
-  it.each(SHADOWS)("--%s is off in dark mode, where a black page can't show it", (name) => {
-    expect(valueIn(blockAfter(":root {"), name)).toBe("none");
+  it.each(SHADOWS)("--%s in light mode is a soft warm shadow, never a coloured glow", (name) => {
+    const value = light(name);
+    expect(value).toMatch(/rgba\(20, 18, 10, 0\.\d+\)/);
+    expect(value.replace(/rgba\(20, 18, 10, 0\.\d+\)/g, "")).not.toMatch(/rgb|#/);
   });
 
-  it.each(SHADOWS)("--%s is a soft black shadow in light mode, never a coloured glow", (name) => {
-    const value = valueIn(blockAfter('[data-theme="light"] {'), name);
-    expect(value).toMatch(/rgba\(0, 0, 0, 0\.\d+\)/);
-    expect(value.replace(/rgba\(0, 0, 0, 0\.\d+\)/g, "")).not.toMatch(/rgb|#/);
+  it("makes inputs look recessed in light mode", () => {
+    expect(light("shadow-control")).toMatch(/^inset /);
+  });
+
+  it("lifts a card further on hover than at rest", () => {
+    expect(light("shadow-card-hover")).not.toBe(light("shadow-card"));
+  });
+
+  it.each(["shadow-card", "shadow-panel"])("--%s in dark mode is a faint top highlight", (name) => {
+    expect(dark(name)).toBe("inset 0 1px 0 rgba(255, 255, 255, 0.04)");
+  });
+
+  it("makes the highlight a little stronger on hover in dark mode", () => {
+    expect(dark("shadow-card-hover")).toBe("inset 0 1px 0 rgba(255, 255, 255, 0.06)");
+  });
+
+  it.each(["shadow-control", "shadow-button"])("--%s is off in dark mode", (name) => {
+    expect(dark(name)).toBe("none");
+  });
+
+  it("gives popups an edge and a drop in dark mode", () => {
+    expect(dark("shadow-pop")).toBe("0 0 0 1px #2c2c2c, 0 24px 48px rgba(0, 0, 0, 0.6)");
+  });
+
+  it("never gives the primary button a soft shadow: only the hard offset on hover", () => {
+    const rest = /\n\.button \{[^}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(rest).toContain("display: inline-flex");
+    expect(rest).not.toContain("box-shadow:");
+    expect(/\n\.button:hover \{[^}]*\}/.exec(CSS)?.[0]).toContain("0 6px 0 0 var(--text)");
   });
 });
 
@@ -124,9 +159,11 @@ describe("the themes", () => {
     expect(blockAfter('[data-theme="light"] {')).toMatch(/color-scheme:\s*light/);
   });
 
-  it("uses true black and white for the page", () => {
+  it("has a true black page in dark mode, and white cards on a warm page in light mode", () => {
     expect(DARK.bg).toBe("#000000");
-    expect(LIGHT.bg).toBe("#ffffff");
+    expect(DARK.surface).toBe("#141414");
+    expect(LIGHT.bg).toBe("#f5f4f0");
+    expect(LIGHT.surface).toBe("#ffffff");
   });
 
   it("doesn't fade disabled buttons, which would break their contrast", () => {

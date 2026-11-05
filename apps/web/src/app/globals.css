@@ -44,10 +44,12 @@
   --danger: #ff6b4a;
   --focus: #e8a800;
   --edge: transparent;
-  --shadow-card: none;
-  --shadow-panel: none;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-card-hover: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-control: none;
-  --shadow-bar: none;
+  --shadow-button: none;
+  --shadow-pop: 0 0 0 1px #2c2c2c, 0 24px 48px rgba(0, 0, 0, 0.6);
 
   --font-display: "Clash Display", "Arial Black", system-ui, sans-serif;
   --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -71,10 +73,10 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f4f4f4;
-  --surface-2: #ebebeb;
-  --line: #b8b8b8;
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface-2: #f0efea;
+  --line: #e4e2db;
   --line-control: #858585;
   --text: #000000;
   --muted: #565656;
@@ -84,10 +86,16 @@
   --danger: #b83a1c;
   --focus: #875b00;
   --edge: #000000;
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.1), 0 6px 16px rgba(0, 0, 0, 0.1);
-  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.14);
-  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.16);
-  --shadow-bar: 0 0 10px rgba(0, 0, 0, 0.14);
+  --shadow-card:
+    0 1px 2px rgba(20, 18, 10, 0.06), 0 2px 6px rgba(20, 18, 10, 0.05),
+    0 8px 24px -6px rgba(20, 18, 10, 0.1);
+  --shadow-card-hover:
+    0 1px 2px rgba(20, 18, 10, 0.07), 0 6px 14px rgba(20, 18, 10, 0.08),
+    0 16px 32px -8px rgba(20, 18, 10, 0.14);
+  --shadow-panel: 0 1px 0 rgba(20, 18, 10, 0.06), 0 4px 16px rgba(20, 18, 10, 0.06);
+  --shadow-control: inset 0 1px 2px rgba(20, 18, 10, 0.06);
+  --shadow-button: 0 1px 2px rgba(20, 18, 10, 0.08);
+  --shadow-pop: 0 4px 8px rgba(20, 18, 10, 0.08), 0 24px 48px -12px rgba(20, 18, 10, 0.22);
 }
 
 * {
@@ -250,7 +258,7 @@ h3 {
   overflow: hidden auto;
   background: var(--bg);
   border-right: 1px solid var(--line);
-  box-shadow: var(--shadow-bar);
+  box-shadow: var(--shadow-panel);
   padding: var(--space-6) 0;
 }
 
@@ -391,7 +399,6 @@ h3 {
   border: 1.5px solid var(--edge);
   border-radius: var(--radius-pill);
   background: var(--accent);
-  box-shadow: var(--shadow-control);
   color: var(--on-accent);
   font: inherit;
   font-weight: 600;
@@ -421,6 +428,7 @@ h3 {
 .button-danger {
   border: 1px solid var(--line-control);
   background: transparent;
+  box-shadow: var(--shadow-button);
   color: var(--text);
 }
 
@@ -428,7 +436,7 @@ h3 {
 .button-secondary:active {
   background: var(--surface-2);
   border-color: var(--text);
-  box-shadow: none;
+  box-shadow: var(--shadow-button);
   transform: none;
 }
 
@@ -441,7 +449,7 @@ h3 {
 .button-danger:active {
   background: var(--surface-2);
   border-color: var(--danger);
-  box-shadow: none;
+  box-shadow: var(--shadow-button);
   transform: none;
 }
 
@@ -455,7 +463,7 @@ h3 {
   border: 1px solid var(--line-control);
   border-radius: var(--radius-control);
   background: transparent;
-  box-shadow: var(--shadow-control);
+  box-shadow: var(--shadow-button);
   color: var(--text);
   font: inherit;
   font-size: 14px;
@@ -495,7 +503,7 @@ h3 {
   border: 1px solid var(--line-control);
   border-radius: 50%;
   background: transparent;
-  box-shadow: var(--shadow-control);
+  box-shadow: var(--shadow-button);
   color: var(--text);
   cursor: pointer;
   transition:
@@ -550,10 +558,6 @@ h3 {
   overflow: hidden;
 }
 
-.card .table {
-  box-shadow: var(--shadow-panel);
-}
-
 .table th,
 .table td {
   text-align: left;
@@ -572,11 +576,18 @@ h3 {
 }
 
 .table tbody tr {
-  transition: background-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .table tbody tr:hover {
   background: var(--surface-2);
+}
+
+/* A row with a link opens a page. Milestone rows are forms, so they don't lift. */
+.table:not(.milestone-table) tbody tr:has(a):hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 .money {
@@ -652,7 +663,7 @@ h3 {
 .schedule-group {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-control);
   padding: var(--space-3) var(--space-4);
   margin: 0;
 }
@@ -675,7 +686,7 @@ h3 {
   background: var(--surface-2);
   border: 1px solid var(--accent-ink);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-control);
   padding: var(--space-3) var(--space-4);
   margin: 0;
 }
@@ -694,7 +705,7 @@ label.inline {
   border-radius: var(--radius-control);
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .banner-error {
@@ -836,7 +847,7 @@ button.chip {
   font: inherit;
   font-size: 14px;
   background: transparent;
-  box-shadow: var(--shadow-control);
+  box-shadow: var(--shadow-button);
   color: var(--text);
   cursor: pointer;
 }
@@ -893,7 +904,7 @@ button.chip:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: #ffffff;
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-control);
 }
 
 .template-notes {
@@ -967,7 +978,7 @@ button.chip:hover {
 /* On white, a tab with no outline doesn't look like something you can press. */
 [data-theme="light"] .tabs a {
   border-color: var(--line-control);
-  box-shadow: var(--shadow-control);
+  box-shadow: var(--shadow-button);
 }
 
 .tabs a[aria-current="page"] {
@@ -978,6 +989,11 @@ button.chip:hover {
 
 .outbox-card {
   margin-bottom: var(--space-4);
+  transition: box-shadow 0.15s ease;
+}
+
+.outbox-card:hover {
+  box-shadow: var(--shadow-card-hover);
 }
 
 .outbox-head {
@@ -1008,7 +1024,7 @@ button.chip:hover {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-control);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1088,7 +1104,7 @@ button.chip:hover {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-card);
 }
 
 .metric-tile p {
