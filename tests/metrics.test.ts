@@ -74,6 +74,10 @@ describe("amount recovered", () => {
 });
 
 describe("days late per invoice", () => {
+  it("says each line's status, so only a fully paid one gets the Paid stamp", () => {
+    expect(metrics([invoice({})]).daysLate).toEqual([expect.objectContaining({ status: "paid" })]);
+  });
+
   it("counts from the first due date to the paid date", () => {
     expect(metrics([invoice({})]).daysLate).toEqual([
       expect.objectContaining({ invoiceNumber: "FPR-000001", days: 10 }),

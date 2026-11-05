@@ -17,6 +17,7 @@ const entry = (overrides: Partial<TimelineEntry>): TimelineEntry => ({
   subject: null,
   body: null,
   aiLabel: null,
+  stampId: null,
   ...overrides,
 });
 

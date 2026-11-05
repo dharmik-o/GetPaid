@@ -85,6 +85,25 @@ describe("the client timeline", () => {
       aiLabel: "installments",
     });
     expect(entries[0]?.reference).toMatch(/^FPR-/);
+    expect(entries[0]?.stampId).toBe(`invoice:${entries[0]?.reference ?? ""}`);
+    expect(entries.slice(1).map((entry) => entry.stampId)).toEqual([null, null, null, null]);
+  });
+
+  it("gives a captured hold a stamp, but not a part payment or a refund", async () => {
+    await event("hold", A.milestone_holds, "hold.captured", "2026-12-03T10:00:00Z", {
+      amountCents: 90000,
+    });
+    await event("invoice", A.invoices, "invoice.refunded", "2026-12-02T10:00:00Z", {
+      amountPaidCents: 0,
+    });
+    await event("invoice", A.invoices, "invoice.partially_paid", "2026-12-01T10:00:00Z", {
+      amountPaidCents: 100,
+    });
+    expect((await timeline()).map((entry) => entry.stampId)).toEqual([
+      `hold:${A.milestone_holds}`,
+      null,
+      null,
+    ]);
   });
 
   it("never shows an AI label on a reply that has none", async () => {

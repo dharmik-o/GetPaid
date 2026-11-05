@@ -8,12 +8,14 @@ import {
   type TemplateChoice,
 } from "@/components/InvoiceDocumentFields";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
+import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { StatusBadge } from "@/components/StatusBadge";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount } from "@/lib/currencies";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { InstallmentItem } from "@/lib/installments";
 import { statusLabel, type MilestoneStatus } from "@/lib/milestone-status";
+import { invoiceStampId } from "@/lib/paid-stamps";
 
 // The project's invoices: one PayPal invoice per milestone, or one per installment, each with
 // its pay link. Creating one makes the PayPal invoice and its link; PayPal emails nobody. The
@@ -101,10 +103,18 @@ const nextDepositInstallment = (row: InvoiceRowData) => {
 };
 
 const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; currency: string }) => (
-  <div>
-    <StatusBadge status={invoice.status}>
-      {INVOICE_LABELS[invoice.status] ?? invoice.status}
-    </StatusBadge>{" "}
+  <PaidMoment
+    stampId={invoiceStampId(invoice.invoiceNumber)}
+    announcement={`${invoice.invoiceNumber} paid`}
+    paid={invoice.status === "paid"}
+  >
+    {invoice.status === "paid" ? (
+      <PaidBadge />
+    ) : (
+      <StatusBadge status={invoice.status}>
+        {INVOICE_LABELS[invoice.status] ?? invoice.status}
+      </StatusBadge>
+    )}{" "}
     {invoice.invoiceNumber}
     {invoice.installment ? (
       <div className="field-hint">
@@ -122,7 +132,7 @@ const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; curren
         <a href={`/api/invoices/${invoice.id}/pdf`}>Invoice PDF</a>
       </div>
     ) : null}
-  </div>
+  </PaidMoment>
 );
 
 export const InvoicePanel = ({ currency, today, rows, templates = [] }: Props) => {

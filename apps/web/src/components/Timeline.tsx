@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { formatDateTime, formatSendTime } from "@/lib/format";
 import { REPLY_LABEL_NAMES } from "@/lib/reply-labels";
 import type { TimelineEntry, TimelineKind } from "@/lib/timeline";
@@ -26,6 +28,20 @@ const When = ({
   </time>
 );
 
+/** A full payment or a captured hold gets the stamp. Everything else is a plain row. */
+const Body = ({ entry, children }: { entry: TimelineEntry; children: ReactNode }) =>
+  entry.stampId ? (
+    <PaidMoment
+      className="timeline-body"
+      stampId={entry.stampId}
+      announcement={entry.reference ? `${entry.reference} paid` : entry.title}
+    >
+      {children}
+    </PaidMoment>
+  ) : (
+    <div className="timeline-body">{children}</div>
+  );
+
 const Row = ({ entry, clientZone, ownZone }: { entry: TimelineEntry } & Omit<Props, "entries">) => {
   const kind = KINDS[entry.kind];
   return (
@@ -33,9 +49,14 @@ const Row = ({ entry, clientZone, ownZone }: { entry: TimelineEntry } & Omit<Pro
       <span className={`timeline-icon timeline-${entry.kind}`} aria-hidden="true">
         {kind.icon}
       </span>
-      <div className="timeline-body">
+      <Body entry={entry}>
         <p className="timeline-title">
           <span className="chip">{kind.name}</span>
+          {entry.stampId ? (
+            <>
+              <PaidBadge />{" "}
+            </>
+          ) : null}
           <strong>{entry.title}</strong>
           {entry.reference ? <span className="muted"> · {entry.reference}</span> : null}
         </p>
@@ -52,7 +73,7 @@ const Row = ({ entry, clientZone, ownZone }: { entry: TimelineEntry } & Omit<Pro
             <p className="timeline-text">{entry.body}</p>
           </details>
         ) : null}
-      </div>
+      </Body>
     </li>
   );
 };

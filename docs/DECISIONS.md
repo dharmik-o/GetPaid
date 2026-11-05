@@ -636,3 +636,19 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Where your list left a choice:** banners count as cards. Boxes nested inside a card (schedule groups, the schedule preview, email previews, the invoice preview) use `--shadow-control`, so they look recessed rather than stacked. `--shadow-button` also goes on danger buttons, small `link-button`s, the theme toggle, tag chips and Outbox tabs, as they're all secondary buttons in style.
 - **"List rows that open a page" means table rows with a link in them.** Milestone rows are forms, so they don't change.
 - **Nothing uses `--shadow-pop` yet, and there are no sticky headers yet.** The app has no menus, dropdowns, dialogs or toasts, so the token waits for the first one. The landing page's nav will be the first sticky header.
+
+### The Paid stamp (5 Nov 2026)
+
+- **Motion is installed for this,** because a spring and a timed drop are awkward in CSS, and you allowed it. It has no install script, and `npm audit` finds nothing in production.
+- **Two small read-only additions to view data, the one place this goes past presentation.** The timeline and Home couldn't tell a full payment from a part payment or a refund. Home's lines now carry the invoice's existing `status`, and timeline entries carry a `stampId`, which reads the event's existing `entity_id`. No schema, route, validation or business logic changes.
+- **An item's ID is its invoice number, or its hold's ID.** The timeline only knows the invoice number, and an ID has to match on every page, so a stamp seen on the Project page doesn't replay on the timeline or Home.
+- **No baseline on a first visit.** An item that's already paid but hasn't been seen in this browser plays once, as you described ("seen IDs"). So the first time you open a page, its older paid items each play, once. I considered marking older ones as seen silently, but then the stamp wouldn't show when you first try it, and it would look broken.
+- **The stamp stays at rest on the row until you leave the page,** and doesn't return on reload.
+- **Home has no "recent payments" list.** It plays on the existing "Days late per invoice" table, so an invoice paid on time doesn't appear on Home and plays elsewhere instead. Those rows, the timeline's payment rows and captured holds gain a Paid badge, as the moment needs one to pop.
+- **The bounce moves the row's content, not the table row itself:** a wrapper can't sit around a `<tr>` from inside a cell.
+- **If storage is blocked or full, no stamp plays.** With nowhere to remember it, it would replay on every load. The Paid badge still shows.
+- **`useReducedMotion()` rather than `<MotionConfig reducedMotion="user">`.** MotionConfig stops movement but would still fade the opacity over 0.45s, and you asked for the stamp to just appear.
+- **The card clips its overflow while a stamp is on it,** because a 72px stamp at scale 2.8 is about 200px wide and would otherwise make a phone's page scroll sideways mid-drop.
+- **The landing page's version** is on `docs/FEATURES.md`, to build with the page.
+- **On phones, timeline and Project rows with a stamp gain 80px of padding on the right,** so the stamp sits beside the text. Without it, the stamp landed on top of the amounts on the timeline. Home's table is left out, because the padding pushed its Amount column out of sight, so there the stamp sits over the "days late" text. The text reflows once as the stamp arrives, and a test checks that it doesn't cover the amount.
+- **Known small flaw:** on Home's table, the stamp on the last row loses a few pixels at the bottom, because the table clips its rounded corners.

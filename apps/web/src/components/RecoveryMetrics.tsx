@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { formatMoney } from "@/lib/format";
 import type { Metrics } from "@/lib/metrics";
+import { invoiceStampId } from "@/lib/paid-stamps";
 
 // Home: what the reminders recovered. Each currency keeps its own total, and a rate always shows
 // its counts. Days saved needs the delay the freelancer says is usual, and is never assumed.
@@ -102,7 +104,20 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
                   <td>
                     <Link href={`/clients/${line.clientId}#timeline`}>{line.clientName}</Link>
                   </td>
-                  <td>{days(line.days)} late</td>
+                  <td>
+                    <PaidMoment
+                      stampId={invoiceStampId(line.invoiceNumber)}
+                      announcement={`${line.invoiceNumber} paid`}
+                      paid={line.status === "paid"}
+                    >
+                      {line.status === "paid" ? (
+                        <>
+                          <PaidBadge />{" "}
+                        </>
+                      ) : null}
+                      {days(line.days)} late
+                    </PaidMoment>
+                  </td>
                   <td className="money">{formatMoney(line.amountCents, line.currency)}</td>
                 </tr>
               ))}

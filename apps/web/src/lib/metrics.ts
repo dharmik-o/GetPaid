@@ -36,7 +36,7 @@ export type InvoiceLine = {
 
 export type Metrics = {
   recovered: { currency: string; cents: number }[];
-  daysLate: (InvoiceLine & { amountCents: number })[];
+  daysLate: (InvoiceLine & { amountCents: number; status: string })[];
   medianDaysLate: number | null;
   /** Overdue invoices paid within 30 days of the first reminder, of those that can be counted. */
   recovery: { paid: number; total: number };
@@ -111,6 +111,7 @@ export const computeMetrics = (
     .map((row) => ({
       ...lineOf(row, daysOverdue(row.firstDueDate, row.paidAt ?? now, row.timeZone)),
       amountCents: row.amountPaidCents,
+      status: row.status,
     }));
   const medianDaysLate = median(daysLate.map((line) => line.days));
   const overdue = counted

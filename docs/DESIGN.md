@@ -88,7 +88,7 @@ A dotted vertical line (`border-left: 2px dotted var(--accent)`) is the secondar
 
 - **App pages stay calm:** Motion only for button press, the Paid badge pop, list add and remove, and modal and page fades. No scroll effects.
 - **Landing page:** GSAP and ScrollTrigger, there only: the hero timeline with the Paid stamp, triangle parallax, a scroll-filled "How it works" track, staggered feature panels, and a word-by-word yellow band.
-- **Reduced motion:** with `prefers-reduced-motion`, content simply appears. Animate with `from()`, so everything is visible if JavaScript fails. Wrap GSAP in `gsap.matchMedia()` with `(prefers-reduced-motion: no-preference)`; in Motion use `<MotionConfig reducedMotion="user">`. Animate only `transform` and `opacity` (plus `scaleX` for progress lines), never layout properties.
+- **Reduced motion:** with `prefers-reduced-motion`, content simply appears. Animate with `from()`, so everything is visible if JavaScript fails. Wrap GSAP in `gsap.matchMedia()` with `(prefers-reduced-motion: no-preference)`; in Motion use `useReducedMotion()`, as `<MotionConfig reducedMotion="user">` would still fade opacity. Animate only `transform` and `opacity` (plus `scaleX` for progress lines), never layout properties.
 
 ### Timing
 
@@ -117,7 +117,7 @@ A dotted vertical line (`border-left: 2px dotted var(--accent)`) is the secondar
 
 The GetPaid stamp (`public/getpaid-stamp.svg`) is the reward moment.
 
-- **In the app:** when an invoice, installment or captured hold turns Paid, the stamp (72px, `--accent-ink`, through the existing mask) drops once onto that row or card: from scale 2.8, rotation -50° and opacity 0, to scale 1 and rotation -14°, in 0.45s with an ease-in. The row bounces 4px, and the Paid badge pops from scale 0.6 to 1 on the spring. It plays on the Project page, the client timeline and Home's recent payments, once per paid item per browser (seen IDs in `localStorage`, wrapped in try/catch). Screen readers hear it through `aria-live` ("FPR-000042 paid"). The stamp has `pointer-events: none` and never blocks a click.
+- **In the app:** when an invoice, installment or captured hold turns Paid, the stamp (72px, `--accent-ink`, through the existing mask) drops once onto that row or card: from scale 2.8, rotation -50° and opacity 0, to scale 1 and rotation -14°, in 0.45s with an ease-in. The row bounces 4px, and the Paid badge pops from scale 0.6 to 1 on the spring. It plays on the Project page, the client timeline and Home's "Days late per invoice" table, once per paid item per browser (seen IDs in `localStorage`, wrapped in try/catch). Screen readers hear it through `aria-live` ("FPR-000042 paid"). The stamp has `pointer-events: none` and never blocks a click.
 - **On the landing page:** the hero's example invoice flips its pill from Sent to Paid (crossfade plus a `back.out(3)` scale), then the stamp slams down (from scale 2.8, rotation -50°, opacity 0, `power4.in`, 0.45s) and the card bounces 7px.
 
 ### Landing page moments

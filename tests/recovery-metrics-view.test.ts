@@ -27,6 +27,7 @@ const LATE = {
   days: 14,
   amountCents: 75000,
   currency: "USD",
+  status: "paid",
 };
 
 const OVERDUE = {

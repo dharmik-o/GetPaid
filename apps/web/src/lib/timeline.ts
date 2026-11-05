@@ -2,6 +2,7 @@ import { z } from "zod";
 import { REPLY_LABELS, type Classification } from "./ai-schemas";
 import type { Db } from "./db";
 import { formatDay, formatMoney } from "./format";
+import { holdStampId, invoiceStampId } from "./paid-stamps";
 
 // Server-only: one client's evidence timeline, for disputes and for seeing where things stand. It
 // reads events and replies as the signed-in user, so row-level security applies. Only what's listed
@@ -21,6 +22,8 @@ export type TimelineEntry = {
   body: string | null;
   /** The AI's reading of a reply: a suggestion, never a fact. */
   aiLabel: Classification["label"] | null;
+  /** Set when this entry is a full payment or a captured hold: see lib/paid-stamps.ts. */
+  stampId: string | null;
 };
 
 const TIMELINE_LIMIT = 200;
@@ -28,6 +31,7 @@ const TIMELINE_LIMIT = 200;
 type EventRow = {
   id: string;
   type: string;
+  entity_id: string | null;
   payload: unknown;
   created_at: Date | string;
   tier: string | null;
@@ -125,7 +129,7 @@ const EVENT_TYPES = Object.keys(DESCRIBE);
 /** Each event finds its client through whichever record it's about. */
 const eventRows = async (db: Db, clientId: string): Promise<EventRow[]> => {
   const { rows } = await db.query<EventRow>(
-    `SELECT e.id::text, e.type, e.payload, e.created_at, r.tier,
+    `SELECT e.id::text, e.type, e.entity_id::text, e.payload, e.created_at, r.tier,
        r.draft ->> 'subject' AS subject, r.draft ->> 'body' AS body,
        i.invoice_number, coalesce(i.currency, h.currency) AS currency
      FROM public.events e
@@ -174,6 +178,12 @@ const replyRows = async (db: Db, clientId: string): Promise<ReplyRow[]> => {
 
 const classificationSchema = z.object({ label: z.enum(REPLY_LABELS) });
 
+const stampIdOf = ({ type, invoice_number, entity_id }: EventRow): string | null => {
+  if (type === "invoice.paid" && invoice_number) return invoiceStampId(invoice_number);
+  if (type === "hold.captured" && entity_id) return holdStampId(entity_id);
+  return null;
+};
+
 const fromEvent = (row: EventRow): TimelineEntry | undefined => {
   const describe = DESCRIBE[row.type];
   if (!describe) return undefined;
@@ -187,6 +197,7 @@ const fromEvent = (row: EventRow): TimelineEntry | undefined => {
     subject: isSend ? row.subject : null,
     body: isSend ? row.body : null,
     aiLabel: null,
+    stampId: stampIdOf(row),
   };
 };
 
@@ -199,6 +210,7 @@ const fromReply = (row: ReplyRow): TimelineEntry => ({
   subject: null,
   body: row.body,
   aiLabel: classificationSchema.safeParse(row.ai_classification).data?.label ?? null,
+  stampId: null,
 });
 
 /** Newest first. Empty for a client that isn't this freelancer's. */

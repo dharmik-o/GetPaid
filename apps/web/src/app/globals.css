@@ -239,6 +239,29 @@ h3 {
   mask: url("/getpaid-stamp.svg") center / contain no-repeat;
 }
 
+/* Drops onto a row the first time it's seen paid. It never blocks a click. */
+.paid-moment {
+  position: relative;
+}
+
+.paid-stamp {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
+  margin-top: -36px;
+  background: var(--accent-ink);
+  mask: url("/getpaid-stamp.svg") center / contain no-repeat;
+  pointer-events: none;
+}
+
+/* At full size mid-drop it's 200px wide, which mustn't widen the page on a phone. */
+.card:has(.paid-stamp) {
+  overflow: clip;
+}
+
 .logo-word {
   font-family: var(--font-display);
   font-synthesis: none;
@@ -1257,6 +1280,13 @@ button.chip:hover {
   .table th,
   .table td {
     padding: var(--space-3);
+  }
+
+  /* A narrow row has no spare space, and the stamp mustn't sit on top of an amount. Not in Home's
+     table: there, the room would push the Amount column out of sight. */
+  .timeline-body:has(> .paid-stamp),
+  .milestone-table .paid-moment:has(> .paid-stamp) {
+    padding-right: 80px;
   }
 
   .table .hide-small {

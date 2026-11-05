@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { sendJson } from "@/lib/api-client";
 import { formatMoney } from "@/lib/format";
 import type { HoldView } from "@/lib/milestone-holds";
 import { statusLabel, type MilestoneStatus } from "@/lib/milestone-status";
+import { holdStampId } from "@/lib/paid-stamps";
 
 // Milestone holds on a project: the client authorizes at the start, it's captured when you mark the
 // milestone Accepted, and voiding releases the money. Nothing here reaches the client by itself.
@@ -92,7 +94,16 @@ export const HoldPanel = ({ rows, currency }: { rows: HoldRowData[]; currency: s
             {row.name} · {formatMoney(row.cents, currency)}
           </h3>
           <p className="muted">Milestone: {statusLabel(row.status)}</p>
-          <p>{stateText(row)}</p>
+          {row.hold?.status === "captured" ? (
+            <PaidMoment
+              stampId={holdStampId(row.hold.id)}
+              announcement={`Hold for ${row.name} paid`}
+            >
+              <PaidBadge /> {stateText(row)}
+            </PaidMoment>
+          ) : (
+            <p>{stateText(row)}</p>
+          )}
           {row.deadlineTooFar && canStart(row) ? (
             <p className="banner banner-warning" role="status">
               This milestone&apos;s deadline is more than 29 days away, and PayPal holds money for
