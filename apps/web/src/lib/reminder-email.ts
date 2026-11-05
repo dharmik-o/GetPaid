@@ -13,7 +13,7 @@ export type ReminderEmail = {
   subject: string;
   body: string;
   /** The invoice document; null only for an email with no invoice behind it. */
-  pdf: PdfFile | null;
+  pdf: Pick<PdfFile, "pdf" | "filename"> | null;
   /** The Message-ID of the thread's first email, to stay on the original thread. */
   inReplyTo?: string | null;
   /** The thread's Message-IDs, oldest first. The latest is the one this replies to. */
@@ -43,7 +43,10 @@ const base64Lines = (data: Buffer): string =>
 
 const messageId = (value: string): string => `<${oneLine(value).replace(/[<>\s]/g, "")}>`;
 
-const attachmentLines = (pdf: PdfFile | null, boundary: string): string[] => {
+const attachmentLines = (
+  pdf: Pick<PdfFile, "pdf" | "filename"> | null,
+  boundary: string,
+): string[] => {
   if (!pdf) return [];
   const filename = pdf.filename.replace(/[^A-Za-z0-9._-]/g, "");
   return [

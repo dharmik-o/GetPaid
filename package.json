@@ -21,6 +21,7 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/db.ts seed",
     "telegram:test": "tsx --env-file-if-exists=.env scripts/telegram-test.ts",
     "gmail:test": "tsx --env-file-if-exists=.env scripts/gmail-test.ts",
+    "invoices:archive-existing": "tsx --env-file-if-exists=.env scripts/archive-existing-pdfs.ts",
     "hold:check": "tsx --env-file-if-exists=.env scripts/hold-check.ts",
     "n8n:go-live": "tsx scripts/n8n-go-live.ts",
     "ai:schemas": "tsx scripts/generate-ai-schemas.ts",

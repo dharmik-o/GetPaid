@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 // Everything the E2E's own server runs with. All of it is fake and safe to commit. With
 // E2E_FAKE_URL set, next.config.mjs doesn't load your local env file at all.
@@ -35,6 +36,9 @@ export const startOfRun = (real: Date = new Date()): Date => {
   return start;
 };
 
+/** Outside the repo, and thrown away: global-setup empties it before each run. */
+export const ARCHIVE_DIR = join(tmpdir(), "getpaid-e2e-archive");
+
 export const offsetDaysTo = (target: Date, real: Date = new Date()): number =>
   (target.getTime() - real.getTime()) / DAY_MS;
 
@@ -54,5 +58,6 @@ export const appEnv = (real: Date = new Date()): Record<string, string> => ({
   GMAIL_CLIENT_SECRET: "e2e-gmail-secret",
   DEV_EMAIL_ALLOWLIST: CLIENT_EMAIL,
   APP_PUBLIC_URL: APP_URL,
+  INVOICE_ARCHIVE_DIR: ARCHIVE_DIR,
   DEMO_CLOCK_OFFSET_DAYS: String(offsetDaysTo(startOfRun(real), real)),
 });

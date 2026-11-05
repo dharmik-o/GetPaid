@@ -15,3 +15,7 @@ next-env.d.ts
 
 # Rendered invoice PDFs (INVOICE_PDF_DIR default)
 .data/
+
+# Client invoices, if INVOICE_ARCHIVE_DIR is ever pointed inside the repo. The app refuses any other
+# folder here: see archiveDirProblem in apps/web/src/lib/archive-paths.ts.
+invoice-archive/

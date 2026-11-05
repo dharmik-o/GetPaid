@@ -13,6 +13,7 @@ import { telegramCardHandlers } from "@/lib/telegram-handlers";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
 import { TEST_LAWS } from "../fixtures/statutes";
+import { fakePdfFile, NO_ARCHIVE } from "../mocks/archive";
 import {
   createFakeGmail,
   FAKE_GMAIL_ADDRESS,
@@ -69,7 +70,8 @@ const deps = (oauth: { clientId: string; clientSecret: string } | undefined = OA
   pdf: () =>
     pdfFails
       ? Promise.reject(new Error("no chromium"))
-      : Promise.resolve({ pdf: PDF_BYTES, filename: "invoice-FPR-1.pdf" }),
+      : Promise.resolve(fakePdfFile(PDF_BYTES, "invoice-FPR-1.pdf")),
+  archive: NO_ARCHIVE,
   token: () => TOKEN,
 });
 const OAUTH = { clientId: "fake-client-id", clientSecret: "fake-client-secret" };

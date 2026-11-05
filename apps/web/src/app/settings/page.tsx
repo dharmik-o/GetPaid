@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { CopyButton } from "@/components/CopyButton";
 import { DemoClockForm } from "@/components/DemoClockForm";
 import { TimeZoneForm } from "@/components/TimeZoneForm";
 import { UsualDelayForm } from "@/components/UsualDelayForm";
 import { getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
+import { defaultArchiveDir } from "@/lib/archive-paths";
 import { demoOffsetDays } from "@/lib/clock";
 import { ownTimeZoneChoices } from "@/lib/countries";
 import { runAsCurrentUser } from "@/lib/request-user";
@@ -45,6 +47,18 @@ const SettingsPage = async () => (
       <Link className="button button-secondary" href="/settings/templates">
         Open invoice templates
       </Link>
+    </section>
+    <section className="card" aria-labelledby="settings-archive">
+      <h2 id="settings-archive">Invoice archive</h2>
+      <p>
+        Every invoice PDF sent to a client is saved here, by client and project. Nothing in it is
+        ever overwritten or deleted. It holds client data, so back it up. To move it, set
+        INVOICE_ARCHIVE_DIR.
+      </p>
+      <div className="archive-path">
+        <code>{defaultArchiveDir()}</code>
+        <CopyButton value={defaultArchiveDir()} label="Copy the archive folder's path" />
+      </div>
     </section>
     <section className="card" aria-labelledby="settings-integrations">
       <h2 id="settings-integrations">Integrations</h2>

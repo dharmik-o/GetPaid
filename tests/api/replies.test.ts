@@ -15,6 +15,7 @@ import type { StoredDraft } from "@/lib/stored-draft";
 import { telegramCardHandlers, telegramUpdateHandler } from "@/lib/telegram-handlers";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
+import { fakePdfFile, NO_ARCHIVE } from "../mocks/archive";
 import fixtures from "../fixtures/client-replies.json";
 import { TEST_LAWS } from "../fixtures/statutes";
 import {
@@ -77,7 +78,8 @@ const deps = () => ({
   laws: TEST_LAWS,
   outboxUrl: () => undefined,
   allowlist: () => new Set([CLIENT]),
-  pdf: () => Promise.resolve({ pdf: Buffer.from("%PDF"), filename: "i.pdf" }),
+  pdf: () => Promise.resolve(fakePdfFile(Buffer.from("%PDF"), "i.pdf")),
+  archive: NO_ARCHIVE,
   paypal: () => {
     throw new Error("These tests don't invoice retainers.");
   },

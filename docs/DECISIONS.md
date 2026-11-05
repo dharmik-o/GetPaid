@@ -724,3 +724,16 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **When a request doesn't say,** as with Telegram's buttons, which have no checkbox: a later installment keeps its milestone's earlier choice, a split keeps the replaced invoice's, and otherwise it's the account's default. A hold has no creation screen, so its invoice uses the default.
 - **A retainer stores the choice and copies it onto each cycle,** because the scheduler makes those invoices with nobody there to tick a box. The box only shows for "invoice each cycle".
 - **The signature is read when the document is made,** not copied onto the invoice. So replacing your signature changes later documents, and the archive keeps what was actually sent.
+
+### Invoice archive (5 Nov 2026)
+
+- **"Changed" is decided from the document, not the PDF's bytes.** Chromium stamps every PDF with the time, so two PDFs of an unchanged invoice never match. Comparing bytes would make a v2 on every reminder. So each file also stores `source_sha256`: a hash of the HTML and paper size. `sha256` is still the file's own checksum, as you asked. The PDF for an unchanged document comes from the archive, so what's attached is byte for byte what's kept.
+- **The file is saved before Gmail is called, and a failure holds the reminder** (`archive_failed`, shown in the Outbox). You asked that every sent PDF exists in the archive, and this is the only order that promises it. The other order could send and then fail to save. The cost is that a broken folder pauses reminders, and it says why.
+- **A send that fails leaves its file in place with no sent time.** The app never deletes one, and the retry uses it.
+- **Reminders now carry the current document.** Before, a PDF was made once and reused, so a change of logo or template never reached the client. Now a changed document is made again, sent, and kept as the next version. That includes a paid installment changing the schedule on the next one's document, which is more accurate. This replaces the old `fresh` option.
+- **A working copy stays in `.data/invoice-pdfs` until first send,** so downloads and PDF checks before sending don't fill the archive with things no client received.
+- **Moving old PDFs moves all of them, as you asked, including ones that were never sent.** Those have no sent time, and the history shows them as not sent. They have no document hash, so the next send makes a v2.
+- **Rows are protected as well as files.** Row-level security covers ownership. Column grants mean even the owner can only record `sent_at`, and there's no way to delete one, short of deleting the invoice itself. Deleting a client removes its rows, but its files stay on disk, as the app never deletes them.
+- **Inside a repo, only `invoice-archive` or `.data` are allowed,** checked in code before every write. A `.gitignore` line can only cover names known in advance, and you asked that it can never be committed.
+- **Windows' reserved names get a leading underscore** (`_CON`), rather than being renamed to something unrelated, so the folder is still recognisable.
+- **Same client name, same folder.** Two clients with one name share a folder, which is safe: the invoice number keeps files apart, and nothing overwrites.

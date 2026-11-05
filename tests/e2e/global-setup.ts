@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import pg from "pg";
 import { DEMO_USER_ID } from "../../apps/web/src/lib/auth";
 import { createSecretBox } from "../../apps/web/src/lib/crypto";
@@ -11,7 +12,7 @@ import { AUTH_STUB_FILE, MIGRATIONS_DIR, SEED_FILE } from "../../scripts/lib/pat
 import { migrate, runSqlFile } from "../../scripts/lib/runner";
 import { fromPg } from "../../scripts/lib/sql-client";
 import { FAKE_GMAIL_ADDRESS, FAKE_REFRESH_TOKEN } from "../mocks/gmail";
-import { DATABASE_URL, DB_PORT, ENCRYPTION_KEY, TELEGRAM_CHAT_ID } from "./env";
+import { ARCHIVE_DIR, DATABASE_URL, DB_PORT, ENCRYPTION_KEY, TELEGRAM_CHAT_ID } from "./env";
 
 // A brand new database for every run: its own container on its own port, in memory, so a run can't
 // touch your dev data. Then the real migrations and seed, and the connections a presenter would
@@ -92,6 +93,7 @@ const connectServices = async (client: pg.Client): Promise<void> => {
 };
 
 const globalSetup = async (): Promise<() => void> => {
+  rmSync(ARCHIVE_DIR, { recursive: true, force: true });
   assertLocalDatabase(DATABASE_URL);
   startDatabase();
   const client = await connect();

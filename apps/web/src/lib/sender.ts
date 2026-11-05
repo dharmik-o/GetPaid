@@ -30,6 +30,11 @@ export type SenderDeps = {
   allowlist: () => ReadonlySet<string>;
   /** The invoice's PDF. A reminder never goes without it. */
   pdf: (userId: string, invoiceId: string) => Promise<PdfFile | undefined>;
+  /** Keeps a copy of what's sent: before Gmail is called, then marked once it has gone. */
+  archive: {
+    stage: (userId: string, invoiceId: string, file: PdfFile) => Promise<string>;
+    markSent: (userId: string, fileId: string, at: Date) => Promise<void>;
+  };
 };
 
 export type HoldReason =
@@ -41,6 +46,7 @@ export type HoldReason =
   | "on_hold"
   | "send_failed"
   | "pdf_failed"
+  | "archive_failed"
   | "unknown_outcome";
 
 const CLAIM_LIFETIME_MS = 15 * 60 * 1000;
@@ -387,6 +393,7 @@ const deliver = async (
     return "held";
   }
   let pdf: PdfFile | null = null;
+  let archivedId: string | undefined;
   if (ready.source.kind === "invoice") {
     try {
       pdf = (await deps.pdf(userId, ready.source.invoiceId)) ?? null;
@@ -395,6 +402,13 @@ const deliver = async (
     }
     if (!pdf) {
       await release(deps, userId, id, "pdf_failed");
+      return "held";
+    }
+    try {
+      archivedId = await deps.archive.stage(userId, ready.source.invoiceId, pdf);
+    } catch (error) {
+      logEvent("sender.archive_failed", { reminderId: id, error: errorKind(error) });
+      await release(deps, userId, id, "archive_failed");
       return "held";
     }
   }
@@ -417,9 +431,19 @@ const deliver = async (
     const rfcMessageId = await askMessageId(gmail, sent.id, messageId);
     await recordSent(deps, userId, id, ready, sent, rfcMessageId);
     logEvent("sender.sent", { reminderId: id, onThread: ready.threadId !== null });
-    return "sent";
   } catch (error) {
     return failed(deps, userId, id, error);
+  }
+  if (archivedId) await markArchived(deps, userId, archivedId);
+  return "sent";
+};
+
+/** The mail has gone, and its file is kept: a failure here only leaves the sent time blank. */
+const markArchived = async (deps: SenderDeps, userId: string, fileId: string): Promise<void> => {
+  try {
+    await deps.archive.markSent(userId, fileId, deps.now());
+  } catch (error) {
+    logEvent("sender.archive_mark_failed", { fileId, error: errorKind(error) });
   }
 };
 

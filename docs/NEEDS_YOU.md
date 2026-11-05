@@ -57,6 +57,10 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **Before making this repo public, deal with the Clash Display font files.** They're committed in `apps/web/public/fonts`. The font's licence lets you self-host it on your own site, but not redistribute the files through a repository or a public server for others to take. The repo is private today, so nothing is needed now. If it goes public (for the hackathon, say), move them out of git first and have each person download their own copy from fontshare.com. Without them the app falls back to its backup fonts and still works.
 
+- **The invoice archive holds client data: back it up.** It's at `INVOICE_ARCHIVE_DIR`, by default `Documents/GetPaid/Invoices` under your home folder, and Settings shows the path. The app won't let it sit anywhere git could commit it, but it does nothing to back it up. If you use OneDrive or similar, check whether that folder syncs, and whether you want client invoices there.
+
+- **To do once: move your existing PDFs.** Run `npm run db:migrate`, then `npm run invoices:archive-existing`. It moves anything in `.data/invoice-pdfs` into the archive, and is safe to run again. I haven't run it, because it needs your database. After that, the next reminder for each of those invoices is saved as a v2 beside the moved file, because the old PDFs have no record of the document they were made from.
+
 ## Later scope, not in the MVP
 
 - **Auto-accept:** capturing a hold after the acceptance window, when the contract allows it. Left out by your decision on 5 Nov 2026, so a hold is captured only when you mark the milestone Accepted. It would need a contract field first, and it moves money without you, so it's worth deciding carefully.

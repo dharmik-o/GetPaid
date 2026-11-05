@@ -46,6 +46,7 @@ const pdfDeps = (userId = USER_A.userId) => ({
   runAsUser: runnerFor(userId),
   renderPdf: fakeRender,
   dir,
+  archiveDir: join(dir, "archive"),
 });
 
 const issue = (

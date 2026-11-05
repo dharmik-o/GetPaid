@@ -20,6 +20,7 @@ import { storedDraftSchema } from "@/lib/stored-draft";
 import { telegramRun } from "@/lib/telegram-cards";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
+import { NO_ARCHIVE } from "../mocks/archive";
 import { TEST_LAWS } from "../fixtures/statutes";
 import {
   createFakeGmail,
@@ -987,6 +988,7 @@ describe("the auto-pay approval email", () => {
       token: () => TOKEN,
       allowlist: () => new Set(allowlist),
       pdf: () => Promise.reject(new Error("This email has no PDF.")),
+      archive: NO_ARCHIVE,
     }).post(
       new Request("http://127.0.0.1:3000/api/internal/sender/run", {
         method: "POST",

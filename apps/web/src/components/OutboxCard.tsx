@@ -44,6 +44,8 @@ const HOLD_TEXT: Record<NonNullable<OutboxItem["blockedReason"]>, string> = {
   on_hold: "Held: the client replied, so this invoice is on hold until you decide.",
   send_failed: "Gmail refused this send. It will try again shortly.",
   pdf_failed: "Held: the invoice PDF couldn't be made. It will try again shortly.",
+  archive_failed:
+    "Held: the invoice PDF couldn't be saved to your archive folder, and nothing goes without a copy. Check the folder shown in Settings, and it will try again.",
   unknown_outcome:
     "We couldn't confirm this went out. Check your Sent mail in Gmail, then send it again or stop it.",
 };

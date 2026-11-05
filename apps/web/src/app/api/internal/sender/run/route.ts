@@ -3,6 +3,8 @@ import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { devEmailAllowlist, gmailOAuthEnv, internalApiToken } from "@/lib/env";
 import { renderPdf } from "@/lib/invoice-pdf";
+import { defaultArchiveDir } from "@/lib/archive-paths";
+import { markArchiveSent, stageInArchive } from "@/lib/invoice-archive";
 import { defaultPdfDir, invoicePdf } from "@/lib/invoice-pdfs";
 import { senderHandler } from "@/lib/sender-handler";
 import { withServiceDb } from "@/lib/service-db";
@@ -17,7 +19,20 @@ const handler = senderHandler({
   oauth: () => gmailOAuthEnv(),
   allowlist: () => devEmailAllowlist(),
   pdf: (userId, invoiceId) =>
-    invoicePdf({ runAsUser: withUserDb(userId), renderPdf, dir: defaultPdfDir() }, invoiceId),
+    invoicePdf(
+      {
+        runAsUser: withUserDb(userId),
+        renderPdf,
+        dir: defaultPdfDir(),
+        archiveDir: defaultArchiveDir(),
+      },
+      invoiceId,
+    ),
+  archive: {
+    stage: (userId, invoiceId, file) =>
+      stageInArchive({ runAsUser: withUserDb(userId), dir: defaultArchiveDir() }, invoiceId, file),
+    markSent: (userId, fileId, at) => markArchiveSent(withUserDb(userId), fileId, at),
+  },
   token: () => internalApiToken(),
 });
 

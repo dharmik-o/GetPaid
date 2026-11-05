@@ -286,9 +286,21 @@ PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal
 - **Signature (optional, per invoice):** in Settings > Invoice templates, upload an image (PNG or JPG only, no SVG, at most 500 KB, stored and embedded like the logo) or type a name, which is drawn in a self-hosted handwriting font when saved. Also the signer's name and title, and a default for new invoices. Every invoice creation (milestone, deposit, installments, a reply's split, maintenance, and a retainer, for its cycles) shows **Include my signature**, starting from the default, and the choice is stored on the invoice. The setting says: "This adds a picture of your signature. It isn't a legal e-signature." The image is never logged.
 - **Screens:** Settings > Invoice templates (a gallery of the built-ins with a thumbnail of each from sample data, and custom ones; Preview, Duplicate, Set as default), a template editor (HTML and CSS side by side, live preview, click-to-insert tag list, sanitiser errors inline), and on Create invoice a template pick plus the AI-written text with Edit.
 
+## Invoice archive
+
+Every invoice PDF sent to a client (attached to a sent reminder, including the first) is kept in a folder the freelancer can browse: `INVOICE_ARCHIVE_DIR`, by default `<Documents>/GetPaid/Invoices`, as `<Client name>/<Project name>/<invoice number>.pdf`. A retainer with no project goes in a `Retainers` folder.
+
+- **Safe names:** client and project names are made safe for Windows and macOS (no traversal, no reserved names, capped at 60 characters). The invoice number keeps each file unique.
+- **Never overwritten or deleted by the app.** The file is written before Gmail is called, in a mode that can't replace an existing file, so a reminder that can't be saved is held rather than sent. If the document has changed since it was last saved, it's kept as `FPR-000042 (v2).pdf` beside the first.
+- **What "changed" means:** the document's HTML and paper size, not the PDF's bytes, because Chromium stamps every PDF with the time it was made.
+- **In the database:** each file's relative path, version, sha256 and first sent time, read as the owner (RLS). Rows can't be deleted or edited, apart from recording the sent time. A row goes with its invoice if a client is deleted, but the file stays on disk.
+- **Moving old PDFs:** `npm run invoices:archive-existing` moves PDFs from `.data/invoice-pdfs` into the layout once, and is safe to run again.
+- **Keeping it out of git:** the app refuses a folder inside a git repository, except one named `invoice-archive` or under `.data`, both ignored.
+- **Screens:** Settings shows the folder's path with a Copy button.
+
 ## Data model
 
-Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature, `retainer_alerts` with retainers, and `milestone_holds` with holds). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
+Sixteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature, `retainer_alerts` with retainers, and `milestone_holds` with holds). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.
 
 | Table | Key fields |
 | --- | --- |
@@ -302,7 +314,8 @@ Fifteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 | retainer_alerts | user_id, retainer_id, kind (payment_failed / suspended / cancelled / recovered / paid_twice / activated_after_cancel), telegram_notified_at, dismissed_at. The wording is made from the database when it's shown. |
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status, snoozed_until, last_notice_on, last_done_on, Telegram card fields, job_project_id, job_due_on, Gmail thread fields |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
-| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, paid_at, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path, invoice_text, include_signature |
+| invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, paid_at, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path and pdf_source_sha256 (the working copy before it's sent), invoice_text, include_signature |
+| invoice_archive_files | user_id, invoice_id, version, relative_path, sha256, source_sha256 (of the document, to tell whether it changed), template_name, signed, sent_at. Nearly append-only. |
 | invoice_templates | user_id (NULL for the shared built-ins), name, kind (builtin / custom), html, css. The default is kept on users and clients, since a shared built-in can't hold one user's default. |
 | reminders | invoice_id, maintenance_task_id, retainer_id or hold_id (a heads-up or an approval email has no invoice), maintenance_due_on, tier, scheduled_at (stored in UTC; the send window is worked out in the client's time zone), draft, approval status, approved_via (outbox / telegram), telegram_message_id, sent_at |
 | messages | invoice_id, maintenance_task_id, retainer_id or hold_id, direction (in / out), body, AI classification, thread_id |

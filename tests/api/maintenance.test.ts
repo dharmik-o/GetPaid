@@ -19,6 +19,7 @@ import { handleTelegramUpdate, type TelegramUpdate } from "@/lib/telegram-update
 import type { TelegramOp } from "@/lib/telegram-card";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
 import { openMigratedPglite, type TestDatabase } from "../db/pglite";
+import { NO_ARCHIVE } from "../mocks/archive";
 import { TEST_LAWS } from "../fixtures/statutes";
 import {
   createFakeGmail,
@@ -428,6 +429,7 @@ describe("the heads-up's approval", () => {
       token: () => TOKEN,
       allowlist: () => new Set([CLIENT_EMAIL]),
       pdf: () => Promise.reject(new Error("A heads-up has no PDF.")),
+      archive: NO_ARCHIVE,
     }).post(
       new Request("http://127.0.0.1:3000/api/internal/sender/run", {
         method: "POST",
@@ -494,6 +496,7 @@ describe("the heads-up's approval", () => {
       token: () => TOKEN,
       allowlist: () => new Set<string>(),
       pdf: () => Promise.reject(new Error("A heads-up has no PDF.")),
+      archive: NO_ARCHIVE,
     }).post(
       new Request("http://127.0.0.1:3000/api/internal/sender/run", {
         method: "POST",

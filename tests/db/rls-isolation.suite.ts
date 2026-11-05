@@ -22,7 +22,10 @@ const actingAs = <T>(
     return work();
   });
 
-const MUTABLE_TABLES = OWNED_TABLES.filter((table) => table !== "events");
+/** Events are append-only, and the archive nearly so: tests/api/invoice-archive.test.ts covers it. */
+const MUTABLE_TABLES = OWNED_TABLES.filter(
+  (table) => table !== "events" && table !== "invoice_archive_files",
+);
 
 /** The same isolation checks run on PGlite (npm test) and on Docker Postgres (npm run test:db:docker). */
 export const defineRlsIsolationSuite = (
