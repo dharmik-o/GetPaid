@@ -1107,7 +1107,7 @@ button.chip:hover {
   transition: box-shadow 0.15s ease;
 }
 
-.outbox-card:hover {
+.outbox-card-open:hover {
   box-shadow: var(--shadow-card-hover);
 }
 

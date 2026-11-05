@@ -303,7 +303,10 @@ export const OutboxCard = ({ item }: { item: OutboxItem }) => {
   };
   const open = item.tab === "waiting" || item.tab === "scheduled";
   return (
-    <article className="card outbox-card" aria-label={`Draft for ${item.clientName}`}>
+    <article
+      className="card outbox-card outbox-card-open"
+      aria-label={`Draft for ${item.clientName}`}
+    >
       <div className="outbox-head">
         <div>
           <h2>{item.clientName}</h2>

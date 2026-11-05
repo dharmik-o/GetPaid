@@ -685,3 +685,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A form's step headings ("1. Details") are 18px,** because they sit under the card's own 22px title. 18px isn't in the brief's type scale, but with the same size for both, the hierarchy disappears.
 - **An empty cell on a stacked row is hidden,** so "Action" doesn't appear with nothing under it.
 - **Project deadlines now show on phones,** because stacked rows have the room. They were hidden before.
+### Retainers restyle (5 Nov 2026)
+
+- **The clickable-card hover is now only on the Outbox's drafts and replies.** Retainer and maintenance cards share the `outbox-card` class but can't be clicked, and your rule was clickable cards only, so that was my mistake from the light mode depth change.
+- **A cancelled retainer collapses away,** using the same `AnimatedList` as the Outbox.

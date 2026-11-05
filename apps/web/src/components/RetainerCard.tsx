@@ -64,7 +64,7 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
         </div>
         <div className="money">{formatMoney(retainer.amountCents, retainer.currency)}</div>
       </div>
-      <p>
+      <p className="outbox-meta">
         <span className="chip">{STATUS_NAMES[retainer.status]}</span>{" "}
         <span className="chip">{retainer.method === "auto_pay" ? "Auto-pay" : "Invoice"}</span>
       </p>

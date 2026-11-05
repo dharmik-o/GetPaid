@@ -191,6 +191,35 @@ test.describe("Projects", () => {
   });
 });
 
+test.describe("Retainers", () => {
+  test("a retainer shows its amount in the heading font, and its status and method", async ({
+    page,
+  }) => {
+    await page.goto("/retainers", { waitUntil: "networkidle" });
+    const card = page.locator("main .outbox-card").first();
+    await expect(card).toBeVisible();
+    await expect(card.locator(".outbox-head .money")).toHaveCSS("font-family", /Clash Display/);
+    await expect(card.locator(".outbox-meta .chip")).toHaveCount(2);
+  });
+
+  test("a card you can't click doesn't lift on hover", async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: "light" });
+    const page = await context.newPage();
+    try {
+      await page.goto("/retainers", { waitUntil: "networkidle" });
+      const card = page.locator("main .outbox-card").first();
+      await page.mouse.move(0, 0);
+      const shadow = () => card.evaluate((element) => getComputedStyle(element).boxShadow);
+      const before = await shadow();
+      await card.hover();
+      await page.waitForTimeout(300);
+      expect(await shadow()).toBe(before);
+    } finally {
+      await context.close();
+    }
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

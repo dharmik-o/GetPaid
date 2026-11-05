@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedList } from "@/components/AnimatedList";
 import { RetainerAlerts } from "@/components/RetainerAlerts";
 import { RetainerCard } from "@/components/RetainerCard";
 import { appNow } from "@/lib/clock";
@@ -37,7 +38,11 @@ const RetainersPage = async () => {
           </Link>
         </div>
       ) : (
-        retainers.map((retainer) => <RetainerCard key={retainer.id} retainer={retainer} />)
+        <AnimatedList>
+          {retainers.map((retainer) => (
+            <RetainerCard key={retainer.id} retainer={retainer} />
+          ))}
+        </AnimatedList>
       )}
     </div>
   );

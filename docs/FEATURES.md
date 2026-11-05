@@ -113,7 +113,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **Outbox**
 - [x] **Clients** (list, new, detail)
 - [x] **Projects** (list, new, detail)
-- [ ] **Retainers** (list, new)
+- [x] **Retainers** (list, new)
 - [ ] **Maintenance** (list, new)
 - [ ] **Settings** (schedule, AI, integrations, templates)
 - [ ] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.

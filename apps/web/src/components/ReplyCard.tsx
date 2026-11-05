@@ -167,7 +167,10 @@ export const ReplyCard = ({ reply, offer }: Props) => {
   };
 
   return (
-    <article className="card outbox-card" aria-label={`Reply from ${reply.clientName}`}>
+    <article
+      className="card outbox-card outbox-card-open"
+      aria-label={`Reply from ${reply.clientName}`}
+    >
       <div className="outbox-head">
         <div>
           <h2>{reply.clientName} replied</h2>
@@ -186,7 +189,9 @@ export const ReplyCard = ({ reply, offer }: Props) => {
       </p>
       {reply.label === "dispute" ? (
         <p>
-          <Link href={`/clients/${reply.clientId}#timeline`}>Open this client&apos;s evidence timeline</Link>
+          <Link href={`/clients/${reply.clientId}#timeline`}>
+            Open this client&apos;s evidence timeline
+          </Link>
         </p>
       ) : null}
       {error ? (
