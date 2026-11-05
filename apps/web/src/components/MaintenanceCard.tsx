@@ -75,7 +75,7 @@ export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today:
             : formatMoney(task.estCostCents, task.currency)}
         </div>
       </div>
-      <p>
+      <p className="outbox-meta">
         <span className="chip">{task.type === "renewal" ? "Renewal" : "Maintenance"}</span>{" "}
         {task.dueSoon ? <span className="chip">Due soon</span> : null}{" "}
         {task.snoozedUntil ? (
@@ -89,7 +89,7 @@ export const MaintenanceCard = ({ task, today }: { task: MaintenanceTask; today:
         {task.lastDoneOn ? ` Last done ${formatDay(task.lastDoneOn)}.` : ""}
       </p>
       {task.checklist.length > 0 ? (
-        <ul>
+        <ul className="checklist">
           {task.checklist.map((item) => (
             <li key={item}>{item}</li>
           ))}

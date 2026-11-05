@@ -1154,6 +1154,11 @@ button.chip:hover {
   display: flow-root;
 }
 
+.checklist {
+  margin: 0 0 var(--space-3);
+  padding-left: var(--space-5);
+}
+
 .page > section:not(.card) {
   margin-bottom: var(--space-8);
 }

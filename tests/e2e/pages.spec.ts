@@ -220,6 +220,29 @@ test.describe("Retainers", () => {
   });
 });
 
+test.describe("Maintenance", () => {
+  test("a job's cost is in the heading font, and its facts share a row", async ({ page }) => {
+    await page.goto("/maintenance", { waitUntil: "networkidle" });
+    const card = page.locator("main .outbox-card").first();
+    await expect(card).toBeVisible();
+    await expect(card.locator(".outbox-head .money")).toHaveCSS("font-family", /Clash Display/);
+    await expect(card.locator(".outbox-meta .chip").first()).toBeVisible();
+  });
+
+  test("its many buttons wrap inside the card on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto("/maintenance", { waitUntil: "networkidle" });
+    const card = await page.locator("main .outbox-card").first().boundingBox();
+    for (const button of await page.locator("main .outbox-card .actions button").all()) {
+      const box = await button.boundingBox();
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+        (card?.x ?? 0) + (card?.width ?? 0),
+      );
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

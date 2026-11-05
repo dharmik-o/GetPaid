@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedList } from "@/components/AnimatedList";
 import { MaintenanceCard } from "@/components/MaintenanceCard";
 import { getOwnTimeZone } from "@/lib/account";
 import { appNow } from "@/lib/clock";
@@ -38,7 +39,11 @@ const MaintenancePage = async () => {
           </Link>
         </div>
       ) : (
-        tasks.map((task) => <MaintenanceCard key={task.id} task={task} today={today} />)
+        <AnimatedList>
+          {tasks.map((task) => (
+            <MaintenanceCard key={task.id} task={task} today={today} />
+          ))}
+        </AnimatedList>
       )}
     </div>
   );

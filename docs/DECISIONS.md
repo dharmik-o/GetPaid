@@ -689,3 +689,6 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 
 - **The clickable-card hover is now only on the Outbox's drafts and replies.** Retainer and maintenance cards share the `outbox-card` class but can't be clicked, and your rule was clickable cards only, so that was my mistake from the light mode depth change.
 - **A cancelled retainer collapses away,** using the same `AnimatedList` as the Outbox.
+### Maintenance restyle (5 Nov 2026)
+
+- **Mostly inherited.** A job's facts now share one row, its checklist has proper spacing, and a stopped job collapses away, using the same `AnimatedList`. A test checks that its six buttons wrap inside the card at 375px and stay at least 44px tall.

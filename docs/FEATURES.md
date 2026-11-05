@@ -114,7 +114,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **Clients** (list, new, detail)
 - [x] **Projects** (list, new, detail)
 - [x] **Retainers** (list, new)
-- [ ] **Maintenance** (list, new)
+- [x] **Maintenance** (list, new)
 - [ ] **Settings** (schedule, AI, integrations, templates)
 - [ ] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.
   - Includes the hero's Paid moment: Sent to Paid pill, then the GetPaid stamp (`public/getpaid-stamp.svg`) slams onto the example invoice and the card bounces 7px, with GSAP.
