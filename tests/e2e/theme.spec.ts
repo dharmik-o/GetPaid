@@ -14,6 +14,7 @@ const PAGES = [
   "/clients",
   "/clients/new",
   `/clients/${CLIENT}`,
+  `/clients/${CLIENT}?tab=invoices`,
   "/projects",
   "/projects/new",
   `/projects/${PROJECT}`,

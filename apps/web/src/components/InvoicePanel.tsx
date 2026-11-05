@@ -348,7 +348,7 @@ export const InvoicePanel = ({
 
   return (
     <div>
-      <table className="table milestone-table">
+      <table className="table milestone-table stack-wide">
         <thead>
           <tr>
             <th scope="col">Milestone</th>

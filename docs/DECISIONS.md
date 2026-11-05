@@ -737,3 +737,14 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Inside a repo, only `invoice-archive` or `.data` are allowed,** checked in code before every write. A `.gitignore` line can only cover names known in advance, and you asked that it can never be committed.
 - **Windows' reserved names get a leading underscore** (`_CON`), rather than being renamed to something unrelated, so the folder is still recognisable.
 - **Same client name, same folder.** Two clients with one name share a folder, which is safe: the invoice number keeps files apart, and nothing overwrites.
+
+### Invoice history (5 Nov 2026)
+
+- **The Project page already had an "Invoices" section,** for creating them. You asked for one listing them, and two sections can't share that name, so the first is now "Bill your milestones". The demo's one locator changed to match.
+- **Every version gets its own row,** repeating the invoice's number, amount and status. You asked for all versions newest first, and a row each gives each one its own theme, signed flag and download.
+- **Partially paid and Disputed appear too,** beyond the six you listed, because invoices can be in those states and hiding them would be misleading. An unpaid invoice past its due date shows as Overdue, including a partly paid one.
+- **An invoice with no saved PDF yet has one row,** whose download makes a working copy, and which says "Not sent". A cancelled invoice with no saved file offers no download; one that was sent still offers it, as the record of what the client got.
+- **Total sent counts each invoice once, leaving out drafts and cancelled ones.** Total paid is what PayPal says was paid. Both follow the filters on screen, so they always add up to the rows shown.
+- **"Signed" and "Theme" come from the saved file when there is one,** as they record what was actually sent. The invoice's current choice might differ.
+- **The filter is a plain form,** so it works without JavaScript and the address can be shared or bookmarked. A value someone types into the address that isn't real just means no filter.
+- **Sent dates are in your time zone, and the page says so.** Filtering uses the client's date, like every other invoice date in the app.

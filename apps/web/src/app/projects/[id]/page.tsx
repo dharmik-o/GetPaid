@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HoldPanel } from "@/components/HoldPanel";
+import { hasFilters, InvoiceFilters, InvoiceTable } from "@/components/InvoiceHistory";
 import { InvoicePanel } from "@/components/InvoicePanel";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
@@ -8,7 +9,9 @@ import { appNow } from "@/lib/clock";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
 import { listActivePlansForProject } from "@/lib/installment-plans";
+import { getOwnTimeZone } from "@/lib/account";
 import { getFreelancerDetails, signatureChoiceFrom } from "@/lib/invoice-details";
+import { filterInvoices, listProjectInvoices, parseHistoryFilters } from "@/lib/invoice-history";
 import { listInvoicesForProject } from "@/lib/invoices";
 import { listHoldsForProject } from "@/lib/milestone-holds";
 import { listMilestones } from "@/lib/milestones";
@@ -29,11 +32,17 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const ProjectPage = async ({ params, searchParams }: Props) => {
   const { id } = await params;
   if (!isUuid(id)) notFound();
+  const filters = parseHistoryFilters(await searchParams);
   const now = appNow();
-  const { project, clients, milestones, invoices, plans, templates, holds, signature } =
+  const { project, clients, milestones, invoices, plans, templates, holds, signature, ...log } =
     await runAsCurrentUser(async (db) => {
       const found = await getProject(db, id);
       return {
@@ -45,9 +54,12 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         templates: await listTemplates(db),
         holds: found ? await listHoldsForProject(db, found.id, now) : [],
         signature: signatureChoiceFrom(await getFreelancerDetails(db)),
+        history: found ? await listProjectInvoices(db, found.id, now) : [],
+        ownZone: await getOwnTimeZone(db),
       };
     });
   if (!project) notFound();
+  const shown = filterInvoices(log.history, filters);
 
   const schedule = { ...project.inherited, ...project.settings };
   const today = todayIn(now, project.clientTimeZone);
@@ -118,8 +130,8 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
         </section>
       ) : null}
 
-      <section className="card" aria-labelledby="invoices">
-        <h2 id="invoices">Invoices</h2>
+      <section className="card" aria-labelledby="billing">
+        <h2 id="billing">Bill your milestones</h2>
         <InvoicePanel
           templates={templates.map(({ id: templateId, name }) => ({ id: templateId, name }))}
           signature={signature}
@@ -150,6 +162,34 @@ const ProjectPage = async ({ params }: { params: Promise<{ id: string }> }) => {
             };
           })}
         />
+      </section>
+
+      <section className="card" aria-labelledby="invoices">
+        <h2 id="invoices">Invoices</h2>
+        {log.history.length === 0 ? (
+          <p className="muted">
+            No invoices yet. They appear here once you bill a milestone above, with every version
+            sent to the client.
+          </p>
+        ) : (
+          <>
+            <InvoiceFilters filters={filters} action="#invoices" />
+            {shown.length === 0 ? (
+              <p className="muted">No invoices match these filters.</p>
+            ) : (
+              <InvoiceTable invoices={shown} zone={log.ownZone} />
+            )}
+            <p className="field-hint">
+              Sent dates are in your time zone ({log.ownZone}).
+              {hasFilters(filters) ? (
+                <>
+                  {" "}
+                  <Link href={`/projects/${project.id}#invoices`}>Clear the filters</Link>
+                </>
+              ) : null}
+            </p>
+          </>
+        )}
       </section>
 
       <section className="card" aria-labelledby="edit">

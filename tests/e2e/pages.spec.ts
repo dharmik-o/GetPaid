@@ -314,6 +314,107 @@ test.describe("Settings", () => {
   });
 });
 
+test.describe("Invoice history", () => {
+  const PROJECT = "/projects/00000000-0000-4000-8000-0000000000d1";
+  const CLIENT = "/clients/00000000-0000-4000-8000-0000000000c1";
+  const history = (page: Page) =>
+    page.locator("section", { has: page.getByRole("heading", { name: "Invoices", exact: true }) });
+
+  test("the Project page lists its invoices, with every column", async ({ page }) => {
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const rows = history(page).getByRole("row");
+    await expect(rows.filter({ hasText: "FPR-000001" }).first()).toContainText("USD 900.00");
+    await expect(rows.filter({ hasText: "FPR-000001" }).first()).toContainText("Design");
+    await expect(rows.filter({ hasText: "FPR-000003" }).first()).toContainText(
+      "installment 1 of 2",
+    );
+    for (const column of ["Invoice", "For", "Sent", "Amount", "Status", "Theme", "Signed"]) {
+      await expect(history(page).getByRole("columnheader", { name: column })).toBeVisible();
+    }
+    await expect(rows.filter({ hasText: "FPR-000001" }).first().locator(".badge-paid")).toHaveText(
+      "Paid",
+    );
+  });
+
+  test("what was sent can be downloaded from the archive, as a PDF", async ({ page }) => {
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const link = history(page).locator('a[href*="/versions/"]').first();
+    const href = await link.getAttribute("href");
+    const response = await page.request.get(href ?? "");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("application/pdf");
+    expect((await response.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  });
+
+  test("a saved file can't be reached with another invoice's id", async ({ page }) => {
+    const response = await page.request.get(
+      "/api/invoices/00000000-0000-4000-8000-000000000999/versions/1",
+    );
+    expect(response.status()).toBe(404);
+  });
+
+  test("the status filter narrows the list, and can be cleared", async ({ page }) => {
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const section = history(page);
+    await section.getByLabel("Status").selectOption("paid");
+    await section.getByRole("button", { name: "Filter" }).click();
+    await expect(page).toHaveURL(/status=paid/);
+    await expect(section.locator("tbody .badge-paid").first()).toBeVisible();
+    await expect(section.locator("tbody .badge-sent, tbody .badge-overdue")).toHaveCount(0);
+    await section.getByRole("link", { name: "Clear the filters" }).click();
+    await expect(page).not.toHaveURL(/status=/);
+  });
+
+  test("a date range with nothing in it says so", async ({ page }) => {
+    await page.goto(`${PROJECT}?from=2001-01-01&to=2001-12-31`, { waitUntil: "networkidle" });
+    await expect(history(page)).toContainText("No invoices match these filters.");
+  });
+
+  test("the Client page has an Invoices tab, by project, with totals per currency", async ({
+    page,
+  }) => {
+    await page.goto(CLIENT, { waitUntil: "networkidle" });
+    await page
+      .getByRole("navigation", { name: "This client" })
+      .getByRole("link", { name: "Invoices" })
+      .click();
+    await expect(page).toHaveURL(/tab=invoices/);
+    await expect(page.getByRole("heading", { name: "Website redesign" })).toBeVisible();
+    const totals = page.getByRole("list", { name: "Totals by currency" });
+    await expect(totals).toContainText("Total sent");
+    await expect(totals).toContainText("Total paid");
+    await expect(totals).toContainText(/USD\s[\d,]+\.\d{2}/);
+    await expect(page.locator("main")).toContainText("FPR-000001");
+  });
+
+  test("the Client page's overview is still its default", async ({ page }) => {
+    await page.goto(CLIENT, { waitUntil: "networkidle" });
+    await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
+  });
+
+  test("Settings shows the archive folder, with a Copy button", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    const section = page.locator("section", {
+      has: page.getByRole("heading", { name: "Invoice archive" }),
+    });
+    const path = await section.locator("code").textContent();
+    expect(path).toContain("getpaid-e2e-archive");
+    await section.getByRole("button", { name: "Copy the archive folder's path" }).click();
+    await expect(section.getByRole("button", { name: "Copied" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(path);
+  });
+
+  test("on a phone, each invoice's facts stack, and nothing hides", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto(PROJECT, { waitUntil: "networkidle" });
+    const amount = history(page).locator('td[data-label="Amount"]').first();
+    await expect(amount).toBeVisible();
+    const box = await amount.boundingBox();
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

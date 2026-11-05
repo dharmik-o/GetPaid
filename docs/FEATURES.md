@@ -128,7 +128,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
   - Done when: signature on or off is respected per invoice in tests.
 - [x] **Local invoice archive:** every PDF sent to a client is kept, and a changed one is a new version.
   - Done when: a sent invoice's PDF exists in the archive at the expected path with a matching sha256, a changed one becomes v2 without touching v1, and path tests cover unsafe names and traversal attempts.
-- [ ] **Invoice history** on the Project and Client pages, with filters and downloads.
+- [x] **Invoice history** on the Project and Client pages, with filters and downloads.
   - Done when: the Project and Client pages list the right invoices for the right user only (RLS test), and the Playwright demo still passes, plus a check that the Project page shows its invoices.
 
 ## Out of scope (Phase 2, don't build)

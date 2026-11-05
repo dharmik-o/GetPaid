@@ -54,7 +54,9 @@ test.describe("the Paid stamp", () => {
       const { invoices } = await fakeState(page.request);
       const open2of2 = invoices.at(-1);
       if (!open2of2) throw new Error("The demo's second installment is missing.");
-      await expect(page.locator("main").getByText("Sent", { exact: true })).toBeVisible();
+      await expect(
+        page.locator("main .milestone-table").getByText("Sent", { exact: true }),
+      ).toBeVisible();
 
       // The Outbox is open too: its draft for this invoice collapses away by itself.
       const outbox = await context.newPage();

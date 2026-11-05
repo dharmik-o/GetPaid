@@ -47,7 +47,7 @@ const openProject = (page: Page) => page.goto(`/projects/${PROJECT}`, { waitUnti
 
 const invoiceRow = (page: Page, name: string) =>
   page
-    .locator("section", { has: page.getByRole("heading", { name: "Invoices" }) })
+    .locator("section", { has: page.getByRole("heading", { name: "Bill your milestones" }) })
     .getByRole("row")
     .filter({ hasText: name });
 

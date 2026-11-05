@@ -298,6 +298,14 @@ Every invoice PDF sent to a client (attached to a sent reminder, including the f
 - **Keeping it out of git:** the app refuses a folder inside a git repository, except one named `invoice-archive` or under `.data`, both ignored.
 - **Screens:** Settings shows the folder's path with a Copy button.
 
+## Invoice history
+
+- **Project page, Invoices section:** every invoice for that project, with its number, what it's for (a milestone, installment n of m, a retainer cycle, or maintenance), sent date, amount, status badge (Draft, Sent, Partially paid, Paid, Overdue, Cancelled, Refunded, Disputed), theme, signed yes or no, and Download PDF and Open PayPal invoice. Every saved version has its own row, newest first. The section that creates invoices is now called Bill your milestones.
+- **Client page, Invoices tab:** the same columns, grouped by project, with total sent and total paid per currency, never converted.
+- **Filters:** status and date range, on the sent date (or the created date if it hasn't gone). Each has an empty state.
+- **Overdue** isn't stored: it's an unpaid invoice past its due date, in the client's time zone.
+- **Downloads** go through `/api/invoices/[id]/versions/[version]`, which reads the row as the signed-in user and only reads a file inside `INVOICE_ARCHIVE_DIR`.
+
 ## Data model
 
 Sixteen tables cover the MVP (`invoice_templates` arrives with the Invoice templates feature, `retainer_alerts` with retainers, and `milestone_holds` with holds). Schedules are stored as one settings object per level (account, client, project, milestone) and merged at runtime.

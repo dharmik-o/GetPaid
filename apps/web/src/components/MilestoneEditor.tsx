@@ -221,7 +221,7 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
           . Add milestones to split it, for example a deposit first.
         </p>
       ) : (
-        <table className="table milestone-table">
+        <table className="table milestone-table stack-wide">
           <thead>
             <tr>
               <th scope="col">Name</th>

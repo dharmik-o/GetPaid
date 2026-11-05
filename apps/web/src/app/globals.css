@@ -1049,6 +1049,59 @@ button.chip:hover {
   font-size: 12px;
 }
 
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.history-filters .field {
+  flex: 1 1 160px;
+}
+
+.history-table {
+  font-size: 14px;
+}
+
+.history-table th,
+.history-table td {
+  padding-inline: var(--space-2);
+  vertical-align: top;
+}
+
+.history-actions a {
+  display: block;
+  white-space: nowrap;
+}
+
+.history-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+}
+
+.history-totals li {
+  flex: 1 1 220px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+}
+
+.history-totals p {
+  margin: 0;
+}
+
+.history-group + .history-group {
+  margin-top: var(--space-6);
+}
+
 .archive-path {
   display: flex;
   flex-wrap: wrap;
@@ -1544,18 +1597,18 @@ button.chip:hover {
   }
 }
 
-/* Milestone rows have six columns of fields, which need more room than a phone or a small laptop
-   has beside the sidebar: each row becomes a card of labelled lines. */
+/* Tables with six or more columns need more room than a phone or a small laptop has beside the
+   sidebar: each row becomes a card of labelled lines. */
 @media (max-width: 1200px) {
-  .milestone-table,
-  .milestone-table tbody,
-  .milestone-table tr,
-  .milestone-table td {
+  .stack-wide,
+  .stack-wide tbody,
+  .stack-wide tr,
+  .stack-wide td {
     display: block;
     width: 100%;
   }
 
-  .milestone-table thead {
+  .stack-wide thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1564,29 +1617,29 @@ button.chip:hover {
     white-space: nowrap;
   }
 
-  .milestone-table tr {
+  .stack-wide tr {
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--line);
   }
 
-  .milestone-table tr:last-child {
+  .stack-wide tr:last-child {
     border-bottom: none;
   }
 
-  .milestone-table td {
+  .stack-wide td {
     padding: var(--space-1) var(--space-3);
     border-bottom: none;
   }
 
-  .milestone-table td:empty {
+  .stack-wide td:empty {
     display: none;
   }
 
-  .milestone-table td.money {
+  .stack-wide td.money {
     text-align: left !important;
   }
 
-  .milestone-table td[data-label]::before {
+  .stack-wide td[data-label]::before {
     content: attr(data-label);
     display: block;
     color: var(--muted);

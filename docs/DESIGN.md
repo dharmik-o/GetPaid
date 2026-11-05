@@ -19,19 +19,19 @@ The rules for the dashboard and landing page in `apps/web`. The look comes from 
 
 ## Screens
 
-| Screen       | Route                                                 | What it shows                                                                                                                     |
-| ------------ | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Home         | `/`                                                   | Needs attention (drafts waiting, overdue invoices), recovery metrics, Upcoming list (next 90 days)                                |
-| Landing page | `/welcome`                                            | Hero, How it works, Features, yellow statement band, final call to action, footer. Every call to action goes to `/`. No app shell |
-| Outbox       | `/outbox`                                             | Filter tabs Waiting / Scheduled / Sent / Skipped; `OutboxCard` per draft                                                          |
-| Clients      | `/clients`                                            | Table: name, country, open balance, last activity. **Add client** opens `/clients/new`                                            |
-| Client       | `/clients/[id]`                                       | Header with totals; `Timeline` of messages, replies, payments, events                                                             |
-| Projects     | `/projects`                                           | Table: project, client, deadline, total. **New project** opens `/projects/new`                                                    |
-| New project  | `/projects/new`                                       | Step 1 details, step 2 schedule (`ScheduleForm`), step 3 optional milestones (`MilestoneEditor`)                                  |
-| Project      | `/projects/[id]`                                      | Milestone list with status, invoice link, next reminder                                                                           |
-| Retainers    | `/retainers`                                          | List of retainers. **Add retainer** opens `/retainers/new`: amount, interval, method (auto-pay / invoice)                         |
-| Maintenance  | `/maintenance`                                        | Jobs and renewals with next due date, cost, lead time. **Add maintenance job** opens `/maintenance/new`                           |
-| Settings     | `/settings`, `/settings/ai`, `/settings/integrations` | Schedule defaults; AI provider and test results; PayPal, Gmail and Telegram connections                                           |
+| Screen       | Route                                                 | What it shows                                                                                                                                                        |
+| ------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home         | `/`                                                   | Needs attention (drafts waiting, overdue invoices), recovery metrics, Upcoming list (next 90 days)                                                                   |
+| Landing page | `/welcome`                                            | Hero, How it works, Features, yellow statement band, final call to action, footer. Every call to action goes to `/`. No app shell                                    |
+| Outbox       | `/outbox`                                             | Filter tabs Waiting / Scheduled / Sent / Skipped; `OutboxCard` per draft                                                                                             |
+| Clients      | `/clients`                                            | Table: name, country, open balance, last activity. **Add client** opens `/clients/new`                                                                               |
+| Client       | `/clients/[id]`                                       | Tabs: Overview (header with totals; `Timeline` of messages, replies, payments, events) and Invoices (by project, with total sent and paid per currency, and filters) |
+| Projects     | `/projects`                                           | Table: project, client, deadline, total. **New project** opens `/projects/new`                                                                                       |
+| New project  | `/projects/new`                                       | Step 1 details, step 2 schedule (`ScheduleForm`), step 3 optional milestones (`MilestoneEditor`)                                                                     |
+| Project      | `/projects/[id]`                                      | Milestone list with status, invoice link, next reminder; Bill your milestones; Invoices (every invoice and saved version, with filters)                              |
+| Retainers    | `/retainers`                                          | List of retainers. **Add retainer** opens `/retainers/new`: amount, interval, method (auto-pay / invoice)                                                            |
+| Maintenance  | `/maintenance`                                        | Jobs and renewals with next due date, cost, lead time. **Add maintenance job** opens `/maintenance/new`                                                              |
+| Settings     | `/settings`, `/settings/ai`, `/settings/integrations` | Schedule defaults; AI provider and test results; PayPal, Gmail and Telegram connections                                                                              |
 
 ## Components
 
@@ -75,7 +75,7 @@ All of these live in `globals.css`, the project's one styling system. Dark is th
   - `--shadow-pop`: `0 4px 8px rgba(20,18,10,.08), 0 24px 48px -12px rgba(20,18,10,.22)`. Menus, dropdowns, dialogs and toasts.
   - The primary yellow button keeps only its hard offset hover shadow (`0 6px 0 0 var(--text)`), never a soft one.
 - **Depth (dark mode):** shadows barely show on black, so cards stand out by being lighter than the page. `--shadow-card` and `--shadow-panel` are `inset 0 1px 0 rgba(255,255,255,.04)`, `--shadow-card-hover` is `inset 0 1px 0 rgba(255,255,255,.06)`, `--shadow-control` and `--shadow-button` are none, and `--shadow-pop` is `0 0 0 1px #2c2c2c, 0 24px 48px rgba(0,0,0,.6)`.
-- **Tables:** no zebra stripes; rows are split by `--line`; money is right-aligned in tabular numbers; row hover is `--surface-2`. On phones, tables with `table-stack` become labelled rows (each cell has a `data-label`), so an amount never hides behind a scroll. Milestone tables have six columns of fields, so they do the same below 1200px.
+- **Tables:** no zebra stripes; rows are split by `--line`; money is right-aligned in tabular numbers; row hover is `--surface-2`. On phones, tables with `table-stack` become labelled rows (each cell has a `data-label`), so an amount never hides behind a scroll. Tables with six or more columns (`stack-wide`: milestones, invoice history) do the same below 1200px.
 - **Spacing:** 4, 8, 12, 16, 20, 24, 32, 40, 56, 72, 96, 120, 150. App pages use 24 to 40; landing sections use 120 to 150.
 - **Money:** right-aligned, tabular numbers, always with the currency code (USD 1,500.00), never a symbol such as ₹.
 
@@ -95,15 +95,15 @@ A dotted vertical line (`border-left: 2px dotted var(--accent)`) is the secondar
 
 ### Timing
 
-| Token | Value |
-| --- | --- |
-| Fast (hover, press) | 0.15–0.2s |
-| Base (UI enter and exit) | 0.3s |
-| Reveal (landing scroll-in) | 0.7–0.9s |
-| Ease, enter | `power3.out` (GSAP) / `[0.22, 1, 0.36, 1]` (Motion) |
-| Ease, exit | `power2.in` |
-| Spring (Motion) | `{ type: "spring", stiffness: 420, damping: 28 }` |
-| Stagger | 0.08–0.12s |
+| Token                      | Value                                               |
+| -------------------------- | --------------------------------------------------- |
+| Fast (hover, press)        | 0.15–0.2s                                           |
+| Base (UI enter and exit)   | 0.3s                                                |
+| Reveal (landing scroll-in) | 0.7–0.9s                                            |
+| Ease, enter                | `power3.out` (GSAP) / `[0.22, 1, 0.36, 1]` (Motion) |
+| Ease, exit                 | `power2.in`                                         |
+| Spring (Motion)            | `{ type: "spring", stiffness: 420, damping: 28 }`   |
+| Stagger                    | 0.08–0.12s                                          |
 
 ### Interactions
 
