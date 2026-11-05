@@ -109,7 +109,7 @@ Work top to bottom. Each item has "done when" checks; tick the box only when eve
 Presentation only: no changes to API calls, data, routes, form field names, validation or business logic. Each page is one commit, with `npm run check` and `npm run test:e2e` green, checked at 375px and 1280px in both themes.
 
 - [x] **Foundation:** tokens, fonts, theme switch, buttons, inputs, cards, badges, nav, dotted triangle. Stop here for the user to check both themes.
-- [ ] **Home**
+- [x] **Home**
 - [ ] **Outbox**
 - [ ] **Clients** (list, new, detail)
 - [ ] **Projects** (list, new, detail)

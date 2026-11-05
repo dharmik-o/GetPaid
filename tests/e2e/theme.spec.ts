@@ -378,6 +378,14 @@ for (const colorScheme of ["light", "dark"] as const) {
           const sideways = await page.evaluate(
             () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
           );
+          const crammed = await page.evaluate(() =>
+            [...document.querySelectorAll("main .card, main .metric-tile")]
+              // A stamp mid-drop is wider than its card on purpose, and the card clips it.
+              .filter((box) => !box.querySelector(".paid-stamp"))
+              .filter((box) => box.scrollWidth > box.clientWidth + 1)
+              .map((box) => (box.querySelector("h2")?.textContent ?? box.className).slice(0, 30)),
+          );
+          found.push(...crammed.map((name) => `${path}: "${name}" overflows its box`));
           if (sideways > 0)
             found.push(`${path}: the page scrolls sideways by ${String(sideways)}px`);
           const problems = [

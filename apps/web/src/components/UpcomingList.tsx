@@ -38,9 +38,9 @@ export const UpcomingList = ({ upcoming }: { upcoming: Upcoming }) => {
         {upcoming.totals.length === 0 ? "none estimated yet" : null}
       </p>
       {upcoming.totals.length > 0 ? (
-        <ul aria-label="Expected income by currency" style={{ listStyle: "none", padding: 0 }}>
+        <ul aria-label="Expected income by currency" className="income-totals">
           {upcoming.totals.map((total) => (
-            <li key={total.currency} className="money">
+            <li key={total.currency} className="metric-value">
               {formatMoney(total.cents, total.currency)}
             </li>
           ))}
@@ -55,7 +55,7 @@ export const UpcomingList = ({ upcoming }: { upcoming: Upcoming }) => {
       ) : null}
       {upcoming.weeks.map((week) => (
         <div key={week.weekOf} className="table-scroll">
-          <table className="table">
+          <table className="table table-stack">
             <caption>Week of {formatDay(week.weekOf)}</caption>
             <thead>
               <tr>
@@ -69,14 +69,14 @@ export const UpcomingList = ({ upcoming }: { upcoming: Upcoming }) => {
             <tbody>
               {week.items.map((item) => (
                 <tr key={item.key}>
-                  <td>
+                  <td data-label="What">
                     <Link href={LINKS[item.kind]}>{item.name}</Link>
                     <div className="muted">
                       {KIND_NAMES[item.kind]} · {item.clientName}
                     </div>
                   </td>
-                  <td>{formatDay(item.date)}</td>
-                  <td className="money">
+                  <td data-label="Date">{formatDay(item.date)}</td>
+                  <td className="money" data-label="Amount">
                     {item.amountCents === null || item.currency === null
                       ? "No estimate"
                       : formatMoney(item.amountCents, item.currency)}

@@ -628,6 +628,43 @@ h3 {
   margin: 0 0 var(--space-4);
 }
 
+/* An empty card holds the page's one dotted triangle, in place of the sidebar's. */
+.card.empty {
+  position: relative;
+  overflow: hidden;
+}
+
+.card.empty > * {
+  position: relative;
+  z-index: 2;
+}
+
+.card.empty::after {
+  content: "";
+  right: -28px;
+  bottom: -24px;
+  width: 120px;
+  height: 108px;
+  rotate: -24deg;
+  opacity: 0.35;
+}
+
+.card.empty ~ .card.empty::after,
+.shell:has(.card.empty) .sidebar-corner .dot-tri {
+  display: none;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.page {
+  animation: page-in 0.25s var(--ease-enter);
+}
+
 /* Forms ----------------------------------------------------------------------------------- */
 .form {
   display: grid;
@@ -729,6 +766,20 @@ label.inline {
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-card);
+  margin: 0 0 var(--space-4);
+}
+
+.banner p {
+  margin: 0;
+}
+
+/* A banner with a button, such as a retainer alert: the words, then the action on the right. */
+.banner:has(> button) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 .banner-error {
@@ -1115,13 +1166,14 @@ button.chip:hover {
 
 /* Home: recovery metrics and what needs attention */
 .metric-tiles {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin-bottom: var(--space-3);
 }
 
 .metric-tile {
+  flex: 1 1 180px;
   min-width: 0;
   padding: var(--space-4);
   background: var(--bg);
@@ -1137,9 +1189,44 @@ button.chip:hover {
 .metric-value {
   font-family: var(--font-display);
   font-synthesis: none;
-  font-size: 22px;
+  font-size: 28px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+/* The one number that matters most, on its own line, so the tiles aren't a row of equals. */
+.metric-tile:first-child {
+  flex-basis: 100%;
+}
+
+.metric-tile:first-child .metric-value {
+  font-size: clamp(36px, 4vw, 56px);
+  line-height: 1;
+}
+
+.metric-tile p + p {
+  margin-top: var(--space-1);
+}
+
+.metric-tile .muted {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.income-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  list-style: none;
+  margin: var(--space-1) 0 var(--space-4);
+  padding: 0;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .money-left {
@@ -1154,7 +1241,12 @@ button.chip:hover {
 
 .table-scroll caption {
   padding: var(--space-2) 0;
+  font-weight: 600;
   text-align: left;
+}
+
+.table-scroll + .table-scroll {
+  margin-top: var(--space-4);
 }
 
 .attention-list {
@@ -1164,15 +1256,22 @@ button.chip:hover {
 }
 
 .attention-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: 56px;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
 }
 
-.attention-list .badge {
-  margin-left: var(--space-2);
+.attention-list .money-left {
+  margin-left: auto;
+  font-weight: 600;
 }
 
 /* Signature decoration. Behind content, never in front of it. Always aria-hidden. */
+.card.empty::after,
 .dot-tri {
   --dot-color: var(--dots);
   position: absolute;
@@ -1195,6 +1294,7 @@ button.chip:hover {
 
 /* Under 640px, the triangles shrink to about 60%. */
 @media (max-width: 640px) {
+  .card.empty::after,
   .dot-tri {
     scale: 0.6;
   }
@@ -1356,9 +1456,9 @@ button.chip:hover {
     padding: var(--space-3);
   }
 
-  /* A narrow row has no spare space, and the stamp mustn't sit on top of an amount. Not in Home's
-     table: there, the room would push the Amount column out of sight. */
+  /* A narrow row has no spare space, and the stamp mustn't sit on top of an amount. */
   .timeline-body:has(> .paid-stamp),
+  .table-stack .paid-moment:has(> .paid-stamp),
   .milestone-table .paid-moment:has(> .paid-stamp) {
     padding-right: 80px;
   }
@@ -1371,7 +1471,12 @@ button.chip:hover {
     grid-template-columns: 1fr;
   }
 
-  /* A phone can't fit the milestone tables' columns: each row becomes a card of labelled lines. */
+  /* A phone can't fit these tables' columns, and an amount mustn't hide behind a sideways scroll:
+     each row becomes a card of labelled lines. */
+  .table-stack,
+  .table-stack tbody,
+  .table-stack tr,
+  .table-stack td,
   .milestone-table,
   .milestone-table tbody,
   .milestone-table tr,
@@ -1380,6 +1485,7 @@ button.chip:hover {
     width: 100%;
   }
 
+  .table-stack thead,
   .milestone-table thead {
     position: absolute;
     width: 1px;
@@ -1389,24 +1495,29 @@ button.chip:hover {
     white-space: nowrap;
   }
 
+  .table-stack tr,
   .milestone-table tr {
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--line);
   }
 
+  .table-stack tr:last-child,
   .milestone-table tr:last-child {
     border-bottom: none;
   }
 
+  .table-stack td,
   .milestone-table td {
     padding: var(--space-1) var(--space-3);
     border-bottom: none;
   }
 
+  .table-stack td.money,
   .milestone-table td.money {
     text-align: left !important;
   }
 
+  .table-stack td[data-label]::before,
   .milestone-table td[data-label]::before {
     content: attr(data-label);
     display: block;
@@ -1469,7 +1580,8 @@ button.chip:hover {
     transform: none;
   }
 
-  .skeleton {
+  .skeleton,
+  .page {
     animation: none;
   }
 }

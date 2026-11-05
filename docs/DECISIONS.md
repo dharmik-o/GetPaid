@@ -659,3 +659,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **It's a button that shows a list of links, not an ARIA `role="menu"`,** because this is navigation. Tab moves through the links, Escape closes it and puts focus back on More, and a tap elsewhere closes it.
 - **More shows the yellow bar on a page inside it,** so the bar always shows where you are.
 - **It's the first thing to use `--shadow-pop`,** and it opens as your design guide says: up 24px on the spring, closing in 0.18s, and simply appearing with reduced motion.
+### Home restyle (5 Nov 2026)
+
+- **"Amount recovered" gets a line of its own, at the brief's big-amount size.** The other three tiles share the row below, so it isn't a grid of equals. On a phone it's 36px, and very long amounts wrap instead of spilling.
+- **On phones, tables with money become labelled rows (`table-stack`), the same way the milestone tables already do.** The brief allows either that or a sideways scroll, but a scroll hid the Amount column. That also gives the Paid stamp room, so Home now gets the same phone spacing as the timeline, and the earlier exception is gone.
+- **Expected income is a row of amounts** rather than a stray right-aligned line, and the inline style went with it.
+- **Empty cards hold the page's one dotted triangle, from CSS,** so none of the 11 empty states needed new markup. The sidebar's triangle hides while one shows, and a second empty card on the same page has none, which keeps it to one per page.
+- **Pages fade in with an 8px shift, from CSS.** It needs no JavaScript and is off with reduced motion, so Motion stays for the things CSS can't do.
+- **Banners are spaced by one rule now,** and a banner with a button puts the button on the right.
+- **The e2e checks more:** any card or tile whose contents overflow it now fails on all 17 pages, in both themes, at both widths.

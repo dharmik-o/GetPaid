@@ -85,7 +85,7 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
       </div>
       {daysLate.length > 0 ? (
         <div className="table-scroll">
-          <table className="table">
+          <table className="table table-stack">
             <caption className="muted">Days late per invoice</caption>
             <thead>
               <tr>
@@ -100,11 +100,11 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
             <tbody>
               {daysLate.map((line) => (
                 <tr key={line.id}>
-                  <td>{line.invoiceNumber}</td>
-                  <td>
+                  <td data-label="Invoice">{line.invoiceNumber}</td>
+                  <td data-label="Client">
                     <Link href={`/clients/${line.clientId}#timeline`}>{line.clientName}</Link>
                   </td>
-                  <td>
+                  <td data-label="Paid">
                     <PaidMoment
                       stampId={invoiceStampId(line.invoiceNumber)}
                       announcement={`${line.invoiceNumber} paid`}
@@ -118,7 +118,9 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
                       {days(line.days)} late
                     </PaidMoment>
                   </td>
-                  <td className="money">{formatMoney(line.amountCents, line.currency)}</td>
+                  <td className="money" data-label="Amount">
+                    {formatMoney(line.amountCents, line.currency)}
+                  </td>
                 </tr>
               ))}
             </tbody>

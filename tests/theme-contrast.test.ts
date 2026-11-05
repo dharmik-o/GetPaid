@@ -181,7 +181,7 @@ describe("the themes", () => {
   it("has one gradient: the dot pattern in the dotted triangle", () => {
     const gradients = [...CSS.matchAll(/[\w-]*gradient\(/g)].map(([name]) => name);
     expect(gradients).toEqual(["radial-gradient("]);
-    expect(blockAfter(".dot-tri {")).toContain("radial-gradient(");
+    expect(blockAfter("\n.dot-tri {")).toContain("radial-gradient(");
   });
 
   it("has soft shadows only through the tokens: any other box-shadow is a hard edge", () => {
