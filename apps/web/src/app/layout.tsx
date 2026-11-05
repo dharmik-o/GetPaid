@@ -4,11 +4,9 @@ import "@fontsource/instrument-sans/600.css";
 import "@fontsource/instrument-sans/700.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AppShell } from "@/components/AppShell";
 import { DemoClockBanner } from "@/components/DemoClockBanner";
-import { Logo } from "@/components/Logo";
-import { Sidebar } from "@/components/Sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
@@ -19,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * App shell: sidebar navigation, a header with the theme toggle, and one main column.
+ * The document, with the app shell around every page but the landing page.
  * suppressHydrationWarning: the theme script sets data-theme on <html> before React loads.
  */
 const RootLayout = ({ children }: { children: ReactNode }) => (
@@ -35,19 +33,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
     </head>
     <body>
       <ThemeProvider>
-        <div className="shell">
-          <Sidebar />
-          <div className="shell-main">
-            <header className="app-header">
-              <Logo />
-              <ThemeToggle />
-            </header>
-            <main className="content">
-              <DemoClockBanner />
-              {children}
-            </main>
-          </div>
-        </div>
+        <AppShell banner={<DemoClockBanner />}>{children}</AppShell>
       </ThemeProvider>
     </body>
   </html>

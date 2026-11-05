@@ -1942,3 +1942,593 @@ button.chip:hover {
     animation: none;
   }
 }
+/* Landing page (/welcome). Everything here is the page's finished state: LandingMotion animates up
+   to it, so it's all there with reduced motion or no JavaScript. */
+.landing {
+  overflow-x: clip;
+}
+
+.landing-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: var(--space-10);
+}
+
+.landing-section {
+  position: relative;
+  padding-block: 130px;
+  overflow: clip;
+  scroll-margin-top: 72px;
+}
+
+.landing-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.landing-nav.is-scrolled {
+  border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.landing-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-10);
+}
+
+.landing-nav-links {
+  display: flex;
+  gap: var(--space-6);
+  font-weight: 500;
+}
+
+.landing-nav-links a,
+.landing-footer-links a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.landing-nav-links a:hover,
+.landing-footer-links a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.landing-hero {
+  padding-block: 56px 120px;
+}
+
+/* Held back only until the timeline takes over. The delay is the safety net if scripts never run. */
+@keyframes landing-hero-show {
+  to {
+    visibility: visible;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-hero [data-hero="line"],
+  .landing-hero [data-hero="fade"],
+  .landing-hero [data-hero="card"] {
+    visibility: var(--hero-hold, hidden);
+    animation: landing-hero-show 0s linear 1.5s forwards;
+  }
+}
+
+.landing-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 56px;
+}
+
+.landing-headline {
+  margin: 0 0 var(--space-8);
+  font-family: var(--font-display);
+  font-size: clamp(48px, 7vw, 104px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* The padding is room for descenders, which the tight line height would otherwise cut off. */
+.headline-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.1em;
+  margin-bottom: -0.1em;
+}
+
+.headline-line {
+  display: block;
+}
+
+.landing-lead {
+  max-width: 36em;
+  margin: 0 0 var(--space-8);
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.landing-text-link {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+.invoice-card {
+  position: relative;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+  transform: rotate(-2.5deg);
+}
+
+.invoice-card p {
+  margin: 0;
+}
+
+.invoice-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.invoice-card-client {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* The two pills share one spot, so the swap doesn't move anything. */
+.invoice-pill {
+  display: inline-grid;
+}
+
+.invoice-pill > * {
+  grid-area: 1 / 1;
+}
+
+.invoice-pill-sent {
+  visibility: hidden;
+}
+
+.invoice-card-rows {
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.invoice-card-rows li,
+.invoice-card-total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.invoice-card-rows .money {
+  white-space: nowrap;
+}
+
+.invoice-card-total {
+  align-items: baseline;
+  border-bottom: 0;
+  font-weight: 600;
+}
+
+.invoice-card-amount {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.invoice-card .invoice-card-strip {
+  margin-top: var(--space-3);
+  padding: 10px var(--space-4);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* On the card's corner, over the empty end of the strip: it must never cover an amount. */
+.landing-stamp {
+  position: absolute;
+  right: -18px;
+  bottom: -46px;
+  width: 104px;
+  height: 104px;
+  background: var(--accent-ink);
+  mask: url("/getpaid-stamp.svg") center / contain no-repeat;
+  pointer-events: none;
+  transform: rotate(-14deg);
+}
+
+.landing-title {
+  max-width: 18em;
+  margin: 0 0 var(--space-5);
+  font-size: clamp(34px, 4.2vw, 60px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+}
+
+.how-steps-wrap {
+  position: relative;
+  margin-top: 56px;
+}
+
+/* From the first circle's centre to the fourth's: 4 columns with 32px gaps, and a 56px circle. */
+.how-track {
+  position: absolute;
+  top: 27px;
+  right: calc(25% - 52px);
+  left: 28px;
+  height: 2px;
+  background: var(--line);
+}
+
+.how-track-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-circle {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--line-control);
+  border-radius: 50%;
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.how-circle-fill {
+  position: absolute;
+  inset: -1px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.how-step h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.how-step p {
+  margin: 0;
+}
+
+.landing-panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-top: var(--space-10);
+}
+
+.landing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-8);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.landing-panel h3,
+.landing-panel p {
+  margin: 0;
+}
+
+.panel-wide {
+  flex: 3 1 560px;
+}
+
+.panel-narrow {
+  flex: 2 1 360px;
+}
+
+.panel-full {
+  flex: 1 1 100%;
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.panel-full > div {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.snippet-timeline {
+  margin: var(--space-3) 0 0;
+  padding: 0 0 0 var(--space-5);
+  border-left: 2px dotted var(--accent);
+  list-style: none;
+}
+
+.snippet-timeline li {
+  padding-block: var(--space-2);
+}
+
+.snippet-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.snippet-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.snippet-button {
+  padding: 6px var(--space-4);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.snippet-button.is-primary {
+  border-color: var(--edge);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.snippet-clients {
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.snippet-clients li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 104px;
+  align-items: center;
+  gap: var(--space-4);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.snippet-clients li:last-child {
+  border-bottom: 0;
+}
+
+.snippet-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-band {
+  position: relative;
+  padding-block: 130px;
+  overflow: clip;
+  background: var(--accent);
+  color: var(--ink);
+}
+
+.band-text {
+  margin-block: 0;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vw, 72px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.landing-final {
+  text-align: center;
+}
+
+.landing-final .landing-title,
+.landing-final .landing-lead {
+  margin-inline: auto;
+}
+
+.landing-footer {
+  padding-block: var(--space-8);
+  border-top: 1px solid var(--line);
+}
+
+.landing-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.landing-footer-inner p {
+  margin: 0;
+}
+
+.landing-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+@media (max-width: 1000px) {
+  .landing-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .how-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .how-track {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-container,
+  .landing-nav-inner {
+    padding-inline: var(--space-5);
+  }
+
+  .landing-section,
+  .landing-band {
+    padding-block: 72px;
+  }
+
+  .landing-hero {
+    padding-block: var(--space-8) 72px;
+  }
+
+  .landing-nav-links {
+    display: none;
+  }
+
+  .how-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-wide,
+  .panel-narrow {
+    flex-basis: 100%;
+  }
+
+  .landing-panel {
+    padding: var(--space-6);
+  }
+
+  .snippet-clients li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .snippet-clients .badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .invoice-card {
+    padding: var(--space-5);
+  }
+
+  .landing-stamp {
+    right: -4px;
+    bottom: -24px;
+    width: 84px;
+    height: 84px;
+  }
+
+  .landing-nav-inner {
+    gap: var(--space-2);
+  }
+
+  .landing-nav .logo-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .landing-nav .logo-word {
+    font-size: 18px;
+  }
+
+  .landing-nav .logo {
+    gap: 6px;
+  }
+
+  .landing-nav-actions {
+    gap: var(--space-2);
+  }
+
+  .landing-nav .button {
+    min-height: 44px;
+    padding-inline: var(--space-3);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+/* At most one triangle per section on a phone, and never the one behind the hero text. */
+@media (max-width: 640px) {
+  .landing-hero .dot-tri:not(:nth-child(3)),
+  .landing-band .dot-tri:nth-child(2),
+  .landing-final .dot-tri:nth-child(2) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-nav {
+    transition: none;
+  }
+}

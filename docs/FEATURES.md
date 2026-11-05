@@ -116,7 +116,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **Retainers** (list, new)
 - [x] **Maintenance** (list, new)
 - [x] **Settings** (schedule, AI, integrations, templates)
-- [ ] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.
+- [x] **Landing page** at `/welcome`: own commits, GSAP and ScrollTrigger on that page only.
   - Includes the hero's Paid moment: Sent to Paid pill, then the GetPaid stamp (`public/getpaid-stamp.svg`) slams onto the example invoice and the card bounces 7px, with GSAP.
   - Done when: a Playwright check shows `/welcome` loads, its calls to action reach `/`, and it works with reduced motion.
 

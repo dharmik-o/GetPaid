@@ -748,3 +748,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **"Signed" and "Theme" come from the saved file when there is one,** as they record what was actually sent. The invoice's current choice might differ.
 - **The filter is a plain form,** so it works without JavaScript and the address can be shared or bookmarked. A value someone types into the address that isn't real just means no filter.
 - **Sent dates are in your time zone, and the page says so.** Filtering uses the client's date, like every other invoice date in the app.
+
+### Landing page (5 Nov 2026)
+
+- **Finished, not dropped.** It was fully specified, adds only a new route, and is the first thing a judge sees, and there's time before 11 Nov.
+- **GSAP alone, without `@gsap/react`.** A plain effect with `gsap.matchMedia()` and `revert()` does the same cleanup, so that's one dependency fewer. GSAP has no dependencies and no install script, and `npm audit` finds nothing. Its licence is GSAP's own no-charge licence, not MIT, so the README lists it separately. A test checks that only `LandingMotion.tsx` imports it.
+- **No route group.** `AppShell` leaves out the sidebar for `/welcome`. Moving the pages into `(app)` is the usual way, but Windows refused to rename the folders while a dev server had them open, and this needs no files moved.
+- **The stamp sits on the card's corner, not on the total.** The brief says it slams onto the card. In the first version it covered USD 1,500.00, and an amount must stay readable, so a test now checks it covers none.
+- **Scroll reveals use opacity, not visibility,** so Tab can still reach the final Open dashboard link before you've scrolled to it.
+- **The optional fifth panel, Your AI, your choice, is in,** as a full-width row after the 3:2 and 2:3 rows.
+- **The landing copy is used as you wrote it,** including "nothing is ever sent without your approval". The optional Auto-send Tier 1 setting makes that untrue for an account that turns it on, though it's off by default. The Devpost text states the exception.
