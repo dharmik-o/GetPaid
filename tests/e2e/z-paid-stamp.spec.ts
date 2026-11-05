@@ -56,7 +56,16 @@ test.describe("the Paid stamp", () => {
       if (!open2of2) throw new Error("The demo's second installment is missing.");
       await expect(page.locator("main").getByText("Sent", { exact: true })).toBeVisible();
 
+      // The Outbox is open too: its draft for this invoice collapses away by itself.
+      const outbox = await context.newPage();
+      await open(outbox, "/outbox");
+      await expect(outbox.locator("main .outbox-card")).toHaveCount(1);
+
       await payInvoice(page.request, { id: open2of2.id, value: "750.00" });
+      await expect(outbox.locator("main .outbox-card")).toHaveCount(0, { timeout: 20_000 });
+      await expect(outbox.locator("main .card.empty")).toBeVisible();
+      await outbox.close();
+
       await open(page, PROJECT_PAGE);
       await expect(stamps(page)).toHaveCount(1);
       await expect(page.getByRole("status").filter({ hasText: /FPR-\d+ paid/ })).toHaveCount(1);

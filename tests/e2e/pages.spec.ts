@@ -66,6 +66,38 @@ test.describe("Home on a phone", () => {
   });
 });
 
+test.describe("Outbox", () => {
+  test("a draft shows its amount in the heading font, and the current tab is yellow", async ({
+    page,
+  }) => {
+    await page.goto("/outbox", { waitUntil: "networkidle" });
+    const card = page.locator("main .outbox-card").first();
+    await expect(card).toBeVisible();
+    await expect(card.locator(".outbox-head .money")).toHaveCSS("font-family", /Clash Display/);
+    await expect(card.locator(".outbox-meta .chip")).toBeVisible();
+    const tab = page.locator('.tabs a[aria-current="page"]');
+    await expect(tab).toHaveCSS("background-color", "rgb(232, 168, 0)");
+    await expect(tab).toHaveCSS("color", "rgb(0, 0, 0)");
+  });
+
+  test("the primary action comes first, and fills the width on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 844 });
+    await page.goto("/outbox", { waitUntil: "networkidle" });
+    const first = page.locator("main .outbox-card .actions .button").first();
+    await expect(first).toHaveText("Approve and send");
+    const box = await first.boundingBox();
+    const actions = await page.locator("main .outbox-card .actions").first().boundingBox();
+    expect(box?.width).toBeCloseTo(actions?.width ?? 0, 0);
+  });
+
+  test("moving to another tab doesn't animate the cards", async ({ page }) => {
+    await page.goto("/outbox?tab=sent", { waitUntil: "networkidle" });
+    const item = page.locator("main .list-item").first();
+    await expect(item).toBeVisible();
+    await expect(item).toHaveCSS("opacity", "1");
+  });
+});
+
 test.describe("every page", () => {
   test("fades in, and doesn't with reduced motion", async ({ browser }) => {
     for (const [reducedMotion, name] of [

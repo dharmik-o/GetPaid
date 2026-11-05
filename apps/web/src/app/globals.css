@@ -1030,7 +1030,7 @@ button.chip:hover {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .tabs a {
@@ -1072,9 +1072,53 @@ button.chip:hover {
 
 .outbox-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-2) var(--space-4);
   margin-bottom: var(--space-3);
+}
+
+.outbox-head > :first-child {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.outbox-head .muted {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.outbox-head .money {
+  font-family: var(--font-display);
+  font-synthesis: none;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* A chip and the words beside it: tier and send time, or the AI's suggestion. */
+.outbox-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.outbox-meta .chip {
+  margin-right: 0;
+}
+
+.list-item {
+  display: flow-root;
+}
+
+.page > section:not(.card) {
+  margin-bottom: var(--space-8);
+}
+
+.page > section:not(.card) > h2 {
+  margin-bottom: var(--space-4);
 }
 
 .outbox-head h2,
@@ -1088,12 +1132,12 @@ button.chip:hover {
 
 .outbox-subject {
   font-weight: 600;
-  margin-bottom: var(--space-1);
+  margin: var(--space-3) 0 var(--space-2);
   overflow-wrap: anywhere;
 }
 
 .outbox-body {
-  margin-top: 0;
+  margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--bg);
   border: 1px solid var(--line);

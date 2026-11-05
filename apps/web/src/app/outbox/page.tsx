@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnimatedList } from "@/components/AnimatedList";
 import { OutboxCard } from "@/components/OutboxCard";
 import { OutboxLive } from "@/components/OutboxLive";
 import { HeldInvoiceRow } from "@/components/HeldInvoiceRow";
@@ -74,17 +75,21 @@ const OutboxPage = async ({ searchParams }: Props) => {
       {replies.length > 0 ? (
         <section aria-labelledby="outbox-replies">
           <h2 id="outbox-replies">Replies to review ({replies.length})</h2>
-          {replies.map(({ reply, offer }) => (
-            <ReplyCard key={reply.id} reply={reply} offer={offer} />
-          ))}
+          <AnimatedList>
+            {replies.map(({ reply, offer }) => (
+              <ReplyCard key={reply.id} reply={reply} offer={offer} />
+            ))}
+          </AnimatedList>
         </section>
       ) : null}
       {held.length > 0 ? (
         <section aria-labelledby="outbox-held">
           <h2 id="outbox-held">Reminders on hold ({held.length})</h2>
-          {held.map((invoice: HeldInvoice) => (
-            <HeldInvoiceRow key={invoice.id} invoice={invoice} />
-          ))}
+          <AnimatedList>
+            {held.map((invoice: HeldInvoice) => (
+              <HeldInvoiceRow key={invoice.id} invoice={invoice} />
+            ))}
+          </AnimatedList>
         </section>
       ) : null}
       <nav className="tabs" aria-label="Filter drafts">
@@ -103,7 +108,11 @@ const OutboxPage = async ({ searchParams }: Props) => {
           <p>{EMPTY[tab]}</p>
         </div>
       ) : (
-        items.map((item) => <OutboxCard key={item.id} item={item} />)
+        <AnimatedList key={tab}>
+          {items.map((item) => (
+            <OutboxCard key={item.id} item={item} />
+          ))}
+        </AnimatedList>
       )}
     </div>
   );

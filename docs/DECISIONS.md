@@ -668,3 +668,8 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Pages fade in with an 8px shift, from CSS.** It needs no JavaScript and is off with reduced motion, so Motion stays for the things CSS can't do.
 - **Banners are spaced by one rule now,** and a banner with a button puts the button on the right.
 - **The e2e checks more:** any card or tile whose contents overflow it now fails on all 17 pages, in both themes, at both widths.
+### Outbox restyle (5 Nov 2026)
+
+- **A handled draft collapses away, and a new one opens up, through one small `AnimatedList`.** Nothing animates on page load, or when you change tab, so the page stays calm. It uses `height`, which the brief otherwise rules out, because the brief asks for exactly this on list add and remove. The motion lasts 0.18s to 0.3s, and is off with reduced motion.
+- **The amount on a draft is in the heading font,** so what you're approving reads first. The tier chip and send time now sit in one row that wraps.
+- **Tested with a real payment:** with the Outbox open, the invoice's webhook arrives, and its draft collapses away by itself on the next refresh.

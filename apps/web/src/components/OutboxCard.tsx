@@ -311,7 +311,7 @@ export const OutboxCard = ({ item }: { item: OutboxItem }) => {
         </div>
         <div className="money">{item.amountDue}</div>
       </div>
-      <p>
+      <p className="outbox-meta">
         <span className="chip">{TIER_LABELS[item.tier]}</span>
         {item.sendTime ? `${SEND_LABEL[item.tab]}: ${item.sendTime}` : "Skipped: not sent"}
       </p>

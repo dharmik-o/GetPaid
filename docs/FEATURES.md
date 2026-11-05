@@ -110,7 +110,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 
 - [x] **Foundation:** tokens, fonts, theme switch, buttons, inputs, cards, badges, nav, dotted triangle. Stop here for the user to check both themes.
 - [x] **Home**
-- [ ] **Outbox**
+- [x] **Outbox**
 - [ ] **Clients** (list, new, detail)
 - [ ] **Projects** (list, new, detail)
 - [ ] **Retainers** (list, new)

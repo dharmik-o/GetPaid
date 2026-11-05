@@ -176,7 +176,7 @@ export const ReplyCard = ({ reply, offer }: Props) => {
         <div className="money">{reply.amountDue}</div>
       </div>
       <p className="outbox-body">{reply.text}</p>
-      <p>
+      <p className="outbox-meta">
         <span className="chip">AI suggestion: {REPLY_LABEL_NAMES[reply.label]}</span>
         {reply.summary}
       </p>
