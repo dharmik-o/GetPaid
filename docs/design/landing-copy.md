@@ -18,7 +18,7 @@ Use this copy for the landing page. Take the layout, animation and look from the
 
 ## 1. Nav
 
-- Logo: the yellow triangle plus `GetPaid`
+- Logo: the GetPaid stamp plus `GetPaid`
 - Links: **How it works** (`#how`), **Features** (`#features`)
 - Theme toggle
 - Primary pill: **Open dashboard** (→ `/`)
@@ -53,6 +53,7 @@ Use this copy for the landing page. Take the layout, animation and look from the
 Mixed-width panels (3:2, then 2:3), each with a small live snippet instead of an icon:
 
 **Panel A (wide): Reminders that escalate, politely**
+
 - Text: Courtesy first, then firmer. The final notice cites only your contract's late-fee clause, and it never invents a law or a fee.
 - Snippet, a dotted-line timeline:
   - **Before the due date:** a friendly heads-up
@@ -61,6 +62,7 @@ Mixed-width panels (3:2, then 2:3), each with a small live snippet instead of an
   - **Day 22:** a final notice, and only if you approve it
 
 **Panel B (narrow): Approve from your phone**
+
 - Text: Every draft waits for you. One tap on Telegram, and it goes out on your own Gmail thread.
 - Snippet, a Telegram-style card:
   - Tier 1 · Northwind Studio · `USD 1,500.00`
@@ -68,6 +70,7 @@ Mixed-width panels (3:2, then 2:3), each with a small live snippet instead of an
   - Buttons: **Approve** (yellow) · Edit · Skip
 
 **Panel C (narrow): Replies, read for you**
+
 - Text: When a client writes back, reminders pause until you decide. The AI reads the reply and suggests the next step. It can't change anything by itself.
 - Snippet:
   - Client: "Can I pay this in two parts?"
@@ -75,13 +78,14 @@ Mixed-width panels (3:2, then 2:3), each with a small live snippet instead of an
   - Buttons: **Split into 2** · Resume reminders
 
 **Panel D (wide): Every way you bill**
+
 - Text: Deposits, milestones, installments, retainers with auto-pay, maintenance and renewal reminders, and milestone holds that secure the money before you start.
 - Snippet, a mini client list with status badges:
   - Northwind Studio · `USD 1,500.00` · **Paid** (yellow)
   - Pixel and Pine · `EUR 800.00` · Scheduled
   - Kite Coffee Co. · `GBP 450.00` · Overdue
 
-Optional fifth panel, if it fits the rhythm: **Your AI, your choice.** Run a local model so client emails never leave your computer, or connect Claude, OpenAI or Gemini. Snippet: three small pills, *Local (Ollama)* · *Claude* · *OpenAI*.
+Optional fifth panel, if it fits the rhythm: **Your AI, your choice.** Run a local model so client emails never leave your computer, or connect Claude, OpenAI or Gemini. Snippet: three small pills, _Local (Ollama)_ · _Claude_ · _OpenAI_.
 
 ## 5. Yellow statement band
 
@@ -97,7 +101,7 @@ Words fill in one by one as you scroll:
 
 ## 7. Footer
 
-- Logo plus `GetPaid`
+- The GetPaid stamp plus `GetPaid`
 - Links: How it works · Features · Dashboard
 - `© 2026 GetPaid`
 - No Privacy or Terms links until those pages exist.

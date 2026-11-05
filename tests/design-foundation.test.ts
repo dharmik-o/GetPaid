@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -53,11 +53,32 @@ describe("the bottom bar", () => {
 });
 
 describe("the logo", () => {
-  it("is a triangle drawn as a shape, so it can carry an outline in light mode", () => {
+  const css = readFileSync(join(SRC, "app", "globals.css"), "utf8");
+  const stamp = join(SRC, "..", "public", "getpaid-stamp.svg");
+
+  it("is the stamp, hidden from screen readers beside the written name", () => {
     const html = renderToStaticMarkup(createElement(Logo));
-    expect(html).toContain('class="logo-mark"');
-    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
-    expect(html).toContain("<path");
+    expect(html).toContain('<span class="logo-mark" aria-hidden="true"></span>');
+    expect(html).not.toContain("<path");
+  });
+
+  it("takes its shape from the stamp file and its colour from a token, so it suits each theme", () => {
+    expect(existsSync(stamp)).toBe(true);
+    const rule = /\.logo-mark \{[^}]*\}/.exec(css)?.[0] ?? "";
+    expect(rule).toContain('url("/getpaid-stamp.svg")');
+    expect(rule).toContain("var(--logo-ink)");
+  });
+
+  it("is a plain drawing, with nothing in it that could run or load", () => {
+    expect(readFileSync(stamp, "utf8")).not.toMatch(
+      /<script|<image|<foreignObject|href=|\son\w+=/i,
+    );
+  });
+
+  it("is also the browser tab's icon, from the same file", () => {
+    const layout = readFileSync(join(SRC, "app", "layout.tsx"), "utf8");
+    expect(layout).toContain('icons: { icon: "/getpaid-stamp.svg" }');
+    expect(existsSync(join(SRC, "app", "icon.svg"))).toBe(false);
   });
 });
 

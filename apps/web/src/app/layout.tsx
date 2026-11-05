@@ -14,6 +14,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
+  icons: { icon: "/getpaid-stamp.svg" },
   description: "Get paid on time: deposits, milestones and approved reminders with a PayPal link.",
 };
 

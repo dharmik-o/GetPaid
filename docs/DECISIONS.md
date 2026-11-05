@@ -599,7 +599,6 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **`--line` stays exactly as the mock has it,** so the old 1.6:1 floor for card borders no longer holds: #DDDDDD on #F4F4F4 is 1.24:1, and #2C2C2C on #141414 is 1.32:1. You replaced the borders section, and the kit marks `--line` as the card and table border while calling out its contrast, so I took that as deliberate. `tests/theme-contrast.test.ts` and `tests/e2e/theme.spec.ts` now use a floor of 1.2:1 for panels, which only catches a line that vanishes. Controls stay at 3:1. If cards look too faint to you, #3A3A3A and #C2C2C2 get back to 1.6:1, and it's a two-token change.
 - **The primary button's outline is a real border, not the kit's inset shadow.** It looks the same, and it's visible in Windows high-contrast mode. The e2e check that every button has a border now also accepts a fill that stands out at 3:1 by itself, which is yellow on black. On white, the black outline is still required.
 - **A test bug the black page exposed:** the e2e helper took any colour ending in ", 0)" as see-through, and that includes pure black, `rgb(0, 0, 0)`. It now checks alpha.
-- **The logo is drawn as an SVG,** not the kit's clipped box, because a clip-path cuts off an outline, and you asked for yellow fills to have the `--edge` outline in light mode.
 - **Theme toggle placement:** the app had no header, so there's now a slim one above the content. On desktop it holds only the toggle. On phones it also shows the logo, because the bottom bar has no room for it.
 - **Loading skeletons no longer shimmer.** The shimmer was a linear gradient, and the dot pattern is the only one allowed. They now breathe in flat colour, and stay still with reduced motion.
 - **Links keep an underline,** in `--accent-ink` rather than `--accent`, so it's visible on white. The kit's underline that grows on hover is for the landing page.
@@ -609,5 +608,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Clash Display is self-hosted** from Fontshare (Medium, Semibold, Bold). Its licence, `apps/web/public/fonts/ClashDisplay-LICENSE.txt`, allows self-hosting for your own site but not redistributing the font files, so the repo staying private matters (see `docs/NEEDS_YOU.md`). Semibold is preloaded, because it's the heading weight. Instrument Sans isn't, since its file names are hashed by the build.
 - **The e2e got stricter while moving:** the phone check now runs at 375px rather than 390px, any page error or sideways scroll fails it, and the font check reads whether each face really loaded. At 375px it found tables on Home and Client spilling out of their cards, so those two now use the existing `.table-scroll` wrapper, and phones get tighter card and cell padding.
 - **Still to tidy in the Project page's commit:** the milestone row actions stack on desktop, and between 760px and about 1100px the milestone table has less room than it needs. The check doesn't run at those widths.
-- **A favicon, the yellow triangle,** because the browser's request for one was a 404 on every page.
+- **The browser tab has an icon now,** because its request for one was a 404 on every page.
 - **Renaming:** "Payment Recovery" was on screen in only two places, the sidebar and the page title, and both now read `BRAND_NAME`.
+
+### The stamp is the logo (5 Nov 2026)
+
+- **Your call:** `getpaid-stamp-gold-clean.svg` replaces the yellow triangle as the app logo, which overrides the triangle in your redesign rules. The dotted triangles stay as the decoration, and the hero's separate Paid stamp on the landing page is unchanged. `docs/design/landing-copy.md` now says stamp too.
+- **The drawing is unchanged, but its colour depends on the theme.** Gold #FFC300 on white is about 1.6:1, and the rules ban yellow on white. A CSS mask takes the shape from the file and the colour from `--logo-ink`: your #FFC300 in dark, the brief's #875B00 ochre in light (6:1).
+- **The wordmark stays beside it,** at 48px. The stamp's inner lettering stops being readable below about 64px, and the written name keeps `BRAND_NAME` on screen.
+- **A rename now also needs a new stamp,** because "GETPAID" is part of the drawing. `BRAND_NAME` alone changes only the wordmark and the page title.
+- **One file for the logo and the tab icon,** `apps/web/public/getpaid-stamp.svg`. It's plain paths with no scripts or links, which a test checks. At 16px in a tab it reads as a gold seal rather than as words.

@@ -50,6 +50,7 @@ const OUTLINE_PAIRS: [string, string, string][] = [
   // Every input, select, secondary button and toggle sits on one of these, or is filled with one.
   ...onEverySurface("control border", "line-control"),
   ["danger border on a card", "danger", "surface"],
+  ["the logo on the page", "logo-ink", "bg"],
 ];
 
 describe.each([

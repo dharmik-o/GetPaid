@@ -43,7 +43,7 @@ The rules for the dashboard and landing page in `apps/web`. The look comes from 
 - **UpcomingList:** grouped by week; each row shows the type (maintenance / renewal / retainer), client, date and amount.
 - **StatusBadge:** the pill for a payment or milestone status. Takes the status, and always shows its label.
 - **DottedTriangle:** the brand's decoration (see below).
-- **Logo:** the yellow triangle and the name. The name lives in one constant, `BRAND_NAME` (`lib/brand.ts`).
+- **Logo:** the GetPaid stamp (`public/getpaid-stamp.svg`) and the name, replacing the mock's yellow triangle. The stamp is gold in dark mode and `--accent-ink` ochre in light, through `--logo-ink`. It's also the browser tab's icon. The name lives in one constant, `BRAND_NAME` (`lib/brand.ts`), but the stamp's lettering is part of the drawing, so a rename also needs a new stamp.
 - **ThemeToggle:** a 44px round button in the header, named "Switch to light mode" or "Switch to dark mode".
 
 ## Visual tokens

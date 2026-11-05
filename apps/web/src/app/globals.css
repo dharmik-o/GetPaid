@@ -39,6 +39,7 @@
   --accent-ink: #e8a800;
   --on-accent: #000000;
   --ink: #000000;
+  --logo-ink: #ffc300;
   --dots: #e8a800;
   --danger: #ff6b4a;
   --focus: #e8a800;
@@ -74,6 +75,7 @@
   --text: #000000;
   --muted: #565656;
   --accent-ink: #875b00;
+  --logo-ink: #875b00;
   --dots: #d39700;
   --danger: #b83a1c;
   --focus: #875b00;
@@ -211,15 +213,13 @@ h3 {
   gap: 10px;
 }
 
+/* The stamp file gives the shape and a token gives the colour: its gold is too faint on white. */
 .logo-mark {
   flex: none;
-}
-
-.logo-mark path {
-  fill: var(--accent);
-  stroke: var(--edge);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
+  width: 48px;
+  height: 48px;
+  background: var(--logo-ink);
+  mask: url("/getpaid-stamp.svg") center / contain no-repeat;
 }
 
 .logo-word {

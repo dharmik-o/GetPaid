@@ -232,6 +232,24 @@ test.describe("fonts", () => {
   });
 });
 
+test.describe("the logo", () => {
+  test("the stamp loads and shows beside the name, at both widths", async ({ page }) => {
+    const stamp = page.waitForResponse((response) => response.url().endsWith("/getpaid-stamp.svg"));
+    await page.goto("/settings", { waitUntil: "networkidle" });
+    expect((await stamp).ok()).toBe(true);
+    for (const [width, area] of [
+      [1280, ".sidebar"],
+      [375, ".app-header"],
+    ] as const) {
+      await page.setViewportSize({ width, height: 800 });
+      const mark = page.locator(`${area} .logo-mark`);
+      await expect(mark).toBeVisible();
+      expect((await mark.boundingBox())?.width).toBeGreaterThanOrEqual(40);
+      await expect(page.locator(`${area} .logo-word`)).toBeVisible();
+    }
+  });
+});
+
 test.describe("reduced motion", () => {
   test.use({ reducedMotion: "reduce" });
 
