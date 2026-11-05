@@ -54,6 +54,17 @@ test.describe("Home", () => {
 test.describe("Home on a phone", () => {
   test.use({ viewport: { width: 375, height: 844 } });
 
+  test("a table's caption runs the full width, instead of one word per line", async ({ page }) => {
+    await page.goto("/", { waitUntil: "networkidle" });
+    const caption = page.locator("main .table-stack caption").first();
+    await expect(caption).toBeVisible();
+    const lineHeight = await caption.evaluate((element) =>
+      parseFloat(getComputedStyle(element).lineHeight),
+    );
+    const box = await caption.boundingBox();
+    expect(box?.height).toBeLessThan(lineHeight * 2 + 24);
+  });
+
   test("tables become labelled rows, so no amount hides behind a scroll", async ({ page }) => {
     await page.goto("/", { waitUntil: "networkidle" });
     const amounts = page.locator('main .table-stack td[data-label="Amount"]');

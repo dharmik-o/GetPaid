@@ -1529,6 +1529,12 @@ button.chip:hover {
     width: 100%;
   }
 
+  .table-stack caption {
+    display: block;
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+  }
+
   .table-stack thead,
   .milestone-table thead {
     position: absolute;
