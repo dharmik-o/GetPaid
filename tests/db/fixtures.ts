@@ -18,6 +18,9 @@ export const OWNED_TABLES = [
   "retainer_alerts",
   "milestone_holds",
   "invoice_archive_files",
+  "calendar_entries",
+  "calendar_sources",
+  "calendar_events",
 ] as const;
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
@@ -84,4 +87,10 @@ export const seedOwnerSql = ({ label, userId: u, rows: r }: Owner): string => `
     VALUES ('${r.milestone_holds}', '${u}', '${r.milestones}', 90000, 'USD', 'voided');
   INSERT INTO public.invoice_archive_files (id, user_id, invoice_id, version, relative_path, sha256)
     VALUES ('${r.invoice_archive_files}', '${u}', '${r.invoices}', 1, 'Client ${label}/Website redesign/seed.pdf', '${"0".repeat(64)}');
+  INSERT INTO public.calendar_entries (id, user_id, title, starts_on, time_zone)
+    VALUES ('${r.calendar_entries}', '${u}', 'Call with client ${label}', '2026-12-02', 'UTC');
+  INSERT INTO public.calendar_sources (id, user_id, name, kind, url_enc, url_host)
+    VALUES ('${r.calendar_sources}', '${u}', 'Work', 'url', 'encrypted-${label}', 'calendar.example.test');
+  INSERT INTO public.calendar_events (id, user_id, source_id, uid, occurrence_start, all_day, title)
+    VALUES ('${r.calendar_events}', '${u}', '${r.calendar_sources}', 'uid-${label}', '2026-12-03T10:00:00Z', false, 'Imported meeting');
 `;

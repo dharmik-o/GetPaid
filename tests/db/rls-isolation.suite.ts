@@ -22,10 +22,17 @@ const actingAs = <T>(
     return work();
   });
 
-/** Events are append-only, and the archive nearly so: tests/api/invoice-archive.test.ts covers it. */
-const MUTABLE_TABLES = OWNED_TABLES.filter(
-  (table) => table !== "events" && table !== "invoice_archive_files",
-);
+/**
+ * Events are append-only, and the archive nearly so: tests/api/invoice-archive.test.ts covers it.
+ * The calendar source and event tables have no updated_at: tests/phase2/calendar-rls.test.ts covers them.
+ */
+const UNTOUCHED_BY_THIS_CHECK = new Set<string>([
+  "events",
+  "invoice_archive_files",
+  "calendar_sources",
+  "calendar_events",
+]);
+const MUTABLE_TABLES = OWNED_TABLES.filter((table) => !UNTOUCHED_BY_THIS_CHECK.has(table));
 
 /** The same isolation checks run on PGlite (npm test) and on Docker Postgres (npm run test:db:docker). */
 export const defineRlsIsolationSuite = (

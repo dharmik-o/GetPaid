@@ -841,3 +841,11 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **F9:** Contract clauses are fixed text in a built-in template, with options. The owner has a lawyer review it before real use.
 - **F10:** The lawyer pack is generated on demand and saved in the invoice archive folder; PDFs are joined with `pdf-lib`.
 - **P0:** No speech-to-text leftovers were found in compose files, scripts or `.env.example`; the only mentions are in the superseded `docs/PHASE2-meetings.md` (now marked) and two explanatory lines in the plans.
+
+### 2026-11-09: A1 choices
+
+- **Sending any of `clientId`, `projectId` or `milestoneId` when changing an entry replaces all three links.** The ones left out are cleared and then filled in from the most specific one sent (a milestone sets its project and client). Sending none keeps the links. This avoids a half-updated set (an old project beside a new milestone) and keeps the assistant's "move" (dates only) from touching links.
+- **An entry's `startsOn` in the feed is the date in the viewer's zone,** worked out from its own zone and start time; all-day entries keep their stored date. The entries query asks for a day more on each side so a timed entry near midnight isn't lost.
+- **The feed lists reminders whose source is an invoice, a maintenance task, a retainer or a hold,** each shown with its client when one can be found.
+- **`tests/db/fixtures.ts` has the three calendar tables,** so the existing RLS and schema suites cover them. The "update someone else's row" check sets `updated_at`, which the source and event tables don't have, so those two are covered in `tests/phase2/calendar-rls.test.ts` instead.
+- **Marking an entry done is `PATCH {"done": true}`,** handled by `markEntryDone`; any other body goes through `updateEntry`.
