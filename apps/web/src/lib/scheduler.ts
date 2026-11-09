@@ -62,7 +62,8 @@ const loadPlanRow = async (db: Db, invoiceId: string): Promise<PlanRow | undefin
 const loadHistory = async (db: Db, invoiceId: string): Promise<PastReminder[]> => {
   const { rows } = await db.query<{ tier: Tier; at: Date | string }>(
     `SELECT tier, coalesce(sent_at, scheduled_at) AS at FROM public.reminders
-     WHERE invoice_id = $1 AND (sent_at IS NOT NULL OR approval_status = 'skipped')`,
+     WHERE invoice_id = $1 AND tier <> 'final_demand'
+       AND (sent_at IS NOT NULL OR approval_status = 'skipped')`,
     [invoiceId],
   );
   return rows.map((row) => ({ tier: row.tier, at: new Date(row.at) }));

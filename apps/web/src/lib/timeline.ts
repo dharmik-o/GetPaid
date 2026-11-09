@@ -63,6 +63,7 @@ const SENT_NAMES: Record<string, string> = {
   hold_approval: "Hold approval email sent",
   agreement_request: "Agreement sent for signature",
   agreement_signed_copy: "Signed agreement sent to the client",
+  final_demand: "Final demand letter sent",
 };
 
 const APPROVED_VIA: Record<string, string> = {

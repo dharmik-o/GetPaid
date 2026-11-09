@@ -20,7 +20,7 @@ export type OutboxItem = {
   /** "Website · Build · FPR-000042 · Installment 2 of 3" */
   what: string;
   amountDue: string;
-  tier: Tier | StandaloneTier;
+  tier: Tier | StandaloneTier | "final_demand";
   /** Both zones; null for a skipped draft, which has no send time. */
   sendTime: string | null;
   /** The send time as the reschedule input's value, in the client's zone. */
@@ -57,7 +57,7 @@ const LIST_LIMIT = 200;
 
 type Row = {
   id: string;
-  tier: Tier | StandaloneTier;
+  tier: Tier | StandaloneTier | "final_demand";
   approval_status: "waiting" | "approved" | "skipped";
   chat_id: string | null;
   message_id: string | null;

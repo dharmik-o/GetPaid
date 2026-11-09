@@ -18,7 +18,15 @@ const TIER_LABELS: Record<OutboxItem["tier"], string> = {
   hold_approval: "Hold approval",
   agreement_request: "Agreement to sign",
   agreement_signed_copy: "Signed agreement copy",
+  final_demand: "Final demand letter",
 };
+
+/** Emails whose wording is fixed and checked against facts: they can be skipped, not edited. */
+const FIXED_TEXT_KINDS: ReadonlySet<string> = new Set([
+  "final_demand",
+  "agreement_request",
+  "agreement_signed_copy",
+]);
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -251,15 +259,17 @@ const Buttons = ({
           >
             Approve and send
           </button>
-          <button
-            className="button button-secondary"
-            type="button"
-            onClick={() => {
-              setMode("edit");
-            }}
-          >
-            Edit
-          </button>
+          {FIXED_TEXT_KINDS.has(item.tier) ? null : (
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => {
+                setMode("edit");
+              }}
+            >
+              Edit
+            </button>
+          )}
         </>
       ) : null}
       {item.blockedReason === "unknown_outcome" ? (

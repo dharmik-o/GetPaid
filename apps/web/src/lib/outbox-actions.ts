@@ -57,6 +57,11 @@ const requestFor = async (
   now: Date,
   laws: readonly Law[],
 ): Promise<DraftRequest | string | undefined> => {
+  const { rows: kind } = await db.query<{ tier: string }>(
+    "SELECT tier FROM public.reminders WHERE id = $1",
+    [id],
+  );
+  if (kind[0]?.tier === "final_demand") return FIXED_LETTER;
   const ctx = await loadReminderContext(db, id);
   if (!ctx) {
     const other = await loadStandaloneContext(db, id);
@@ -68,6 +73,9 @@ const requestFor = async (
   }
   return { kind: ctx.tier, facts: reminderFacts(ctx, now, ctx.invoice.link, laws) };
 };
+
+const FIXED_LETTER =
+  "A final demand letter can't be edited: its amounts and statements are checked against the facts. Skip it and make a new one.";
 
 const FIXED_TEXT =
   "This email is fixed text, so it can't be edited. Skip it and send the agreement again if it needs changing.";
