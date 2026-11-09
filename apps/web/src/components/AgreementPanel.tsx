@@ -33,6 +33,12 @@ export const AgreementPanel = ({
             {a.number} version {a.version}{" "}
             <StatusBadge status={a.status}>{LABELS[a.status] ?? a.status}</StatusBadge>{" "}
             <span className="muted">{formatDay(a.createdAt.slice(0, 10))}</span>
+            {a.status === "signed" ? (
+              <>
+                {" "}
+                <a href={`/api/agreements/${a.id}/pdf`}>Signed PDF</a>
+              </>
+            ) : null}
           </li>
         ))}
       </ul>

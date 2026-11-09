@@ -55,6 +55,7 @@ export const AgreementBuilder = ({
   const [problem, setProblem] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [signName, setSignName] = useState("");
 
   const set = <K extends keyof BuilderValues>(key: K, value: BuilderValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -276,6 +277,41 @@ export const AgreementBuilder = ({
               </button>
             ) : null}
           </div>
+          {agreement ? (
+            <div className="field">
+              <label htmlFor="ag-signName">Send for signature</label>
+              <input
+                id="ag-signName"
+                value={signName}
+                placeholder="Your full name"
+                maxLength={160}
+                onChange={(e) => {
+                  setSignName(e.target.value);
+                }}
+              />
+              <div className="field-hint">
+                Typing your name signs the agreement for you. This sends the saved draft, so save
+                first. The document is then frozen, and an email with the signing link waits in your
+                Outbox. Nothing goes to the client until you approve that email.
+              </div>
+              <button
+                className="button"
+                type="button"
+                disabled={busy || signName.trim().length < 2}
+                onClick={() => {
+                  void run(
+                    () =>
+                      post(`/api/agreements/${agreement.id}/send`, "POST", {
+                        freelancerSignedName: signName,
+                      }),
+                    "Sent to your Outbox. Approve the email there to send it to the client.",
+                  );
+                }}
+              >
+                Send for signature
+              </button>
+            </div>
+          ) : null}
         </form>
       ) : (
         <div className="actions">

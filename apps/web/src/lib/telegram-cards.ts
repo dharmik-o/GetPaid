@@ -105,8 +105,9 @@ const sentNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
      LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
      LEFT JOIN public.milestone_holds h ON h.id = r.hold_id
      LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id)
-     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
+     LEFT JOIN public.agreements ag ON ag.id = r.agreement_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id, ag.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id, ag.client_id)
      WHERE r.sent_at IS NOT NULL AND r.telegram_sent_notified_at IS NULL
        AND r.telegram_message_id IS NOT NULL AND u.telegram_chat_id IS NOT NULL`,
   );
@@ -210,6 +211,48 @@ const holdNotices = async (db: Db): Promise<TelegramOp[]> => {
       amountCents: toCents(row.amount_cents),
       currency: row.currency,
     }),
+  }));
+};
+
+const DECLINE_QUOTE_MAX = 300;
+
+/** An agreement the client signed or declined, once. The reason is the client's own words, shown as plain text. */
+const agreementNotices = async (db: Db, now: Date): Promise<TelegramOp[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    status: "signed" | "declined";
+    number: string;
+    chat_id: string;
+    client_name: string;
+    project_title: string;
+    decline_reason: string | null;
+  }>(
+    `SELECT a.id::text, a.status, a.number, u.telegram_chat_id::text AS chat_id,
+       c.name AS client_name, p.title AS project_title, a.decline_reason
+     FROM public.agreements a
+     JOIN public.users u ON u.id = a.user_id
+     JOIN public.clients c ON c.id = a.client_id
+     JOIN public.projects p ON p.id = a.project_id
+     WHERE a.status IN ('signed', 'declined') AND a.telegram_notified_at IS NULL
+       AND u.telegram_chat_id IS NOT NULL
+     ORDER BY a.updated_at LIMIT 50`,
+  );
+  if (rows.length === 0) return [];
+  await db.query("UPDATE public.agreements SET telegram_notified_at = $1 WHERE id = ANY($2::uuid[])", [
+    now.toISOString(),
+    rows.map((row) => row.id),
+  ]);
+  return rows.map((row) => ({
+    op: "sendText",
+    chatId: Number(row.chat_id),
+    text:
+      row.status === "signed"
+        ? `${row.client_name} signed agreement ${row.number} for ${row.project_title}. The signed PDF is in your invoice archive, and the email with a copy for the client is waiting in the Outbox for your approval.`
+        : `${row.client_name} declined agreement ${row.number} for ${row.project_title}.${
+            row.decline_reason
+              ? ` Their reason: "${row.decline_reason.slice(0, DECLINE_QUOTE_MAX)}"`
+              : ""
+          }`,
   }));
 };
 
@@ -321,6 +364,7 @@ export const telegramRun = async (
   ...(await reconnectNotices(db, now)),
   ...(await retainerAlerts(db, now)),
   ...(await holdNotices(db)),
+  ...(await agreementNotices(db, now)),
   ...(await replyCards(db, now)),
   ...(await sentNotices(db, now)),
   ...(await closeHandled(db, now)),

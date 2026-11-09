@@ -85,6 +85,8 @@ const TIER_LABEL: Record<string, string> = {
   maintenance: "Maintenance reminder",
   auto_pay_approval: "Auto-pay approval email",
   hold_approval: "Hold approval email",
+  agreement_request: "Agreement email",
+  agreement_signed_copy: "Signed agreement email",
 };
 
 /** True when both are real dates and `to` is not before `from` or more than 400 days after it. */
@@ -232,7 +234,7 @@ const loadReminders = async (db: Db, range: FeedRange): Promise<CalendarItem[]> 
   }>(
     `WITH rem AS (
        SELECT rm.id, rm.tier, rm.scheduled_at, rm.approval_status,
-         coalesce(im.project_id, mt.project_id, hm.project_id, ir.project_id, rr.project_id) AS project_id,
+         coalesce(im.project_id, mt.project_id, hm.project_id, ir.project_id, rr.project_id, ag.project_id) AS project_id,
          coalesce(ir.client_id, rr.client_id) AS retainer_client_id
        FROM public.reminders rm
        LEFT JOIN public.invoices i ON i.id = rm.invoice_id
@@ -242,6 +244,7 @@ const loadReminders = async (db: Db, range: FeedRange): Promise<CalendarItem[]> 
        LEFT JOIN public.retainers rr ON rr.id = rm.retainer_id
        LEFT JOIN public.milestone_holds h ON h.id = rm.hold_id
        LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
+       LEFT JOIN public.agreements ag ON ag.id = rm.agreement_id
        WHERE rm.sent_at IS NULL AND rm.approval_status IN ('waiting', 'approved')
          AND rm.scheduled_at >= $1 AND rm.scheduled_at < $2
      )
@@ -380,6 +383,37 @@ const loadHolds = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
 };
 
 /** Events from imported calendars that are switched on. All-day events keep their date, whatever the zone. */
+/** The last day a sent agreement can be signed: its link stops working then. */
+const loadAgreementDeadlines = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    number: string;
+    token_expires_at: unknown;
+    project_id: string;
+    client_id: string;
+    client_name: string;
+  }>(
+    `SELECT a.id::text, a.number, a.token_expires_at, a.project_id::text, c.id::text AS client_id,
+       c.name AS client_name
+     FROM public.agreements a JOIN public.clients c ON c.id = a.client_id
+     WHERE a.status = 'sent' AND a.token_expires_at IS NOT NULL`,
+  );
+  return rows
+    .map((row): CalendarItem => ({
+      ...base,
+      key: `agreement:${row.id}`,
+      type: "agreement_deadline",
+      title: `Last day to sign: agreement ${row.number} (${row.client_name})`,
+      startsOn: dateIn(toIso(row.token_expires_at), range.zone),
+      clientId: row.client_id,
+      clientName: row.client_name,
+      projectId: row.project_id,
+      status: "sent",
+      href: `/projects/${row.project_id}/agreement`,
+    }))
+    .filter((item) => inRange(item.startsOn, range));
+};
+
 const loadImported = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
   const { rows } = await db.query<{
     id: string;
@@ -452,6 +486,7 @@ export const calendarItems = async (db: Db, range: FeedRange): Promise<CalendarI
     await loadMaintenance(db, range),
     await loadRetainers(db, range),
     await loadHolds(db, range),
+    await loadAgreementDeadlines(db, range),
     await loadImported(db, range),
   ];
   return lists.flat().sort(byStart);

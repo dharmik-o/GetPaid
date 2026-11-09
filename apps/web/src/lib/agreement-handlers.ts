@@ -1,15 +1,18 @@
 import { z } from "zod";
+import { readSignedPdf } from "./agreement-pdf";
 import {
   createDraft,
   getAgreement,
   listAgreements,
   newVersion,
   previewAgreement,
+  sendAgreement,
   updateDraft,
   voidAgreement,
   type Context,
   type Failure,
   type Saved,
+  type SendDeps,
 } from "./agreements";
 import { isUuid, type Db, type UserDbRunner } from "./db";
 import { toFieldIssues } from "./field-issues";
@@ -19,7 +22,12 @@ import { logEvent } from "./log";
 // Server-only: the /api/agreements route handlers. `runAsUser` and the clock and law table are
 // injected so tests drive the same code against an in-memory database with real row-level security.
 
-type Deps = { runAsUser: UserDbRunner; context: () => Context };
+type Deps = {
+  runAsUser: UserDbRunner;
+  context: () => Context;
+  send: () => SendDeps;
+  archiveDir: () => string;
+};
 type IdContext = { params: Promise<{ id: string }> };
 
 const AGREEMENT = "Agreement";
@@ -38,7 +46,7 @@ const failure = (result: Failure): Response => {
   return notFound(AGREEMENT);
 };
 
-export const agreementHandlers = ({ runAsUser, context }: Deps) => {
+export const agreementHandlers = ({ runAsUser, context, send, archiveDir }: Deps) => {
   const saved = (event: string, result: Saved, status = 200): Response => {
     if (!result.ok) return failure(result);
     logEvent(event, { agreementId: result.agreement.id });
@@ -118,6 +126,41 @@ export const agreementHandlers = ({ runAsUser, context }: Deps) => {
         return saved("agreements.updated", result);
       } catch (error) {
         return serverError("agreements.update", error);
+      }
+    },
+
+    send: async (request: Request, { params }: IdContext): Promise<Response> => {
+      const { id } = await params;
+      if (!isUuid(id)) return notFound(AGREEMENT);
+      const read = await readJson(request);
+      if (!read.ok) return read.response;
+      try {
+        const result = await runAsUser((db) => sendAgreement(db, id, read.body, context(), send()));
+        return saved("agreements.sent", result);
+      } catch (error) {
+        return serverError("agreements.send", error);
+      }
+    },
+
+    /** The signed PDF, for the agreement's owner only. */
+    pdf: async (_request: Request, { params }: IdContext): Promise<Response> => {
+      const { id } = await params;
+      if (!isUuid(id)) return notFound(AGREEMENT);
+      try {
+        const found = await runAsUser(async (db) => {
+          const agreement = await getAgreement(db, id);
+          return agreement?.status === "signed" ? agreement : undefined;
+        });
+        const bytes = found ? await readSignedPdf(archiveDir(), found.signedPdfPath) : undefined;
+        if (!found || !bytes) return notFound("Signed PDF");
+        return new Response(new Uint8Array(bytes), {
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": `inline; filename="${found.number}-v${String(found.version)}-signed.pdf"`,
+          },
+        });
+      } catch (error) {
+        return serverError("agreements.pdf", error);
       }
     },
 

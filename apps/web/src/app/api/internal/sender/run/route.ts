@@ -2,6 +2,7 @@ import { appNow } from "@/lib/clock";
 import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { devEmailAllowlist, gmailOAuthEnv, internalApiToken } from "@/lib/env";
+import { signedPdfFile } from "@/lib/agreement-pdf";
 import { renderPdf } from "@/lib/invoice-pdf";
 import { defaultArchiveDir } from "@/lib/archive-paths";
 import { markArchiveSent, stageInArchive } from "@/lib/invoice-archive";
@@ -28,6 +29,8 @@ const handler = senderHandler({
       },
       invoiceId,
     ),
+  signedPdf: (userId, agreementId) =>
+    withUserDb(userId)((db) => signedPdfFile(db, defaultArchiveDir(), agreementId)),
   archive: {
     stage: (userId, invoiceId, file) =>
       stageInArchive({ runAsUser: withUserDb(userId), dir: defaultArchiveDir() }, invoiceId, file),

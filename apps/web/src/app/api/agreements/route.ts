@@ -1,12 +1,4 @@
-import { agreementHandlers } from "@/lib/agreement-handlers";
-import { appNow } from "@/lib/clock";
-import { runAsCurrentUser } from "@/lib/request-user";
-import { STATUTES } from "@/lib/statutes";
-
-const handlers = agreementHandlers({
-  runAsUser: runAsCurrentUser,
-  context: () => ({ now: appNow(), laws: STATUTES }),
-});
+import { handlers } from "@/lib/agreement-runtime";
 
 export const GET = handlers.list;
 export const POST = handlers.create;

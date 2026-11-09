@@ -101,7 +101,7 @@ const prepare = (
       if (!other) return { status: "not_found" };
       if (other.approvalStatus !== "waiting") return { status: "handled" };
       if (other.hasDraft) return { status: "exists" };
-      if (other.stopReason) return { status: "handled" };
+      if (other.stopReason || !other.request) return { status: "handled" };
       return {
         request: other.request,
         connections: await loadAiConnections(db, "draft", deps.box()),

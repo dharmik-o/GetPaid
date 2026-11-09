@@ -88,7 +88,13 @@ const SELECT = `
     i.reminders_paused_until::text AS paused_until,
     m.name AS milestone_name, rt.name AS retainer_name, m.deliverable,
     m.settings AS milestone_settings,
-    p.title, p.contract_terms, p.late_fee_clause, p.settings AS project_settings,
+    p.title, p.contract_terms,
+    coalesce(
+      (SELECT ag.facts ->> 'lateFeeClauseText' FROM public.agreements ag
+       WHERE ag.project_id = p.id AND ag.status = 'signed'
+       ORDER BY ag.version DESC LIMIT 1),
+      p.late_fee_clause) AS late_fee_clause,
+    p.settings AS project_settings,
     c.name AS client_name, c.country, c.time_zone, c.region, c.is_business, c.settings AS client_settings,
     u.name AS freelancer_name, u.udyam_number IS NOT NULL AS has_udyam, u.default_settings AS account_settings
   FROM public.reminders r

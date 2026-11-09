@@ -59,7 +59,8 @@ const requestFor = async (
 ): Promise<DraftRequest | string | undefined> => {
   const ctx = await loadReminderContext(db, id);
   if (!ctx) {
-    return (await loadStandaloneContext(db, id))?.request;
+    const other = await loadStandaloneContext(db, id);
+    return other && (other.request ?? FIXED_TEXT);
   }
   const reason = notPayable(ctx);
   if (reason || !ctx.invoice.link) {
@@ -67,6 +68,9 @@ const requestFor = async (
   }
   return { kind: ctx.tier, facts: reminderFacts(ctx, now, ctx.invoice.link, laws) };
 };
+
+const FIXED_TEXT =
+  "This email is fixed text, so it can't be edited. Skip it and send the agreement again if it needs changing.";
 
 /** A reason this draft can't go to the client now, or undefined when it can. */
 const cannotSend = (ctx: ReminderContext, draft: StoredDraft): string | undefined => {
@@ -104,6 +108,8 @@ export const approveDraft = async (
     if (other.requiredLink && !draft.data.body.includes(other.requiredLink)) {
       return conflict("This draft doesn't carry its link. Edit it to include the link.");
     }
+    const bad = other.bodyProblem?.(draft.data.body);
+    if (bad) return conflict(`This draft can't go out: ${bad}. Skip it.`);
   }
   const { rowCount } = await db.query(
     `UPDATE public.reminders SET approval_status = 'approved', approved_via = $2
