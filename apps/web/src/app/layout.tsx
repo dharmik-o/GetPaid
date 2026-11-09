@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { DemoClockBanner } from "@/components/DemoClockBanner";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
@@ -33,7 +34,16 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
     </head>
     <body>
       <ThemeProvider>
-        <AppShell banner={<DemoClockBanner />}>{children}</AppShell>
+        <AppShell
+          banner={
+            <>
+              <DemoModeBanner />
+              <DemoClockBanner />
+            </>
+          }
+        >
+          {children}
+        </AppShell>
       </ThemeProvider>
     </body>
   </html>

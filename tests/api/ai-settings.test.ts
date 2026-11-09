@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { aiSettingsHandlers } from "@/lib/ai-settings-handlers";
 import { createSecretBox } from "@/lib/crypto";
 import { runAsUser, type UserDbRunner } from "@/lib/db";
@@ -259,5 +259,37 @@ describe("PUT /api/settings/ai", () => {
   it("doesn't touch another user's settings", async () => {
     await put({ main: ollama, cloudFallback: null });
     expect((await rows(USER_B.userId)).map((r) => r.model)).toEqual(["mock"]);
+  });
+});
+
+describe("PUT /api/settings/ai on the public demo", () => {
+  const demo = () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEMO_MODE", "true");
+  };
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each(["http://postgres:5432/v1", "http://n8n:5678/v1", "https://evil.example.com/v1"])(
+    "refuses a custom URL of %s",
+    async (baseUrl) => {
+      demo();
+      const errors = await errorsOf(
+        await put({
+          main: { provider: "custom", baseUrl, model: "m1", isLocal: true },
+          cloudFallback: null,
+        }),
+      );
+      expect(errors[0]?.field).toBe("main.baseUrl");
+      expect(await rows()).toEqual([]);
+    },
+  );
+
+  it("still saves a known provider", async () => {
+    demo();
+    expect(
+      (await put({ main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null })).status,
+    ).toBe(200);
   });
 });
