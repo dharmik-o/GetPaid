@@ -7,19 +7,30 @@ import {
   updateEntry,
 } from "./calendar-entries";
 import { calendarItems, MAX_RANGE_DAYS, validRange } from "./calendar-feed";
+import { appNow } from "./clock";
 import { isUuid, type UserDbRunner } from "./db";
+import { appPublicUrl } from "./env";
 import { fieldErrors, jsonResponse, noContent, notFound, readJson, serverError } from "./http";
+import { toIcs } from "./ics";
 import { logEvent } from "./log";
+import { addCalendarDays, todayIn } from "./schedule";
 
 // Server-only: the /api/calendar route handlers. `runAsUser` is injected so tests can drive the same
 // code against an in-memory database with real row-level security.
 
-type Deps = { runAsUser: UserDbRunner };
+type Deps = {
+  runAsUser: UserDbRunner;
+  now?: () => Date;
+  appUrl?: () => string | undefined;
+};
 type IdContext = { params: Promise<{ id: string }> };
 
 const ENTRY = "Calendar entry";
 
-export const calendarHandlers = ({ runAsUser }: Deps) => ({
+const EXPORT_DAYS_BACK = 30;
+const EXPORT_DAYS_AHEAD = 365;
+
+export const calendarHandlers = ({ runAsUser, now = appNow, appUrl = appPublicUrl }: Deps) => ({
   items: async (request: Request): Promise<Response> => {
     const params = new URL(request.url).searchParams;
     const from = params.get("from") ?? "";
@@ -39,6 +50,41 @@ export const calendarHandlers = ({ runAsUser }: Deps) => ({
       return jsonResponse({ items });
     } catch (error) {
       return serverError("calendar.list_failed", error);
+    }
+  },
+
+  /** The .ics file: today minus 30 days to today plus 365 by default; notes only with notes=1. */
+  exportIcs: async (request: Request): Promise<Response> => {
+    const params = new URL(request.url).searchParams;
+    const wantsNotes = params.get("notes") === "1";
+    try {
+      const body = await runAsUser(async (db) => {
+        const zone = await getOwnTimeZone(db);
+        const today = todayIn(now(), zone);
+        const from = params.get("from") ?? addCalendarDays(today, -EXPORT_DAYS_BACK);
+        const to = params.get("to") ?? addCalendarDays(today, EXPORT_DAYS_AHEAD);
+        if (!validRange(from, to)) return null;
+        const items = await calendarItems(db, { from, to, zone });
+        return toIcs(items, { notes: wantsNotes, now: now(), appUrl: appUrl() });
+      });
+      if (body === null) {
+        return fieldErrors([
+          {
+            field: "from",
+            message: `and to must be dates like 2026-12-31, with to no more than ${String(MAX_RANGE_DAYS)} days after from`,
+          },
+        ]);
+      }
+      logEvent("calendar.exported", { notes: wantsNotes });
+      return new Response(body, {
+        headers: {
+          "content-type": "text/calendar; charset=utf-8",
+          "content-disposition": `attachment; filename="getpaid-calendar.ics"`,
+          "cache-control": "no-store",
+        },
+      });
+    } catch (error) {
+      return serverError("calendar.export_failed", error);
     }
   },
 

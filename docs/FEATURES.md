@@ -139,7 +139,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
   - Done when: `GET /api/calendar?from=&to=` returns entries plus every app-made date in range.
 - [x] **A2 Calendar screens:** `/calendar` (month view and 30-day agenda), `/calendar/new`, `/calendar/[id]`, sidebar link, "Add to calendar" on milestones, entries on Home, the Telegram morning nudge.
   - Done when: entries can be added, edited, marked done, deleted and linked to a milestone; app-made dates open their own pages.
-- [ ] **A3 Export:** `.ics` export, Google and Outlook links.
+- [x] **A3 Export:** `.ics` export, Google and Outlook links.
   - Done when: the exported file imports into Google Calendar (the owner checks; see `docs/NEEDS_YOU.md`).
 - [ ] **A4 Import:** guarded fetch, ICS parsing, sources screen, 30-minute sync workflow.
   - Done when: a Google secret iCal address shows its events (including recurring ones) on the calendar and refreshes on schedule.
