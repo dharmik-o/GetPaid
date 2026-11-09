@@ -11,6 +11,11 @@ if (!process.env.E2E_FAKE_URL && existsSync(rootEnvFile)) process.loadEnvFile(ro
 // The project's agent rules live in CLAUDE.md; don't let `next dev` write an AGENTS.md.
 /** @type {import('next').NextConfig} */
 // NEXT_DIST_DIR gives the E2E's server a build folder of its own, beside your dev server's.
-const nextConfig = { agentRules: false, distDir: process.env.NEXT_DIST_DIR ?? ".next" };
+// "standalone" makes `next build` write a small self-contained server for the production container.
+const nextConfig = {
+  agentRules: false,
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  output: "standalone",
+};
 
 export default nextConfig;

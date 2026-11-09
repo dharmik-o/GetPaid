@@ -796,3 +796,15 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The Local AI section is its own card on Settings > AI,** not tied to the picked preset, so the status is visible before you choose Ollama. Downloaded models also appear as suggestions in the model field when Ollama is picked.
 - **`LOCAL_AI_URL` is read on the server** and handed to the form, which fills the Ollama preset's base URL as `${LOCAL_AI_URL}/v1`. The preset in `ai-presets.ts` keeps its fixed default for the client-safe file.
 - **`isDemoMode` lives in `lib/demo-gate.ts`** (production and `DEMO_MODE=true`), which D3 extends with the password gate.
+
+### 2026-11-09: D2 choices
+
+- **Two things the standalone build doesn't copy, so the Dockerfile does.** The invoice fonts are read from `node_modules/@fontsource` at run time, and `playwright-core` reads its own `browsers.json`. File tracing sees neither. Found by running PDFs inside the container, which failed until `playwright-core` was copied whole.
+- **`.dockerignore` uses `**/.data` and `**/invoice-archive`.** The first version used `.data`, which only matches the repo root, and my local invoice PDFs from `apps/web/.data` were baked into the image. Caught by listing the container's folders; nothing was pushed. The server builds from a git clone, where those folders are gitignored, but the ignore file no longer relies on that.
+- **Chromium comes from the image, with no `CHROMIUM_PATH`.** The official Playwright image sets `PLAYWRIGHT_BROWSERS_PATH`, and `chromium.launch` finds it as it is. The image tag must equal the `playwright-core` version (a comment in the Dockerfile says so).
+- **The web container's `DATABASE_URL` is replaced in `docker-compose.prod.yml`,** because the env file's value points at 127.0.0.1 for migrations run from the server's shell.
+- **`INVOICE_PDF_DIR=/data/pdfs` and `INVOICE_ARCHIVE_DIR=/data/invoices`** on one `web_data` volume. The plan also lists "meeting uploads", which were dropped with Part B.
+- **A health check on the web container** (`/welcome`) lets Caddy wait for it and makes `--wait` mean something.
+- **Postgres and n8n keep the base file's `127.0.0.1` ports,** so the production file doesn't repeat them. Ollama's and LiteLLM's ports are removed with `!reset`.
+- **Caddy is pinned to 2.11.9** (the newest 2.x tag found on 9 Nov 2026).
+- **Checked on a separate Compose project (`getpaidcheck`) on spare ports,** with fake settings and a replaced env file, because the plan's literal command would have recreated the dev stack's n8n and Postgres and clashed with their ports.
