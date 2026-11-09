@@ -1,0 +1,86 @@
+# Production (the public demo server). Used on top of the local file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
+# Only Caddy listens publicly (80 and 443). Postgres and n8n stay on 127.0.0.1 from the base
+# file, for the owner's SSH access; Ollama and LiteLLM publish nothing and are reached by name.
+# Set DOMAIN=localhost to try the whole stack on one machine (Caddy then uses a local certificate).
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      # The container reaches Postgres by service name. The env file's own DATABASE_URL points at
+      # 127.0.0.1, for migrations run from the server's shell, so it is replaced here.
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the server env file (see .env.example)}@postgres:5432/${POSTGRES_DB:-payment_recovery}
+      LOCAL_AI_URL: http://ollama:11434
+      INVOICE_ARCHIVE_DIR: /data/invoices
+      INVOICE_PDF_DIR: /data/pdfs
+    volumes:
+      - web_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/welcome').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      default:
+        # n8n's workflows call http://host.docker.internal:3000 (decision E6): here that is the web
+        # container, so the same workflow files work in development and production.
+        aliases:
+          - host.docker.internal
+
+  caddy:
+    image: caddy:2.11.9
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in the server env file, for example getpaid-demo.duckdns.org}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      n8n:
+        condition: service_healthy
+    restart: unless-stopped
+
+  n8n:
+    environment:
+      WEBHOOK_URL: https://${DOMAIN:?Set DOMAIN in the server env file}/
+      N8N_PROTOCOL: https
+      N8N_HOST: ${DOMAIN}
+      N8N_SECURE_COOKIE: "true"
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  ollama:
+    ports: !reset []
+    restart: unless-stopped
+
+  litellm:
+    ports: !reset []
+    restart: unless-stopped
+
+volumes:
+  web_data:
+  caddy_data:
+  caddy_config:

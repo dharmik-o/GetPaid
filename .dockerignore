@@ -1,0 +1,18 @@
+# Keep secrets, git history and bulk out of the build context. The server's env file is made on the
+# server and read by Compose at run time; it must never end up in an image.
+.git
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.next
+**/.next-*
+# Client data from development, wherever it sits (apps/web/.data is where PDFs are saved).
+**/.data
+**/invoice-archive
+deploy/backups
+promo
+test-results
+playwright-report
+coverage
+*.log
