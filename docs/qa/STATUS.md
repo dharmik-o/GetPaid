@@ -1,0 +1,10 @@
+# QA status board
+
+One row per step. Both builder and tester update it (see `docs/PARALLEL-WORKFLOW.md`). Solo mode: one session does both, on the main folder.
+
+| Step | Branch | Built | QA | Merged | Notes |
+| --- | --- | --- | --- | --- | --- |
+| D1 | feat/D1-optional-components | | | | |
+| D2 | feat/D2-prod-containers | | | | |
+| D3 | feat/D3-demo-gate | | | | |
+| D4 | feat/D4-runbook | | | | |
