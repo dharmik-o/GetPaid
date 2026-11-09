@@ -102,7 +102,7 @@ Run `npm run env:check` to check your file. It prints variable names only, never
 docker compose up -d --wait
 ```
 
-This starts Postgres, n8n (http://localhost:5678) and LiteLLM (http://localhost:4000), and returns once their health checks pass. Every port binds to `127.0.0.1`.
+This starts Postgres and n8n (http://localhost:5678), and returns once their health checks pass. Every port binds to `127.0.0.1`. Ollama and the LiteLLM gateway are optional and start only on request (`npm run local-ai:on`, `npm run gateway:on`).
 
 ### 5. Set up the database
 
@@ -160,11 +160,10 @@ curl -X POST http://127.0.0.1:3000/api/internal/scheduler/run -H "Authorization:
 ### 9. Optional: a local model with Ollama
 
 ```bash
-docker compose --profile ollama up -d --wait
-docker compose exec ollama ollama pull llama3.2
+npm run local-ai:on
 ```
 
-In **Settings > AI**, pick **Ollama (local)**, enter the model `llama3.2`, save, and press **Test connection**. To use Claude or another cloud model, pick its preset and enter your key. Keys are encrypted at rest and never sent back to the browser. With no model set, drafts come from the fixed templates.
+This downloads the Ollama image (about 1.5 GB) once. Then in **Settings > AI**, press **Download llama3.2** under Local AI, pick **Ollama (local)**, choose the model, save, and press **Test connection**. To use Claude or another cloud model, pick its preset and enter your key. Keys are encrypted at rest and never sent back to the browser. With no model set, drafts come from the fixed templates.
 
 ## Run the demo
 

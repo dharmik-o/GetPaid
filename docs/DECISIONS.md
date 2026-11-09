@@ -659,6 +659,7 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **It's a button that shows a list of links, not an ARIA `role="menu"`,** because this is navigation. Tab moves through the links, Escape closes it and puts focus back on More, and a tap elsewhere closes it.
 - **More shows the yellow bar on a page inside it,** so the bar always shows where you are.
 - **It's the first thing to use `--shadow-pop`,** and it opens as your design guide says: up 24px on the spring, closing in 0.18s, and simply appearing with reduced motion.
+
 ### Home restyle (5 Nov 2026)
 
 - **"Amount recovered" gets a line of its own, at the brief's big-amount size.** The other three tiles share the row below, so it isn't a grid of equals. On a phone it's 36px, and very long amounts wrap instead of spilling.
@@ -668,16 +669,19 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Pages fade in with an 8px shift, from CSS.** It needs no JavaScript and is off with reduced motion, so Motion stays for the things CSS can't do.
 - **Banners are spaced by one rule now,** and a banner with a button puts the button on the right.
 - **The e2e checks more:** any card or tile whose contents overflow it now fails on all 17 pages, in both themes, at both widths.
+
 ### Outbox restyle (5 Nov 2026)
 
 - **A handled draft collapses away, and a new one opens up, through one small `AnimatedList`.** Nothing animates on page load, or when you change tab, so the page stays calm. It uses `height`, which the brief otherwise rules out, because the brief asks for exactly this on list add and remove. The motion lasts 0.18s to 0.3s, and is off with reduced motion.
 - **The amount on a draft is in the heading font,** so what you're approving reads first. The tier chip and send time now sit in one row that wraps.
 - **Tested with a real payment:** with the Outbox open, the invoice's webhook arrives, and its draft collapses away by itself on the next refresh.
+
 ### Clients restyle (5 Nov 2026)
 
 - **A bug the redesign showed up:** Open balance was meant to be left-aligned, but `.money`'s `!important` beat the inline style, so it sat alone on the right. It now uses its own `balance-value` class, in the heading font.
 - **The timeline has the brief's dotted line** behind its icons, replacing the row dividers, so it reads as one history.
 - **On phones, the label-and-value list stacks,** so a long email address has the full width, and the client and project tables become labelled rows.
+
 ### Projects restyle (5 Nov 2026)
 
 - **Milestone tables stack below 1200px, not only on phones.** They have six columns of fields, and beside the 240px sidebar there isn't room for them on a small laptop or tablet. Tested at 768, 1000, 1200, 1280 and 1440px, as the theme checks only cover 375 and 1280.
@@ -685,13 +689,16 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **A form's step headings ("1. Details") are 18px,** because they sit under the card's own 22px title. 18px isn't in the brief's type scale, but with the same size for both, the hierarchy disappears.
 - **An empty cell on a stacked row is hidden,** so "Action" doesn't appear with nothing under it.
 - **Project deadlines now show on phones,** because stacked rows have the room. They were hidden before.
+
 ### Retainers restyle (5 Nov 2026)
 
 - **The clickable-card hover is now only on the Outbox's drafts and replies.** Retainer and maintenance cards share the `outbox-card` class but can't be clicked, and your rule was clickable cards only, so that was my mistake from the light mode depth change.
 - **A cancelled retainer collapses away,** using the same `AnimatedList` as the Outbox.
+
 ### Maintenance restyle (5 Nov 2026)
 
 - **Mostly inherited.** A job's facts now share one row, its checklist has proper spacing, and a stopped job collapses away, using the same `AnimatedList`. A test checks that its six buttons wrap inside the card at 375px and stay at least 44px tall.
+
 ### Settings restyle (5 Nov 2026)
 
 - **Fieldsets had the browser's square black box,** on the AI settings page and in the installment editor. One base rule now gives them the design's edge, and the e2e measures them on every page.
@@ -766,3 +773,26 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **It lists name and email redaction under What's next.** The spec describes it as an option, but it isn't built.
 - **The README's fast path is `npx playwright test demo`,** which needs no accounts. A judge can see the loop run without PayPal keys, and the full setup follows.
 - **The video runs 2:50, from scenes recorded separately,** because the live demo is about 5 minutes, mostly waiting. It cuts waits, and doesn't fake results.
+
+## Deployment (D1 to D4, `docs/DEPLOY-PLAN.md`)
+
+### 2026-11-09: Decisions from the plan
+
+- **E1:** Ollama and LiteLLM sit behind Compose profiles (`local-ai`, `gateway`). `docker compose up` starts only Postgres and n8n (plus web and Caddy in production). A cloud-key user downloads none of the rest.
+- **E2:** The app never controls Docker (no Docker socket in any container). Switching a component on is a command (`npm run local-ai:on`); the app shows the command and then detects the service.
+- **E3:** Model downloads are buttons in the app, through Ollama's own API (`POST /api/pull`), with progress. Off in demo mode.
+- **E4:** Production runs the web app in a container (Next.js standalone build) behind Caddy, which gets a Let's Encrypt certificate for the DuckDNS name. Only Caddy publishes ports (80, 443).
+- **E5:** Caddy sends `/webhook/*` to n8n and everything else to the web app. n8n's editor stays private (SSH port-forward).
+- **E6:** In production the web container has the network alias `host.docker.internal`, so the n8n workflows work unchanged.
+- **E7:** A demo gate (`DEMO_MODE=true` plus `DEMO_PASSWORD`) lets the seeded demo user run in production behind a password page. Without both, production still refuses to start.
+- **E8:** The demo uses cloud models. Local models stay available for self-hosters.
+- **E9:** In demo mode, AI base URLs may only point at the known provider hosts and the local service names (`ollama`, `litellm`), so a visitor can't make the server call `postgres:5432` or `n8n:5678`.
+
+### 2026-11-09: D1 choices
+
+- **The old `ollama` profile name still works** (`profiles: ["local-ai", "ollama"]`), so `docker compose --profile ollama up` from older notes isn't broken.
+- **Downloads are a job the page polls every 2 seconds,** not a stream held open by the browser. A reload or a closed tab doesn't lose the progress, and the one-at-a-time rule is a plain in-memory check. A server restart forgets the job, but Ollama keeps what it fetched, so trying again resumes.
+- **Progress is the current layer's,** not the whole model's. It is a progress hint, not a promise.
+- **The Local AI section is its own card on Settings > AI,** not tied to the picked preset, so the status is visible before you choose Ollama. Downloaded models also appear as suggestions in the model field when Ollama is picked.
+- **`LOCAL_AI_URL` is read on the server** and handed to the form, which fills the Ollama preset's base URL as `${LOCAL_AI_URL}/v1`. The preset in `ai-presets.ts` keeps its fixed default for the client-safe file.
+- **`isDemoMode` lives in `lib/demo-gate.ts`** (production and `DEMO_MODE=true`), which D3 extends with the password gate.
