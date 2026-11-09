@@ -173,3 +173,11 @@ export const internalApiToken = (source: Record<string, string | undefined> = pr
     return undefined;
   }
 };
+
+/** How often imported calendars refresh, in minutes: CALENDAR_SYNC_MINUTES, at least 15, default 30. */
+export const calendarSyncMinutes = (
+  source: Record<string, string | undefined> = process.env,
+): number => {
+  const parsed = Number.parseInt(source.CALENDAR_SYNC_MINUTES ?? "", 10);
+  return Number.isFinite(parsed) ? Math.max(15, parsed) : 30;
+};

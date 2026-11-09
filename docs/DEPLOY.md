@@ -102,9 +102,9 @@ Then open `http://localhost:5678` on your laptop. The first time, n8n asks you t
 1. **Credentials > Create credential**, two of them, with exactly these names:
    - **Header Auth**, named `App internal API token`: name `Authorization`, value `Bearer <your INTERNAL_API_TOKEN>`.
    - **Telegram API**, named `Telegram bot`: the token from @BotFather.
-2. On the server: `./scripts/import-workflows.sh` loads the seven workflows. (It refuses if n8n already has workflows, so it never makes duplicates.)
-3. In the editor, open **each of the seven workflows**. Where a node shows a missing credential, pick `App internal API token` (or `Telegram bot` in "Approval handler"), then save.
-4. Publish **PayPal webhook**, **Drafter**, **Sender** and **AI router** from the editor.
+2. On the server: `./scripts/import-workflows.sh` loads the eight workflows. (It refuses if n8n already has workflows, so it never makes duplicates.)
+3. In the editor, open **each of the eight workflows**. Where a node shows a missing credential, pick `App internal API token` (or `Telegram bot` in "Approval handler"), then save.
+4. Publish **PayPal webhook**, **Drafter**, **Sender**, **AI router** and **Calendar sync** from the editor.
 5. On the server: `npm run n8n:go-live`. It brings "Approval handler" up to date, publishes it, "Scheduler" and "Reply listener", and restarts n8n. Publishing "Approval handler" registers `https://<domain>/webhook/...` with Telegram.
 
 The workflows call `http://host.docker.internal:3000`. In production that name points at the web container, so they run unchanged.

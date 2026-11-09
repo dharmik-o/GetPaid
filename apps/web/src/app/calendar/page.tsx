@@ -55,9 +55,14 @@ const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: 
     <div className="page">
       <div className="page-header">
         <h1>Calendar</h1>
-        <Link className="button" href="/calendar/new">
-          Add entry
-        </Link>
+        <div className="actions">
+          <Link className="button button-secondary" href="/calendar/sources">
+            Imported calendars
+          </Link>
+          <Link className="button" href="/calendar/new">
+            Add entry
+          </Link>
+        </div>
       </div>
       <CalendarMonth month={month} today={today} items={monthItems} />
       <CalendarAgenda items={agendaItems} zone={zone} days={AGENDA_DAYS} />
