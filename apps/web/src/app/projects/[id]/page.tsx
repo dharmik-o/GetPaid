@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AgreementPanel } from "@/components/AgreementPanel";
 import { HoldPanel } from "@/components/HoldPanel";
 import { hasFilters, InvoiceFilters, InvoiceTable } from "@/components/InvoiceHistory";
 import { InvoicePanel } from "@/components/InvoicePanel";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
+import { listAgreements } from "@/lib/agreements";
 import { appNow } from "@/lib/clock";
 import { isUuid } from "@/lib/db";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -42,7 +44,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
   if (!isUuid(id)) notFound();
   const filters = parseHistoryFilters(await searchParams);
   const now = appNow();
-  const { project, clients, milestones, invoices, plans, templates, holds, signature, ...log } =
+  const { project, clients, milestones, invoices, plans, templates, holds, signature, agreements, ...log } =
     await runAsCurrentUser(async (db) => {
       const found = await getProject(db, id);
       return {
@@ -54,6 +56,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
         templates: await listTemplates(db),
         holds: found ? await listHoldsForProject(db, found.id, now) : [],
         signature: signatureChoiceFrom(await getFreelancerDetails(db)),
+        agreements: found ? await listAgreements(db, found.id) : [],
         history: found ? await listProjectInvoices(db, found.id, now) : [],
         ownZone: await getOwnTimeZone(db),
       };
@@ -93,6 +96,11 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
             })}
           </dd>
         </dl>
+      </section>
+
+      <section className="card" aria-labelledby="agreement">
+        <h2 id="agreement">Agreement</h2>
+        <AgreementPanel projectId={project.id} agreements={agreements} />
       </section>
 
       <section className="card" aria-labelledby="milestones">
