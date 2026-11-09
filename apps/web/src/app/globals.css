@@ -2532,3 +2532,87 @@ button.chip:hover {
     transition: none;
   }
 }
+
+/* Calendar (Phase 2, A2): the month grid. Colour is a hint; every item's title says what it is. */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.cal-weekday {
+  background: var(--surface);
+  padding: var(--space-2);
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+}
+
+.cal-day {
+  background: var(--surface);
+  min-height: 96px;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cal-outside {
+  opacity: 0.55;
+}
+
+.cal-today .cal-daynum {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.cal-daynum {
+  font-size: 13px;
+}
+
+.cal-item {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-left: 3px solid var(--muted);
+  color: var(--text);
+}
+
+.cal-own {
+  border-left-color: var(--accent);
+}
+
+.cal-deadline {
+  border-left-color: var(--danger);
+}
+
+.cal-money {
+  border-left-color: var(--text);
+}
+
+.cal-done {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.cal-more {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .cal-day {
+    min-height: 64px;
+    padding: 2px;
+  }
+
+  .cal-item {
+    font-size: 11px;
+  }
+}

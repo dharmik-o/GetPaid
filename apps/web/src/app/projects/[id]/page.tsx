@@ -143,6 +143,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
               milestoneId: m.id,
               name: m.name,
               cents: m.cents,
+              deadline: m.deadline,
               paymentMode: m.paymentMode,
               status: m.status,
               invoices: invoices

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -46,6 +47,8 @@ export type InvoiceRowData = {
   cents: number;
   paymentMode: "pay_on_invoice" | "deposit" | "hold";
   status: MilestoneStatus;
+  /** The milestone's deadline (ISO date), for "Add to calendar". */
+  deadline?: string;
   /** The open invoices (one, or one per installment), else the latest cancelled one. */
   invoices: InvoiceRowInvoice[];
   plan: { createdFrom: "setup" | "deposit" | "client_request"; items: InstallmentItem[] } | null;
@@ -367,6 +370,14 @@ export const InvoicePanel = ({
                 <td data-label="Milestone">
                   {row.name}
                   <div className="field-hint">{statusLabel(row.status)}</div>
+                  {row.deadline ? (
+                    <Link
+                      className="field-hint"
+                      href={`/calendar/new?${new URLSearchParams({ link: `milestone:${row.milestoneId}`, date: row.deadline, title: row.name }).toString()}`}
+                    >
+                      Add to calendar
+                    </Link>
+                  ) : null}
                 </td>
                 <td className="money" data-label="Amount">
                   {formatMoney(row.cents, currency)}

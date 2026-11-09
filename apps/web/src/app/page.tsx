@@ -1,33 +1,43 @@
 import Link from "next/link";
+import { CalendarSoon } from "@/components/CalendarSoon";
 import { NeedsAttention } from "@/components/NeedsAttention";
 import { RecoveryMetrics } from "@/components/RecoveryMetrics";
 import { RetainerAlerts } from "@/components/RetainerAlerts";
 import { UpcomingList } from "@/components/UpcomingList";
+import { getOwnTimeZone } from "@/lib/account";
+import { listEntries } from "@/lib/calendar-entries";
 import { appNow } from "@/lib/clock";
 import { loadMetrics } from "@/lib/metrics";
 import { outboxCounts } from "@/lib/outbox";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { listRetainerAlerts } from "@/lib/retainers";
+import { addCalendarDays, todayIn } from "@/lib/schedule";
 import { loadUpcoming } from "@/lib/upcoming";
 
 // Home: what needs attention first, then what was recovered, then the next 90 days.
 
 export const dynamic = "force-dynamic";
 
+const CALENDAR_DAYS = 7;
+
 const HomePage = async () => {
   const now = appNow();
-  const { alerts, upcoming, clientCount, metrics, counts } = await runAsCurrentUser(async (db) => {
-    const { rows } = await db.query<{ count: number }>(
-      "SELECT count(*)::int AS count FROM public.clients",
-    );
-    return {
-      alerts: await listRetainerAlerts(db),
-      upcoming: await loadUpcoming(db, now),
-      clientCount: rows[0]?.count ?? 0,
-      metrics: await loadMetrics(db, now),
-      counts: await outboxCounts(db),
-    };
-  });
+  const { alerts, upcoming, clientCount, metrics, counts, entries } = await runAsCurrentUser(
+    async (db) => {
+      const { rows } = await db.query<{ count: number }>(
+        "SELECT count(*)::int AS count FROM public.clients",
+      );
+      const today = todayIn(now, await getOwnTimeZone(db));
+      return {
+        alerts: await listRetainerAlerts(db),
+        upcoming: await loadUpcoming(db, now),
+        clientCount: rows[0]?.count ?? 0,
+        metrics: await loadMetrics(db, now),
+        counts: await outboxCounts(db),
+        entries: await listEntries(db, today, addCalendarDays(today, CALENDAR_DAYS)),
+      };
+    },
+  );
   return (
     <div className="page">
       <div className="page-header">
@@ -46,6 +56,7 @@ const HomePage = async () => {
           <NeedsAttention waiting={counts.waiting} overdue={metrics.overdue} />
           <RecoveryMetrics metrics={metrics} />
           <UpcomingList upcoming={upcoming} />
+          <CalendarSoon entries={entries} days={CALENDAR_DAYS} />
         </>
       )}
     </div>

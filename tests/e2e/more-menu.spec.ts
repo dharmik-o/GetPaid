@@ -1,11 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { contrast } from "../contrast";
 
-// The phone's More menu: the only way to reach Projects, Retainers, Maintenance and Settings from the
+// The phone's More menu: the only way to reach Projects, Calendar, Retainers, Maintenance and Settings from the
 // bottom bar. Read-only.
 
 const LINKS = [
   ["Projects", "/projects"],
+  ["Calendar", "/calendar"],
   ["Retainers", "/retainers"],
   ["Maintenance", "/maintenance"],
   ["Settings", "/settings"],
