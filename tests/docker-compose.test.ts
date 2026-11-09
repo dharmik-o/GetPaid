@@ -38,9 +38,10 @@ describe("docker-compose.yml", () => {
     expect(image).not.toMatch(/:latest$/);
   });
 
-  it("starts Ollama only with the ollama profile", () => {
-    expect(service("ollama").profiles).toEqual(["ollama"]);
-    for (const name of ["postgres", "n8n", "litellm"]) {
+  it("starts only Postgres and n8n by default; Ollama and LiteLLM need their profile", () => {
+    expect(service("ollama").profiles).toEqual(["local-ai", "ollama"]);
+    expect(service("litellm").profiles).toEqual(["gateway"]);
+    for (const name of ["postgres", "n8n"]) {
       expect(service(name).profiles, `${name} must start by default`).toBeUndefined();
     }
   });

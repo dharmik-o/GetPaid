@@ -39,10 +39,12 @@ const toBody = (draft: ConnectionDraft) => ({
   ...(draft.apiKey === undefined ? {} : { apiKey: draft.apiKey }),
 });
 
-export const AiSettingsForm = ({ initial }: { initial: SavedAiSettings }) => {
+type Props = { initial: SavedAiSettings; localAiUrl?: string; localModels?: readonly string[] };
+
+export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
   const router = useRouter();
   const [main, setMain] = useState<ConnectionDraft>(
-    initial.main ? fromSaved(initial.main) : draftFromPreset("ollama"),
+    initial.main ? fromSaved(initial.main) : draftFromPreset("ollama", localAiUrl),
   );
   const [useFallback, setUseFallback] = useState(initial.cloudFallback !== null);
   const [fallback, setFallback] = useState<ConnectionDraft>(
@@ -101,6 +103,8 @@ export const AiSettingsForm = ({ initial }: { initial: SavedAiSettings }) => {
         value={main}
         errors={errors}
         onChange={setMain}
+        localAiUrl={localAiUrl}
+        localModels={localModels}
       />
 
       {fallbackAllowed ? (

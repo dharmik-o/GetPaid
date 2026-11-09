@@ -24,13 +24,17 @@ type Props = {
   onChange: (next: ConnectionDraft) => void;
   /** Limit the presets, e.g. cloud only for the fallback. */
   cloudOnly?: boolean;
+  /** The local runner's address (LOCAL_AI_URL), which the Ollama preset points at. */
+  localAiUrl?: string;
+  /** Models already downloaded to the local runner, offered in the model field. */
+  localModels?: readonly string[];
 };
 
-export const draftFromPreset = (id: AiPresetId): ConnectionDraft => {
+export const draftFromPreset = (id: AiPresetId, localAiUrl?: string): ConnectionDraft => {
   const preset = presetById(id);
   return {
     provider: id,
-    baseUrl: preset?.baseUrl ?? "",
+    baseUrl: id === "ollama" && localAiUrl ? `${localAiUrl}/v1` : (preset?.baseUrl ?? ""),
     model: preset?.model ?? "",
     isLocal: preset?.local ?? false,
     apiKey: undefined,
@@ -66,6 +70,8 @@ export const AiConnectionFields = ({
   errors,
   onChange,
   cloudOnly,
+  localAiUrl,
+  localModels = [],
 }: Props) => {
   const preset = presetById(value.provider);
   const presets = cloudOnly ? AI_PRESETS.filter((p) => p.local !== true) : AI_PRESETS;
@@ -73,7 +79,7 @@ export const AiConnectionFields = ({
   const error = (name: string) => errors[`${idPrefix}.${name}`];
 
   const pickPreset = (next: AiPresetId) => {
-    const draft = draftFromPreset(next);
+    const draft = draftFromPreset(next, localAiUrl);
     // Keep a typed model when moving between presets that don't suggest one.
     onChange({ ...draft, model: draft.model || value.model });
   };
@@ -163,11 +169,17 @@ export const AiConnectionFields = ({
         <input
           id={id("model")}
           value={value.model}
+          list={value.provider === "ollama" ? id("models") : undefined}
           aria-invalid={Boolean(error("model"))}
           onChange={(e) => {
             onChange({ ...value, model: e.target.value });
           }}
         />
+        <datalist id={id("models")}>
+          {localModels.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </Field>
     </fieldset>
   );

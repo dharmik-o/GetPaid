@@ -1,6 +1,9 @@
-# Local stack: Postgres (app data), n8n (automation), LiteLLM (AI gateway), optional Ollama.
-#   docker compose up -d --wait                     # core services, waits for health checks
-#   docker compose --profile ollama up -d --wait    # also starts the local model runner
+# Local stack: Postgres (app data) and n8n (automation) start by default. The heavy, optional
+# parts are behind profiles, so nothing is pulled or started unless you ask (npm run local-ai:on,
+# npm run gateway:on).
+#   docker compose up -d --wait                     # Postgres and n8n, waits for health checks
+#   npm run local-ai:on                             # also the local model runner (Ollama)
+#   npm run gateway:on                              # also the LiteLLM gateway
 # Every port binds to 127.0.0.1 so nothing is reachable from the network.
 
 services:
@@ -55,6 +58,7 @@ services:
 
   litellm:
     image: ghcr.io/berriai/litellm:v1.106.6
+    profiles: ["gateway"]
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?Set LITELLM_MASTER_KEY in your local env file (see .env.example)}
@@ -77,7 +81,8 @@ services:
 
   ollama:
     image: ollama/ollama:0.40.14
-    profiles: ["ollama"]
+    # "ollama" is the old profile name; it still works.
+    profiles: ["local-ai", "ollama"]
     ports:
       - "127.0.0.1:11434:11434"
     volumes:
