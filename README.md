@@ -165,6 +165,10 @@ npm run local-ai:on
 
 This downloads the Ollama image (about 1.5 GB) once. Then in **Settings > AI**, press **Download llama3.2** under Local AI, pick **Ollama (local)**, choose the model, save, and press **Test connection**. To use Claude or another cloud model, pick its preset and enter your key. Keys are encrypted at rest and never sent back to the browser. With no model set, drafts come from the fixed templates.
 
+## Put it online
+
+To run the sandbox demo at a free HTTPS address on an Oracle Cloud server, behind a password page, follow [`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Run the demo
 
 The demo jumps forward in time with a dev-only clock, so an invoice can go overdue in seconds. It moves the app's clock, not PayPal's, and a banner on every page says it's moved. Production ignores it.

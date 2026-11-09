@@ -818,3 +818,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Five wrong passwords block that IP for 10 minutes,** and the block holds even for the right password, so guessing gains nothing during it. The count is in memory, so a restart clears it. The IP is the first `X-Forwarded-For` value (Caddy sets it); it is used as a key and never logged.
 - **E9 lives in `baseUrlProblem`'s new `demo` argument,** so one function guards both saving and every call. Cloud providers must be the exact host, `https`, default port. The local services must be `http://ollama:11434` or `http://litellm:4000` exactly, so `ollama:5678` is refused too.
 - **The sign-in page has no sidebar,** since every link in it would lead back to the password page.
+
+### 2026-11-09: D4 choices
+
+- **`scripts/import-workflows.sh` was a one-line comment, never written,** and the plan's server steps depend on it. It now runs `n8n import:workflow` inside the container, and refuses when n8n already has workflows, because the workflow files carry no ids and a second import would duplicate all seven. Tested on a fresh n8n: 7 imported, a second run refused.
+- **`COMPOSE_FILE` in the server's env file** makes every plain `docker compose` command, `npm run n8n:go-live` (which restarts n8n) and `import-workflows.sh` use the production files. Without it, a plain `docker compose restart n8n` from `go-live` could recreate n8n from the base file alone and lose the https `WEBHOOK_URL`. It is a commented line in `.env.example`, since setting it on a laptop would switch dev to production.
+- **Backups are named `<date>.sql.gz`** (UTC), so a second run on the same day replaces the first. They are written to a `.partial` file and renamed only when the dump succeeded, so a failed run never leaves a truncated backup. The folder is mode 700 and ignored by a `.gitignore` inside it, which leaves the repo's root `.gitignore` untouched.
+- **`update.sh` migrates before it restarts the app,** and uses `git pull --ff-only`, so a server with local edits stops instead of merging.
+- **The runbook orders the steps by dependency,** not as the plan's section 6 does: the server first (the IP is needed for DuckDNS), then the address, setup, settings, start, database, n8n, outside services.
+- **Runbook checks changed because of D3:** `/rest/login` now sends a visitor to the password page, not a 404, and shows a 404 page only once signed in. Either way n8n's editor is not shown.

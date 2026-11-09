@@ -1,0 +1,3 @@
+# Database backups hold client data. Nothing in this folder is ever committed.
+*
+!.gitignore
