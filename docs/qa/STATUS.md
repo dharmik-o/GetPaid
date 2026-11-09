@@ -11,3 +11,4 @@ One row per step. Both builder and tester update it (see `docs/PARALLEL-WORKFLOW
 | P0 | feat/P0-prep | done 9 Nov | pass 9 Nov (solo) | yes | docs and .env.example only; check green, E2E 135 passed |
 | A1 | feat/A1-calendar-data | done 9 Nov | pass 9 Nov (solo) | yes | check green (2476 tests), E2E 135 passed |
 | A2 | feat/A2-calendar-screens | done 9 Nov | pass 9 Nov (solo) | yes | check green; E2E 134 passed + more-menu spec fixed and rerun (15 pass); screens driven by a throwaway Playwright run |
+| A3 | feat/A3-export | done 9 Nov | pass 9 Nov (solo) | yes | check green (2487 tests), E2E 136 passed; Outlook link and Google import unverified (owner) |

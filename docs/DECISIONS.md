@@ -858,3 +858,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The month view is a server-rendered grid of links** (Monday first, six weeks, `?month=YYYY-MM`), with no client script. Colour is a hint on four existing tokens (gold own entries, red deadlines, text colour money, grey reminders and jobs); titles say what each item is. The Sidebar link is in the "More" menu on phones.
 - **The morning nudge lives in `lib/calendar-nudge.ts`** and runs inside the existing Telegram step (service role, like its other steps). It uses `todayIn` and `localTimeInput` from `lib/schedule.ts` for the zone maths, and clears when an entry moves to another day.
 - **`sendJson` accepts PATCH.**
+
+### 2026-11-09: A3 choices
+
+- **The export's DESCRIPTION has the client name and, with `notes=1`, the entry's notes. It has no project name,** because the feed's items don't carry one (the plan's A1 item type has none) and adding it only for this would change that type. The plan says "client and project names"; this is a small cut, easy to add later.
+- **A timed item with no end time has no DTEND in the .ics** (RFC 5545 reads that as a zero-length event). The Google and Outlook links need an end, so they use an hour after the start.
+- **The "Add to Google Calendar" and "Add to Outlook" links are on the entry's own page,** the only item with a detail page here; app-made items open their own pages, which don't have these buttons.
+- **The Outlook link's parameter names are not from Microsoft's documentation,** because I found no reference page (only Microsoft Q&A threads). The code comment says so, with the thread it follows, and it uses UTC times because the link has no reliable zone parameter. The all-day form (`startdt` the first day, `enddt` the day after, `allday=true`) is the most common one in those threads. Listed for the owner in `docs/NEEDS_YOU.md`.
+- **Export range choices** are This month, Today and the next 3 months, and Everything (the server default: 30 days back, a year ahead).
+- **`appPublicUrl` in `lib/env.ts`** gives the app's public address; `outboxPublicUrl` now builds on it.

@@ -149,12 +149,20 @@ export const devEmailAllowlist = (
       .filter(Boolean),
   );
 
+/** The app's public address with no trailing slash, or undefined when it isn't set. */
+export const appPublicUrl = (
+  source: Record<string, string | undefined> = process.env,
+): string | undefined => {
+  const parsed = z.url({ protocol: /^https?$/ }).safeParse(source.APP_PUBLIC_URL?.trim());
+  return parsed.success ? parsed.data.replace(/\/+$/, "") : undefined;
+};
+
 /** The Outbox's public address for Telegram messages, or undefined when it isn't set. */
 export const outboxPublicUrl = (
   source: Record<string, string | undefined> = process.env,
 ): string | undefined => {
-  const parsed = z.url({ protocol: /^https?$/ }).safeParse(source.APP_PUBLIC_URL?.trim());
-  return parsed.success ? `${parsed.data.replace(/\/+$/, "")}/outbox` : undefined;
+  const base = appPublicUrl(source);
+  return base ? `${base}/outbox` : undefined;
 };
 
 /** The internal API token, or undefined when it isn't set up (the route then answers 503). */
