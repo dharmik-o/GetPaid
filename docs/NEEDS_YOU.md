@@ -4,6 +4,16 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 ## Open
 
+- **The public demo server (Deployment plan D1 to D4 are built; everything here is yours to do):** follow `docs/DEPLOY.md` from the top. In short:
+  1. Create the Oracle Cloud account and the Always Free Arm VM (2 OCPUs, 12 GB), reserve its IP, open ports 80 and 443 in the security list, and set a $1 budget alert.
+  2. Create the DuckDNS name and point it at the VM's IP.
+  3. On the server: clone the repo, run `bash deploy/server-setup.sh`, make the server's own env file with **new** random secrets (the table in step 4), including `DEMO_MODE=true`, a `DEMO_PASSWORD` of 16+ characters, `DEMO_COOKIE_SECRET`, `DEV_EMAIL_ALLOWLIST` set to the demo inbox, and `COMPOSE_FILE`.
+  4. Start it, create the database, then in n8n (through the SSH tunnel) create the two credentials, import the workflows, pick the credentials on each, publish, and run `npm run n8n:go-live`.
+  5. Point the outside services at the new address: PayPal sandbox webhook URL, Google OAuth redirect URI, and Telegram (by publishing "Approval handler"). Use a separate demo Gmail account.
+  6. Set a cloud model with its key in the demo's Settings > AI.
+
+  What I could not check, because it needs your accounts or the real server: a real Let's Encrypt certificate, the Arm build on Oracle's VM, the n8n credential and publish steps on a real instance, and a live Telegram, PayPal or Gmail round trip through the new address. The containers, Caddy routing and the password gate were checked on this PC; see `docs/qa/D2.md`, `D3.md` and `D4.md`.
+
 - **Before the demo:** follow "Before you start" in `docs/DEMO.md`, and rehearse it once. That includes the clean slate: the demo clock moves everything on this account, so delete your test clients once your live checks are finished. Run `npm run db:seed` for the demo project: I haven't, so your data stays as it was.
 
 - **Optional: delete `apps/web/.next-build/`.** It's left from the `next build` check. It's gitignored and does nothing. My command to delete it was refused (see Blocked commands).
