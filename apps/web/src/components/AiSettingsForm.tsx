@@ -24,7 +24,7 @@ export type SavedConnection = {
 export type SavedAiSettings = {
   main: SavedConnection | null;
   cloudFallback: SavedConnection | null;
-  taskModels: { sort: string | null; tier3: string | null };
+  taskModels: { sort: string | null; tier3: string | null; calendar: string | null };
 };
 
 type FieldIssue = { field: string; message: string };
@@ -52,6 +52,7 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
   );
   const [sortModel, setSortModel] = useState(initial.taskModels.sort ?? "");
   const [tier3Model, setTier3Model] = useState(initial.taskModels.tier3 ?? "");
+  const [calendarModel, setCalendarModel] = useState(initial.taskModels.calendar ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error: boolean }>();
   const [saving, setSaving] = useState(false);
@@ -66,7 +67,11 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
     const body = {
       main: toBody(main),
       cloudFallback: fallbackAllowed && useFallback ? toBody(fallback) : null,
-      taskModels: { sort: sortModel.trim() || null, tier3: tier3Model.trim() || null },
+      taskModels: {
+        sort: sortModel.trim() || null,
+        tier3: tier3Model.trim() || null,
+        calendar: calendarModel.trim() || null,
+      },
     };
     try {
       const response = await fetch("/api/settings/ai", {
@@ -175,6 +180,21 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
             <div className="field-error">{errors["taskModels.tier3"]}</div>
           ) : null}
           <div className="field-hint">Same provider and key as the main model.</div>
+        </div>
+        <div className="field">
+          <label htmlFor="calendar-model">Calendar assistant</label>
+          <input
+            id="calendar-model"
+            value={calendarModel}
+            placeholder={`Same as the main model (${main.model || "not set"})`}
+            aria-invalid={Boolean(errors["taskModels.calendar"])}
+            onChange={(e) => {
+              setCalendarModel(e.target.value);
+            }}
+          />
+          {errors["taskModels.calendar"] ? (
+            <div className="field-error">{errors["taskModels.calendar"]}</div>
+          ) : null}
         </div>
       </fieldset>
 

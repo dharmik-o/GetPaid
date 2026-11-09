@@ -50,10 +50,62 @@ export const invoiceTextSchema = z.strictObject({
 
 export type InvoiceText = z.infer<typeof invoiceTextSchema>;
 
+const clock = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/)
+  .nullable();
+
+/** One change the assistant may propose. It happens only when the freelancer presses Apply. */
+export const calendarProposalSchema = z.discriminatedUnion("op", [
+  z.strictObject({
+    op: z.literal("move"),
+    key: z.string().max(80),
+    startsOn: isoDate,
+    startTime: clock,
+    endTime: clock,
+    reason: z.string().max(200),
+  }),
+  z.strictObject({
+    op: z.literal("create"),
+    title: z.string().min(1).max(200),
+    kind: z.enum(["task", "event", "deadline", "call"]),
+    startsOn: isoDate,
+    startTime: clock,
+    endTime: clock,
+    clientName: z.string().max(120).nullable(),
+    reason: z.string().max(200),
+  }),
+  z.strictObject({
+    op: z.literal("mark_done"),
+    key: z.string().max(80),
+    reason: z.string().max(200),
+  }),
+  z.strictObject({
+    op: z.literal("delete"),
+    key: z.string().max(80),
+    reason: z.string().max(200),
+  }),
+]);
+
+/**
+ * The calendar assistant's answer: text for the freelancer plus proposals they must press Apply on.
+ * A proposal never happens by itself (lib/calendar-assistant.ts checks and applies them).
+ */
+export const calendarAnswerSchema = z.strictObject({
+  answer: z.string().min(1).max(1500),
+  /** Keys of the calendar items the answer is based on. */
+  references: z.array(z.string().max(80)).max(30),
+  proposals: z.array(calendarProposalSchema).max(10),
+});
+
+export type CalendarAnswer = z.infer<typeof calendarAnswerSchema>;
+export type CalendarProposal = z.infer<typeof calendarProposalSchema>;
+
 export const AI_SCHEMAS = {
   classification: classificationSchema,
   draft: draftSchema,
   invoiceText: invoiceTextSchema,
+  calendarAnswer: calendarAnswerSchema,
 } as const;
 
 export type AiSchemaName = keyof typeof AI_SCHEMAS;

@@ -21,6 +21,7 @@ export const aiTestHandler = ({ runAsUser, box }: Deps) => ({
         sort: await loadAiConnections(db, "sort", box()),
         draft: await loadAiConnections(db, "draft", box()),
         tier3: await loadAiConnections(db, "tier3", box()),
+        calendar: await loadAiConnections(db, "calendar", box()),
       }));
       if (connections.draft.length === 0) {
         return jsonResponse({ error: "Save a model in AI settings first, then test it." }, 400);

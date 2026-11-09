@@ -90,7 +90,7 @@ You are the TESTER. Read docs/PARALLEL-WORKFLOW.md and docs/qa/STATUS.md, then t
 
 ## 7. When not to run in parallel
 
-- Steps that change the **same migration or the same files** as the step under test (for example C2 while C1 is still in QA, since both touch `028_contracts.sql`): the builder waits, or stacks and expects a rebase.
+- Steps that change the **same migration or the same files** as the step under test (for example C2 while C1 is still in QA, since both touch `029_contracts.sql`): the builder waits, or stacks and expects a rebase.
 - Live checks with real services (Telegram, Gmail, PayPal, the Oracle server): the builder does them alone, with the tester stopped.
 - If the lower-level model struggles with rebases or conflicts, fall back to one session at a time: build a step, then test it in a fresh session on the same branch, then merge.
 
