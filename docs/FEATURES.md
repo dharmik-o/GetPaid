@@ -156,7 +156,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
   - Done when: an agreement can be sent (after approval), opened from the email, signed with a typed name, and the signed PDF with its certificate page is in the archive and attached to the signed-copy draft.
 - [x] **C4 Interest and final demand:** `lib/statutory-interest.ts`, `lib/final-demand.ts`, the final demand letter.
   - Done when: for an overdue demo invoice with a UK business client (rates approved in a test fixture), the draft shows the correct interest and compensation, the approved citation and the deadline, and can only be sent after approval.
-- [ ] **C5 Lawyer pack:** one PDF with agreement, invoices, timeline and demands.
+- [x] **C5 Lawyer pack:** one PDF with agreement, invoices, timeline and demands.
   - Done when: the demo project's pack downloads as one PDF with the cover, agreement, invoices, timeline and demands.
 
 ## Out of scope (not planned)
