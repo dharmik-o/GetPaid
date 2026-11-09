@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { href: "/outbox", label: "Outbox", onPhone: true },
   { href: "/clients", label: "Clients", onPhone: true },
   { href: "/projects", label: "Projects", onPhone: false },
+  { href: "/calendar", label: "Calendar", onPhone: false },
   { href: "/retainers", label: "Retainers", onPhone: false },
   { href: "/maintenance", label: "Maintenance", onPhone: false },
   { href: "/settings", label: "Settings", onPhone: false },

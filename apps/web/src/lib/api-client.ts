@@ -23,7 +23,7 @@ const messageOf = (body: ApiBody, names: Record<string, string>): string => {
 
 export const sendJson = async (
   url: string,
-  method: "POST" | "PUT" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   body: unknown,
   names: Record<string, string>,
 ): Promise<CallResult> => {

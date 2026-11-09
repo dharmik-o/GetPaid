@@ -1,4 +1,5 @@
 import type { Db } from "./db";
+import { calendarNudges } from "./calendar-nudge";
 import { formatSendTime } from "./format";
 import { listForTelegram } from "./outbox";
 import {
@@ -327,6 +328,7 @@ export const telegramRun = async (
   ...(await nudges(db, now)),
   ...(await cardsToSend(db, now, outboxUrl)),
   ...(await maintenanceRun(db, now)),
+  ...(await calendarNudges(db, now)),
 ];
 
 /** Telegram confirmed the card. Only the first answer counts, so a repeat changes nothing. */

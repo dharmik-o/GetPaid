@@ -849,3 +849,12 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **The feed lists reminders whose source is an invoice, a maintenance task, a retainer or a hold,** each shown with its client when one can be found.
 - **`tests/db/fixtures.ts` has the three calendar tables,** so the existing RLS and schema suites cover them. The "update someone else's row" check sets `updated_at`, which the source and event tables don't have, so those two are covered in `tests/phase2/calendar-rls.test.ts` instead.
 - **Marking an entry done is `PATCH {"done": true}`,** handled by `markEntryDone`; any other body goes through `updateEntry`.
+
+### 2026-11-09: A2 choices
+
+- **The entry form sends one link, the most specific,** chosen from a single "Linked to" list (client, project or milestone). The server fills in the rest, so the form can never send a client that disagrees with its project.
+- **"Add to calendar" on a milestone opens `/calendar/new`** pre-filled with the milestone, its deadline and its name, and saves nothing until the freelancer presses Add. It sits in the first cell of each row of the "Bill your milestones" table, where the milestone rows are.
+- **Home shows "On your calendar" (own entries, 7 days) below Upcoming,** so the existing order of Home's cards (Needs attention, Recovery, Upcoming) is unchanged.
+- **The month view is a server-rendered grid of links** (Monday first, six weeks, `?month=YYYY-MM`), with no client script. Colour is a hint on four existing tokens (gold own entries, red deadlines, text colour money, grey reminders and jobs); titles say what each item is. The Sidebar link is in the "More" menu on phones.
+- **The morning nudge lives in `lib/calendar-nudge.ts`** and runs inside the existing Telegram step (service role, like its other steps). It uses `todayIn` and `localTimeInput` from `lib/schedule.ts` for the zone maths, and clears when an entry moves to another day.
+- **`sendJson` accepts PATCH.**
