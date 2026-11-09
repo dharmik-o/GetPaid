@@ -135,7 +135,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 
 ### Part A: Calendar
 
-- [ ] **A1 Calendar data and feed:** migration 027, `lib/calendar-entries.ts`, `lib/calendar-feed.ts`, the items and entries routes.
+- [x] **A1 Calendar data and feed:** migration 027, `lib/calendar-entries.ts`, `lib/calendar-feed.ts`, the items and entries routes.
   - Done when: `GET /api/calendar?from=&to=` returns entries plus every app-made date in range.
 - [ ] **A2 Calendar screens:** `/calendar` (month view and 30-day agenda), `/calendar/new`, `/calendar/[id]`, sidebar link, "Add to calendar" on milestones, entries on Home, the Telegram morning nudge.
   - Done when: entries can be added, edited, marked done, deleted and linked to a milestone; app-made dates open their own pages.
