@@ -827,3 +827,17 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **`update.sh` migrates before it restarts the app,** and uses `git pull --ff-only`, so a server with local edits stops instead of merging.
 - **The runbook orders the steps by dependency,** not as the plan's section 6 does: the server first (the IP is needed for DuckDNS), then the address, setup, settings, start, database, n8n, outside services.
 - **Runbook checks changed because of D3:** `/rest/login` now sends a visitor to the password page, not a 404, and shows a 404 page only once signed in. Either way n8n's editor is not shown.
+
+### 2026-11-09: Phase 2 decisions (F1 to F10, from docs/PHASE2-PLAN.md section 3)
+
+- **F1:** Meeting notes and speech-to-text are dropped (owner, 9 Nov 2026). Client meetings reach the calendar through imported calendars and manual entries.
+- **F2:** App-made dates are read live from their own tables, never copied into `calendar_entries`. One source of truth; nothing drifts.
+- **F3:** Calendar import uses each provider's iCal (ICS) address or an uploaded file, read-only, refreshed every 30 minutes. No Google or Microsoft login, so no OAuth review, and it can't change anyone's calendar.
+- **F4:** ICS parsing and recurrence expansion use `ical.js` (Mozilla, no runtime dependencies). Recurring events (RRULE, EXDATE, overrides) are hard to get right by hand.
+- **F5:** The assistant is single-turn with the last 3 exchanges kept in the browser only; the server stores no conversation. It uses the existing AI router with a JSON schema and a new AI task, `calendar`.
+- **F6:** Assistant changes are proposals with an Apply button, limited to the user's own entries (move, create, mark done, delete).
+- **F7:** The agreement is signed with a simple electronic signature: typed full name, an explicit consent tick, and an audit record (time, IP, browser, document SHA-256). No paid signing service.
+- **F8:** Statute entries and reference rates are drafted from official sources but used only after the owner sets `approved: true`.
+- **F9:** Contract clauses are fixed text in a built-in template, with options. The owner has a lawyer review it before real use.
+- **F10:** The lawyer pack is generated on demand and saved in the invoice archive folder; PDFs are joined with `pdf-lib`.
+- **P0:** No speech-to-text leftovers were found in compose files, scripts or `.env.example`; the only mentions are in the superseded `docs/PHASE2-meetings.md` (now marked) and two explanatory lines in the plans.

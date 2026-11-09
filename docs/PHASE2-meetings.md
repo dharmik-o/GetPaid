@@ -1,3 +1,5 @@
+Superseded on 9 Nov 2026: meeting notes and speech-to-text were dropped. See docs/PHASE2-PLAN.md.
+
 # Phase 2: Meetings, transcripts and AI meeting summaries
 
 **Status:** planned. Do not build until M10 is ticked in `docs/FEATURES.md` and the user asks for it (CLAUDE.md: Phase 2 is out of scope until then). Builds on the Phase 2 Cal.com section in `docs/MVP-spec.md`.

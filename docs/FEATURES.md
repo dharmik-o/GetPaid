@@ -131,6 +131,34 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **Invoice history** on the Project and Client pages, with filters and downloads.
   - Done when: the Project and Client pages list the right invoices for the right user only (RLS test), and the Playwright demo still passes, plus a check that the Project page shows its invoices.
 
-## Out of scope (Phase 2, don't build)
+## Phase 2 [docs/PHASE2-PLAN.md]
 
-Cal.com scheduling, calendar view, meeting notes, transcripts, email auto-import, WhatsApp, multi-user PayPal partner onboarding.
+### Part A: Calendar
+
+- [ ] **A1 Calendar data and feed:** migration 027, `lib/calendar-entries.ts`, `lib/calendar-feed.ts`, the items and entries routes.
+  - Done when: `GET /api/calendar?from=&to=` returns entries plus every app-made date in range.
+- [ ] **A2 Calendar screens:** `/calendar` (month view and 30-day agenda), `/calendar/new`, `/calendar/[id]`, sidebar link, "Add to calendar" on milestones, entries on Home, the Telegram morning nudge.
+  - Done when: entries can be added, edited, marked done, deleted and linked to a milestone; app-made dates open their own pages.
+- [ ] **A3 Export:** `.ics` export, Google and Outlook links.
+  - Done when: the exported file imports into Google Calendar (the owner checks; see `docs/NEEDS_YOU.md`).
+- [ ] **A4 Import:** guarded fetch, ICS parsing, sources screen, 30-minute sync workflow.
+  - Done when: a Google secret iCal address shows its events (including recurring ones) on the calendar and refreshes on schedule.
+- [ ] **A5 AI assistant:** the `calendar` AI task, answer checks, proposals with an Apply button.
+  - Done when: with the owner's configured model, "What are my deadlines next week?" lists the right items, and "Move <entry> to Friday" proposes a move that applies only after a click.
+
+### Part C: Contracts and legal tools
+
+- [ ] **C1 Facts, law table and rates:** client region and "is a business", legal name, Udyam number, `legal/statutes.json`, `legal/reference-rates.json`, `npm run legal:check`.
+  - Done when: `npm run legal:check` lists every entry as unapproved with its source, and nothing is cited until approved.
+- [ ] **C2 Agreement builder:** migration 028, template, builder page, Agreement panel on the Project page.
+  - Done when: a draft agreement for the demo project previews with the right amounts, milestones and options, and can be saved and voided.
+- [ ] **C3 Signing:** send through the Outbox, public sign page, signed PDF with certificate, archive, signed-copy draft.
+  - Done when: an agreement can be sent (after approval), opened from the email, signed with a typed name, and the signed PDF with its certificate page is in the archive and attached to the signed-copy draft.
+- [ ] **C4 Interest and final demand:** `lib/statutory-interest.ts`, `lib/final-demand.ts`, the final demand letter.
+  - Done when: for an overdue demo invoice with a UK business client (rates approved in a test fixture), the draft shows the correct interest and compensation, the approved citation and the deadline, and can only be sent after approval.
+- [ ] **C5 Lawyer pack:** one PDF with agreement, invoices, timeline and demands.
+  - Done when: the demo project's pack downloads as one PDF with the cover, agreement, invoices, timeline and demands.
+
+## Out of scope (not planned)
+
+Cal.com scheduling, meeting notes, transcripts, speech-to-text, email auto-import, WhatsApp, multi-user PayPal partner onboarding.

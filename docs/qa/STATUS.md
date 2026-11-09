@@ -8,3 +8,4 @@ One row per step. Both builder and tester update it (see `docs/PARALLEL-WORKFLOW
 | D2 | feat/D2-prod-containers | done 9 Nov | pass 9 Nov (solo) | yes | check green, E2E 135 passed, stack checked on a throwaway project |
 | D3 | feat/D3-demo-gate | done 9 Nov | pass 9 Nov (solo) | yes | check green, E2E 135 passed, gate checked live through Caddy |
 | D4 | feat/D4-runbook | done 9 Nov | pass 9 Nov (solo) | yes | check green, E2E 135 passed; update.sh and server-setup.sh not run (need the server) |
+| P0 | feat/P0-prep | done 9 Nov | pass 9 Nov (solo) | yes | docs and .env.example only; check green, E2E 135 passed |
