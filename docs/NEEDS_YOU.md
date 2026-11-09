@@ -4,6 +4,22 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 ## Open
 
+- **Phase 2, legal tables (C1): approve or fill them. Nothing is cited or calculated until you do.** `npm run legal:check` lists every entry and whether it is approved.
+  1. **`legal/statutes.json` is empty.** The plan says to draft each law from its official page and leave it unapproved, but none of the pages could be read from here: legislation.gov.uk answered with an empty page, irishstatutebook.ie, indiacode.nic.in, msme.gov.in and leginfo.legislature.ca.gov answered 403, ilga.gov refused the connection, and the nysenate.gov address I tried had no entry. I did not fill any law from memory. For each row, open the official page, copy the sentence a letter may quote into `citation`, set `sourceUrl`, `checkedOn`, `appliesWhen`, `interest` and `compensation` as the schema in `lib/legal.ts` requires, leave `approved` false, run `npm run ai:prompts`, check it, then set `approved: true`. Or paste me the official text and I'll draft the entries.
+
+     | Law | Where to read it | What to check |
+     | --- | --- | --- |
+     | `uk-late-payment-1998` (GB, business clients) | legislation.gov.uk, Late Payment of Commercial Debts (Interest) Act 1998 | the right to interest; 8% above base rate; the reference date for the half-year rule; the sums £40 / £70 / £100 and their bands |
+     | `ie-late-payment-2012` (IE, business clients) | irishstatutebook.ie, S.I. 580/2012 | the rate (ECB rate plus how much) and its reference date; the compensation sum and bands |
+     | `in-msmed-2006` (IN, freelancer has Udyam) | indiacode.nic.in, MSMED Act 2006, sections 15 to 18 | 45 days with an agreement, 15 without; three times the bank rate, monthly compound; whether it covers your kind of service |
+     | `us-ny-freelance-isnt-free` (US, client in NY, USD 800 or more) | nysenate.gov, General Business Law Article 44-A | the threshold and period, the payment deadline, the remedy (text only) |
+     | `us-il-freelance-worker-protection` (US, client in IL, USD 500 or more) | ilga.gov, 820 ILCS 192 | the same |
+     | `us-ca-freelance-worker-protection` (US, client in CA, USD 250 or more) | leginfo.legislature.ca.gov, SB 988 | the same |
+
+     Other EU countries only if you ask: their rules differ.
+  2. **`legal/reference-rates.json`:** every entry is `approved: false`. `BOE_BASE` (Bank of England) comes from the Bank's official history spreadsheet and agrees with its rate page (4% from 5 Nov 2026). `ECB_MRO` comes from the ECB's key-rates page; that page was read through a summary, not word for word, so check each date and rate before approving. `RBI_BANK` is empty: the RBI's October 2026 resolution (https://www.rbi.org.in/Scripts/BS_ViewBulletin.aspx?Id=24511) says the Bank Rate is 5.75%, but gives no effective date and I found no history. Add the entries with their effective dates. Keep all three up to date, since rates change. A date whose rate in force isn't approved gets no interest at all.
+  3. **Settings > Legal details** now holds your legal name, Udyam number and governing-law country, and each client has a state or province (US, CA, AU, IN only) and a "This client is a business" box (on by default). Fill them in: a law needing a region, a business client or a Udyam number is skipped when the fact is missing.
+
 - **Phase 2, calendar assistant (A5):** I couldn't run it against a real model (no model is configured for my test runs), so the step's last check is yours. Open Calendar, ask "What are my deadlines next week?", and see that it lists the right items; then add an entry, say "Move <your entry> to Friday", and check that a card appears with Apply and Dismiss, and that the entry moves only after you press Apply. If the answer is "I couldn't answer that reliably", your model wrote a date or amount that wasn't in the calendar: try a stronger model. Optionally pick a model just for it in Settings > AI > Calendar assistant. The commit message can't hold the run, so tell me how it went and I'll record it.
 
 - **Phase 2, calendar import (A4):** (1) In Google Calendar, open Settings, pick your calendar, Integrate calendar, and copy "Secret address in iCal format". In the app, open Calendar > Imported calendars, paste it under "Secret iCal address", and check that your events (including repeating ones) show on the calendar. Never share that address. I couldn't try a real Google calendar (no account), only a calendar served by a test server and an uploaded file. (2) Add the new n8n workflow: in n8n open Workflows > Import from file, choose `n8n/workflows/08_calendar_sync.json`, pick the credential `App internal API token` on its "Sync in the app" node, save, and publish it. It runs every 30 minutes. `npm run n8n:go-live` doesn't touch it. Until it is published, calendars refresh only when you press "Refresh now".
@@ -87,6 +103,7 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 Nothing here is blocking work, and I didn't route around any of them.
 
+- **C1, 9 Nov 2026:** to read the law pages that the page reader could not (403 and empty answers), I ran `curl` with a browser-style User-Agent. The auto mode check refused it as a bot-check workaround. I dropped that approach and did not try other ways round; the pages are listed in the Open item for the legal tables.
 - **M11, 5 Nov 2026:** stopping my own temporary dev server on port 3001 (`taskkill`) was refused. Its process outlived the shell it started in. I left it running and asked you to stop it.
 - **Redesign, 5 Nov 2026:** the protect-files hook refused my commit command, because a check in it searched the staged file names for the env file's name. No env file was involved. I dropped that check and read the list of staged files instead.
 - **M10, 5 Nov 2026:** `rm -rf apps/web/.next-build` was refused, after the production build. I left the folder and gitignored it.

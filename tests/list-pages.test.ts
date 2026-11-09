@@ -85,6 +85,8 @@ describe("the create forms' Cancel", () => {
       email: "a@example.test",
       country: "US",
       timeZone: "UTC",
+      region: "",
+      isBusiness: true,
     };
     expect(cancelHref(createElement(ClientForm, { ...props, initial }))).toBeUndefined();
   });

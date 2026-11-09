@@ -6,7 +6,7 @@ import { STATUTE_TABLE } from "@/lib/statute-table";
 import { STATUTES } from "@/lib/statutes";
 import { readStatuteFile } from "../scripts/lib/prompt-source";
 import { PAY_LINK, reminderFacts } from "./fixtures/draft-facts";
-import { TEST_LAWS } from "./fixtures/statutes";
+import { LAW_FACTS, TEST_LAWS } from "./fixtures/statutes";
 
 // Legal gating: Tier 3 cites only the contract's clause or a law from legal/statutes.json for
 // the client's country; otherwise it's a plain final notice that cites nothing.
@@ -36,15 +36,21 @@ describe("legal/statutes.json", () => {
 
 describe("pickCitation", () => {
   it("cites nothing for a country missing from the table", () => {
-    expect(pickCitation({ lateFeeClause: null, country: "JP", laws: TEST_LAWS })).toBeNull();
+    expect(
+      pickCitation({ lateFeeClause: null, country: "JP", facts: LAW_FACTS, laws: TEST_LAWS }),
+    ).toBeNull();
   });
 
   it("cites nothing with an empty table", () => {
-    expect(pickCitation({ lateFeeClause: null, country: "GB", laws: [] })).toBeNull();
+    expect(
+      pickCitation({ lateFeeClause: null, country: "GB", facts: LAW_FACTS, laws: [] }),
+    ).toBeNull();
   });
 
   it("cites the law for the client's country, in the table's own words", () => {
-    expect(pickCitation({ lateFeeClause: null, country: "GB", laws: TEST_LAWS })).toEqual({
+    expect(
+      pickCitation({ lateFeeClause: null, country: "GB", facts: LAW_FACTS, laws: TEST_LAWS }),
+    ).toEqual({
       kind: "statute",
       lawId: "test-gb-late-payment",
       text: GB_LAW?.citation,
@@ -52,7 +58,9 @@ describe("pickCitation", () => {
   });
 
   it("never cites a law with a condition the app can't check", () => {
-    expect(pickCitation({ lateFeeClause: null, country: "US", laws: TEST_LAWS })).toBeNull();
+    expect(
+      pickCitation({ lateFeeClause: null, country: "US", facts: LAW_FACTS, laws: TEST_LAWS }),
+    ).toBeNull();
   });
 
   it("prefers the contract's own clause, quoted as written", () => {
@@ -60,6 +68,7 @@ describe("pickCitation", () => {
       pickCitation({
         lateFeeClause: "  1.5% per\nmonth on late invoices. ",
         country: "GB",
+        facts: LAW_FACTS,
         laws: TEST_LAWS,
       }),
     ).toEqual({
@@ -69,7 +78,9 @@ describe("pickCitation", () => {
   });
 
   it("treats a blank clause as none", () => {
-    expect(pickCitation({ lateFeeClause: "   ", country: "JP", laws: TEST_LAWS })).toBeNull();
+    expect(
+      pickCitation({ lateFeeClause: "   ", country: "JP", facts: LAW_FACTS, laws: TEST_LAWS }),
+    ).toBeNull();
   });
 });
 
@@ -129,14 +140,24 @@ describe("Tier 3 drafts", () => {
   });
 
   it("accepts the citation it was given", () => {
-    const citation = pickCitation({ lateFeeClause: null, country: "GB", laws: TEST_LAWS });
+    const citation = pickCitation({
+      lateFeeClause: null,
+      country: "GB",
+      facts: LAW_FACTS,
+      laws: TEST_LAWS,
+    });
     expect(
       draftProblems(cites, { kind: "tier3", facts: { ...facts, citation } }, TEST_LAWS),
     ).toEqual([]);
   });
 
   it("Tiers 1 and 2 may never cite, even with a citation in the facts", () => {
-    const citation = pickCitation({ lateFeeClause: null, country: "GB", laws: TEST_LAWS });
+    const citation = pickCitation({
+      lateFeeClause: null,
+      country: "GB",
+      facts: LAW_FACTS,
+      laws: TEST_LAWS,
+    });
     expect(
       draftProblems(cites, { kind: "tier2", facts: { ...facts, citation } }, TEST_LAWS),
     ).toContain("it makes a legal or fee reference, but this notice may cite nothing");

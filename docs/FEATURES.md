@@ -148,7 +148,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 
 ### Part C: Contracts and legal tools
 
-- [ ] **C1 Facts, law table and rates:** client region and "is a business", legal name, Udyam number, `legal/statutes.json`, `legal/reference-rates.json`, `npm run legal:check`.
+- [x] **C1 Facts, law table and rates:** client region and "is a business", legal name, Udyam number, `legal/statutes.json`, `legal/reference-rates.json`, `npm run legal:check`.
   - Done when: `npm run legal:check` lists every entry as unapproved with its source, and nothing is cited until approved.
 - [ ] **C2 Agreement builder:** migration 028, template, builder page, Agreement panel on the Project page.
   - Done when: a draft agreement for the demo project previews with the right amounts, milestones and options, and can be saved and voided.

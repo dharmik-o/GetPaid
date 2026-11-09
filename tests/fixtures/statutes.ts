@@ -1,4 +1,4 @@
-import type { Law } from "@/lib/legal";
+import type { Law, LawFacts } from "@/lib/legal";
 
 // A made-up law table for tests only. The real one is legal/statutes.json, and its entries
 // are added only after a person checks them (see .claude/rules/prompts.md).
@@ -12,6 +12,10 @@ export const TEST_LAWS: Law[] = [
       "Under the Test Late Payment Act 2000, statutory interest may apply to late payments.",
     sourceUrl: "https://example.test/laws/gb",
     checkedOn: "2026-11-03",
+    approved: true,
+    appliesWhen: {},
+    interest: { method: "none" },
+    compensation: [],
   },
   {
     id: "test-us-city-only",
@@ -21,5 +25,18 @@ export const TEST_LAWS: Law[] = [
     sourceUrl: "https://example.test/laws/us-city",
     checkedOn: "2026-11-03",
     condition: "Only when the freelancer or client is in Test City.",
+    approved: true,
+    appliesWhen: {},
+    interest: { method: "none" },
+    compensation: [],
   },
 ];
+
+/** A business client in no particular region, owing USD 1,000.00. */
+export const LAW_FACTS: LawFacts = {
+  clientRegion: null,
+  clientIsBusiness: true,
+  freelancerHasUdyam: false,
+  amountCents: 100_000,
+  currency: "USD",
+};

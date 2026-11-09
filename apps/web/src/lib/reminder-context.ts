@@ -31,8 +31,16 @@ export type ReminderContext = {
   retainerName: string | null;
   /** null for a retainer that isn't tied to a project. */
   project: { title: string; contractTerms: string | null; lateFeeClause: string | null } | null;
-  client: { name: string; country: string; timeZone: string };
+  client: {
+    name: string;
+    country: string;
+    timeZone: string;
+    region: string | null;
+    isBusiness: boolean;
+  };
   freelancerName: string;
+  /** The freelancer has an Udyam (MSME) number, which the MSMED Act needs. */
+  freelancerHasUdyam: boolean;
   settings: ScheduleSettings;
 };
 
@@ -65,7 +73,10 @@ type Row = {
   country: string;
   time_zone: string;
   client_settings: unknown;
+  region: string | null;
+  is_business: boolean;
   freelancer_name: string;
+  has_udyam: boolean;
   account_settings: unknown;
 };
 
@@ -78,8 +89,8 @@ const SELECT = `
     m.name AS milestone_name, rt.name AS retainer_name, m.deliverable,
     m.settings AS milestone_settings,
     p.title, p.contract_terms, p.late_fee_clause, p.settings AS project_settings,
-    c.name AS client_name, c.country, c.time_zone, c.settings AS client_settings,
-    u.name AS freelancer_name, u.default_settings AS account_settings
+    c.name AS client_name, c.country, c.time_zone, c.region, c.is_business, c.settings AS client_settings,
+    u.name AS freelancer_name, u.udyam_number IS NOT NULL AS has_udyam, u.default_settings AS account_settings
   FROM public.reminders r
   JOIN public.invoices i ON i.id = r.invoice_id
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
@@ -131,8 +142,15 @@ export const loadReminderContext = async (
             contractTerms: row.contract_terms,
             lateFeeClause: row.late_fee_clause,
           },
-    client: { name: row.client_name, country: row.country, timeZone: row.time_zone },
+    client: {
+      name: row.client_name,
+      country: row.country,
+      timeZone: row.time_zone,
+      region: row.region,
+      isBusiness: row.is_business,
+    },
     freelancerName: row.freelancer_name,
+    freelancerHasUdyam: row.has_udyam,
     settings: mergeSettings({
       account: row.account_settings,
       client: row.client_settings,

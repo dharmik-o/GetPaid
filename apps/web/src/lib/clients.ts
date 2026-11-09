@@ -19,6 +19,10 @@ export type Client = {
   country: string;
   countryName: string;
   timeZone: string;
+  /** State or province code (NY, CA...), for laws that differ by region. Null when not given. */
+  region: string | null;
+  /** False for a private person: business-only laws are never cited for them. */
+  isBusiness: boolean;
   settings: SettingsOverride;
   /** Money still owed on sent, partly paid or disputed invoices, per currency. */
   openBalances: Money[];
@@ -42,11 +46,23 @@ const fieldsSchema = z.strictObject({
   timeZone: z
     .string({ error: "must be picked from the list" })
     .refine(isValidTimeZone, "must be a time zone from the list, like America/New_York"),
+  region: z
+    .string({ error: "must be a code like NY" })
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{1,3}$/, "must be a 1 to 3 letter code like NY")
+    .nullable(),
+  isBusiness: z.boolean({ error: "must be yes or no" }),
   /** Checked separately by validateSettings, so its errors are reported field by field. */
   settings: z.unknown(),
 });
 
-const createSchema = fieldsSchema.partial({ timeZone: true, settings: true });
+const createSchema = fieldsSchema.partial({
+  timeZone: true,
+  settings: true,
+  region: true,
+  isBusiness: true,
+});
 const updateSchema = fieldsSchema.partial();
 
 type Fields = Omit<z.infer<typeof fieldsSchema>, "settings"> & { settings: SettingsOverride };
@@ -76,7 +92,7 @@ export const parseClientCreate = (raw: unknown): Parsed<ClientCreate> => {
   const settings = settingsIssues(raw);
   const errors = [...fieldIssues(parsed.error), ...settings.errors];
   if (!parsed.success || errors.length > 0) return { ok: false, errors };
-  const { name, email, country, timeZone } = parsed.data;
+  const { name, email, country, timeZone, region, isBusiness } = parsed.data;
   return {
     ok: true,
     value: {
@@ -84,6 +100,8 @@ export const parseClientCreate = (raw: unknown): Parsed<ClientCreate> => {
       email,
       country,
       timeZone: timeZone ?? defaultTimeZone(country),
+      region: region ?? null,
+      isBusiness: isBusiness ?? true,
       settings: settings.settings ?? {},
     },
   };
@@ -95,7 +113,7 @@ export const parseClientUpdate = (raw: unknown): Parsed<ClientUpdate> => {
   const settings = settingsIssues(raw);
   const errors = [...fieldIssues(parsed.error), ...settings.errors];
   if (!parsed.success || errors.length > 0) return { ok: false, errors };
-  const { name, email, country, timeZone } = parsed.data;
+  const { name, email, country, timeZone, region, isBusiness } = parsed.data;
   return {
     ok: true,
     value: {
@@ -103,6 +121,8 @@ export const parseClientUpdate = (raw: unknown): Parsed<ClientUpdate> => {
       email,
       country,
       timeZone: timeZone ?? (country ? defaultTimeZone(country) : undefined),
+      region,
+      isBusiness,
       settings: settings.settings,
     },
   };
@@ -114,6 +134,8 @@ type ClientRow = {
   email: string;
   country: string;
   time_zone: string;
+  region: string | null;
+  is_business: boolean;
   settings: unknown;
   open_balances: { currency: string; cents: string }[] | null;
   last_activity_at: unknown;
@@ -131,7 +153,7 @@ const SELECT_CLIENTS = `
     FROM public.invoices i
     JOIN public.retainers r ON r.id = i.retainer_id
   )
-  SELECT c.id::text, c.name, c.email, c.country, c.time_zone, c.settings,
+  SELECT c.id::text, c.name, c.email, c.country, c.time_zone, c.region, c.is_business, c.settings,
     (
       SELECT json_agg(json_build_object('currency', b.currency, 'cents', b.cents::text) ORDER BY b.currency)
       FROM (
@@ -160,6 +182,8 @@ const toClient = (row: ClientRow): Client => ({
   country: row.country,
   countryName: isCountryCode(row.country) ? countryName(row.country) : row.country,
   timeZone: row.time_zone,
+  region: row.region,
+  isBusiness: row.is_business,
   settings: settingsOverrideSchema.parse(row.settings),
   openBalances: (row.open_balances ?? []).map((b) => ({
     currency: b.currency,
@@ -181,10 +205,18 @@ export const getClient = async (db: Db, id: string): Promise<Client | undefined>
 /** The owner is always the signed-in user (auth.uid()), never a value from the request. */
 export const createClient = async (db: Db, input: ClientCreate): Promise<Client> => {
   const { rows } = await db.query<{ id: string }>(
-    `INSERT INTO public.clients (user_id, name, email, country, time_zone, settings)
-     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5)
+    `INSERT INTO public.clients (user_id, name, email, country, time_zone, region, is_business, settings)
+     VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, $6, $7)
      RETURNING id::text`,
-    [input.name, input.email, input.country, input.timeZone, JSON.stringify(input.settings)],
+    [
+      input.name,
+      input.email,
+      input.country,
+      input.timeZone,
+      input.region,
+      input.isBusiness,
+      JSON.stringify(input.settings),
+    ],
   );
   const id = rows[0]?.id;
   const client = id ? await getClient(db, id) : undefined;
@@ -203,7 +235,9 @@ export const updateClient = async (
        email = coalesce($3, email),
        country = coalesce($4, country),
        time_zone = coalesce($5, time_zone),
-       settings = coalesce($6::jsonb, settings)
+       region = CASE WHEN $6 THEN $7 ELSE region END,
+       is_business = coalesce($8, is_business),
+       settings = coalesce($9::jsonb, settings)
      WHERE id = $1`,
     [
       id,
@@ -211,6 +245,9 @@ export const updateClient = async (
       changes.email ?? null,
       changes.country ?? null,
       changes.timeZone ?? null,
+      changes.region !== undefined,
+      changes.region ?? null,
+      changes.isBusiness ?? null,
       changes.settings ? JSON.stringify(changes.settings) : null,
     ],
   );

@@ -17,7 +17,13 @@ export type ClientFormValues = {
   email: string;
   country: string;
   timeZone: string;
+  /** State or province code; asked for only in countries where laws differ by region. */
+  region: string;
+  isBusiness: boolean;
 };
+
+/** Countries whose late-payment laws differ by state or province. */
+const REGION_COUNTRIES = ["US", "CA", "AU", "IN"];
 
 type FieldIssue = { field: string; message: string };
 
@@ -33,6 +39,8 @@ const LABELS: Record<string, string> = {
   email: "Billing email",
   country: "Country",
   timeZone: "Time zone",
+  region: "State or province",
+  isBusiness: "Client type",
 };
 
 const errorMessage = async (
@@ -50,7 +58,7 @@ const errorMessage = async (
 export const ClientForm = ({ countries, allTimeZones, initial }: Props) => {
   const router = useRouter();
   const [values, setValues] = useState<ClientFormValues>(
-    initial ?? { name: "", email: "", country: "", timeZone: "" },
+    initial ?? { name: "", email: "", country: "", timeZone: "", region: "", isBusiness: true },
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
@@ -75,9 +83,13 @@ export const ClientForm = ({ countries, allTimeZones, initial }: Props) => {
     setSaving(true);
     setFormError(undefined);
     setFieldErrors({});
-    const { id, timeZone, ...rest } = values;
-    // A blank time zone means "use the country's default".
-    const fields = timeZone ? { ...rest, timeZone } : rest;
+    const { id, timeZone, region, ...rest } = values;
+    // A blank time zone means "use the country's default"; a blank region means "none".
+    const fields = {
+      ...rest,
+      ...(timeZone ? { timeZone } : {}),
+      region: REGION_COUNTRIES.includes(values.country) && region ? region : null,
+    };
     try {
       const response = await fetch(id ? `/api/clients/${id}` : "/api/clients", {
         method: id ? "PATCH" : "POST",
@@ -211,6 +223,42 @@ export const ClientForm = ({ countries, allTimeZones, initial }: Props) => {
           Set from the country. Reminders go out in the client&apos;s working hours in this zone.
         </div>
         {errorFor("timeZone")}
+      </div>
+
+      {REGION_COUNTRIES.includes(values.country) ? (
+        <div className="field">
+          <label htmlFor="region">{LABELS.region}</label>
+          <input
+            id="region"
+            value={values.region}
+            maxLength={3}
+            onChange={(e) => {
+              setValues((v) => ({ ...v, region: e.target.value.toUpperCase() }));
+            }}
+            aria-invalid={Boolean(fieldErrors.region)}
+            aria-describedby={describedBy("region", true)}
+          />
+          <div id="region-hint" className="field-hint">
+            A code like NY. Some late-payment laws depend on the client&apos;s state.
+          </div>
+          {errorFor("region")}
+        </div>
+      ) : null}
+
+      <div className="field">
+        <label>
+          <input
+            type="checkbox"
+            checked={values.isBusiness}
+            onChange={(e) => {
+              setValues((v) => ({ ...v, isBusiness: e.target.checked }));
+            }}
+          />{" "}
+          This client is a business
+        </label>
+        <div className="field-hint">
+          Some late-payment laws cover business clients only. Untick it for a private person.
+        </div>
       </div>
 
       <div className="actions">

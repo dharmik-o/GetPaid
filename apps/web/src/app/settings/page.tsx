@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/CopyButton";
 import { DemoClockForm } from "@/components/DemoClockForm";
+import { LegalFactsForm } from "@/components/LegalFactsForm";
 import { TimeZoneForm } from "@/components/TimeZoneForm";
 import { UsualDelayForm } from "@/components/UsualDelayForm";
-import { getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
+import { getLegalFacts, getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
 import { defaultArchiveDir } from "@/lib/archive-paths";
 import { demoOffsetDays } from "@/lib/clock";
-import { ownTimeZoneChoices } from "@/lib/countries";
+import { COUNTRIES, ownTimeZoneChoices } from "@/lib/countries";
 import { runAsCurrentUser } from "@/lib/request-user";
 
 // Settings hub. The AI settings (M4), invoice templates (M5) and your time zone (M6) exist;
@@ -31,6 +32,17 @@ const SettingsPage = async () => (
       <h2 id="settings-usual-delay">How late clients usually pay you</h2>
       <p>Days saved on Home compares against this. Leave it empty if you&apos;d rather not say.</p>
       <UsualDelayForm current={await runAsCurrentUser((db) => getUsualDaysLate(db))} />
+    </section>
+    <section className="card" aria-labelledby="settings-legal">
+      <h2 id="settings-legal">Legal details</h2>
+      <p>
+        Used in agreements and to decide which late-payment laws can be cited. Nothing here is legal
+        advice.
+      </p>
+      <LegalFactsForm
+        current={await runAsCurrentUser((db) => getLegalFacts(db))}
+        countries={COUNTRIES.map(({ code, name }) => ({ code, name }))}
+      />
     </section>
     <section className="card" aria-labelledby="settings-ai">
       <h2 id="settings-ai">AI model</h2>

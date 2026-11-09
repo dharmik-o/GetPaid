@@ -16,11 +16,59 @@ const lawSchema = z.strictObject({
   citation: z.string().min(10).max(600),
   sourceUrl: z.url({ protocol: /^https$/ }),
   checkedOn: z.iso.date(),
+  /** Only an entry the owner has checked against its source is ever used. */
+  approved: z.boolean().default(false),
+  /** What the stored facts must show before the law is cited. All listed conditions must hold. */
+  appliesWhen: z
+    .strictObject({
+      clientRegions: z.array(z.string().regex(/^[A-Z0-9]{1,3}$/)).optional(),
+      clientIsBusiness: z.boolean().optional(),
+      freelancerHasUdyam: z.boolean().optional(),
+      minAmountCents: z.number().int().positive().optional(),
+      amountCurrency: z
+        .string()
+        .regex(/^[A-Z]{3}$/)
+        .optional(),
+    })
+    .default({}),
   /**
-   * When it applies beyond the country (a city, a registered business type). The app can't
-   * check these, so a law with a condition is never cited automatically.
+   * Anything else that decides whether it applies (a city, a registered business type). The app
+   * can't check these, so a law with a condition is never cited automatically.
    */
   condition: z.string().min(3).max(300).optional(),
+  /** How statutory interest is worked out (C4). Rates come from legal/reference-rates.json. */
+  interest: z
+    .discriminatedUnion("method", [
+      z.strictObject({
+        method: z.literal("simple_daily_over_reference"),
+        basis: z.enum(["BOE_BASE", "ECB_MRO"]),
+        marginBp: z.number().int().positive(),
+        referenceDate: z.enum(["half_year_start", "due_date"]),
+      }),
+      z.strictObject({
+        method: z.literal("monthly_compound_multiple"),
+        basis: z.literal("RBI_BANK"),
+        multiple: z.number().int().positive(),
+        paymentDays: z.strictObject({
+          withAgreement: z.number().int(),
+          withoutAgreement: z.number().int(),
+        }),
+      }),
+      z.strictObject({ method: z.literal("none") }),
+    ])
+    .default({ method: "none" }),
+  /** Fixed sums by debt size, in the debt's own currency. `upToCents: null` is the top band. */
+  compensation: z
+    .array(
+      z.strictObject({
+        upToCents: z.number().int().positive().nullable(),
+        amountCents: z.number().int().positive(),
+        currency: z.string().regex(/^[A-Z]{3}$/),
+      }),
+    )
+    .default([]),
+  /** Remedies that are text only, such as double damages. Never calculated. */
+  damagesNote: z.string().max(300).optional(),
 });
 
 export const statuteTableSchema = z.strictObject({
@@ -28,7 +76,7 @@ export const statuteTableSchema = z.strictObject({
   laws: z.array(lawSchema),
 });
 
-export type Law = z.infer<typeof lawSchema>;
+export type Law = z.output<typeof lawSchema>;
 
 /** Reads the table, or says exactly what's wrong with it. */
 export const parseStatuteTable = (raw: unknown): Law[] => {
@@ -40,20 +88,58 @@ export const parseStatuteTable = (raw: unknown): Law[] => {
   );
 };
 
+/** The stored facts a law's `appliesWhen` is checked against. */
+export type LawFacts = {
+  clientRegion: string | null;
+  clientIsBusiness: boolean;
+  freelancerHasUdyam: boolean;
+  /** The debt being collected, in minor units. */
+  amountCents: number;
+  currency: string;
+};
+
+/** Whether an approved law's conditions are all met by the stored facts. */
+export const lawApplies = (law: Law, country: string, facts: LawFacts): boolean => {
+  const when = law.appliesWhen;
+  return (
+    law.approved &&
+    law.condition === undefined &&
+    law.countries.includes(country) &&
+    (when.clientRegions === undefined ||
+      (facts.clientRegion !== null && when.clientRegions.includes(facts.clientRegion))) &&
+    (when.clientIsBusiness === undefined || when.clientIsBusiness === facts.clientIsBusiness) &&
+    (when.freelancerHasUdyam === undefined ||
+      when.freelancerHasUdyam === facts.freelancerHasUdyam) &&
+    (when.amountCurrency === undefined || when.amountCurrency === facts.currency) &&
+    (when.minAmountCents === undefined ||
+      (when.amountCurrency !== undefined && facts.amountCents >= when.minAmountCents))
+  );
+};
+
 export type CitationInput = {
   /** The project's late-fee clause, as written in the contract. */
   lateFeeClause: string | null;
   /** The client's country (ISO alpha-2). */
   country: string;
+  facts: LawFacts;
   laws: readonly Law[];
 };
 
-/** The contract clause first (it's what the client agreed to), then a law for the country. */
-export const pickCitation = ({ lateFeeClause, country, laws }: CitationInput): Citation | null => {
+/**
+ * The contract clause first (it's what the client agreed to), then the first approved law whose
+ * conditions the stored facts meet. A threshold without a currency never matches: an amount in
+ * another currency can't be compared.
+ */
+export const pickCitation = ({
+  lateFeeClause,
+  country,
+  facts,
+  laws,
+}: CitationInput): Citation | null => {
   const clause = lateFeeClause?.replace(/\s+/g, " ").trim();
   if (clause)
     return { kind: "contract", text: `Our contract's late-payment clause says: "${clause}"` };
-  const law = laws.find((l) => l.countries.includes(country) && l.condition === undefined);
+  const law = laws.find((l) => lawApplies(l, country, facts));
   return law ? { kind: "statute", lawId: law.id, text: law.citation } : null;
 };
 
