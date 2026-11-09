@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AI_PRESET_IDS, presetById, type AiPresetId } from "./ai-presets";
 import { baseUrlProblem, sameServer } from "./ai-url";
+import { isDemoMode } from "./demo-gate";
 import type { SecretBox } from "./crypto";
 import type { Db } from "./db";
 import { toFieldIssues, type FieldIssue } from "./field-issues";
@@ -128,7 +129,7 @@ const resolveConnection = (
   const preset = presetById(input.provider);
   const isLocal = preset?.local ?? input.isLocal ?? false;
   const errors: FieldIssue[] = [];
-  const urlProblem = baseUrlProblem(input.baseUrl, isLocal);
+  const urlProblem = baseUrlProblem(input.baseUrl, isLocal, isDemoMode());
   if (urlProblem) errors.push({ field: `${context.field}.baseUrl`, message: urlProblem });
 
   const kept =

@@ -808,3 +808,13 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Postgres and n8n keep the base file's `127.0.0.1` ports,** so the production file doesn't repeat them. Ollama's and LiteLLM's ports are removed with `!reset`.
 - **Caddy is pinned to 2.11.9** (the newest 2.x tag found on 9 Nov 2026).
 - **Checked on a separate Compose project (`getpaidcheck`) on spare ports,** with fake settings and a replaced env file, because the plan's literal command would have recreated the dev stack's n8n and Postgres and clashed with their ports.
+
+### 2026-11-09: D3 choices
+
+- **The file is `src/proxy.ts`.** This Next.js (16.4) renamed middleware to proxy, which runs on the Node runtime, so `node:crypto` works in it. The decision is a pure function (`gateDecision` in `lib/demo-gate.ts`) and `proxy.ts` only turns it into a response, so the rules are unit-tested without a server.
+- **Production now refuses to start without the gate.** `instrumentation.ts` throws at server start when production has no valid demo settings, and `currentUserId` throws with the same message. Before, only requests failed. The message names the setting that is wrong and never prints its value.
+- **Open paths are matched by exact path or prefix, and an encoded slash, dot or backslash makes a path never open** (`/api/webhooks/%2e%2e/settings` stays behind the password). `/api/internal/*` and `/api/webhooks/*` are open because each has its own check (internal token; PayPal signature).
+- **Sign-in is a JSON call from a small client form,** like the other forms, not a plain HTML form post. The server returns the safe `next` path and the page goes there. `next` must start with one `/`, with no backslash or control characters, which closes `/\evil.com` and `/<tab>/evil.com` as well as `//evil.com`.
+- **Five wrong passwords block that IP for 10 minutes,** and the block holds even for the right password, so guessing gains nothing during it. The count is in memory, so a restart clears it. The IP is the first `X-Forwarded-For` value (Caddy sets it); it is used as a key and never logged.
+- **E9 lives in `baseUrlProblem`'s new `demo` argument,** so one function guards both saving and every call. Cloud providers must be the exact host, `https`, default port. The local services must be `http://ollama:11434` or `http://litellm:4000` exactly, so `ollama:5678` is refused too.
+- **The sign-in page has no sidebar,** since every link in it would lead back to the password page.

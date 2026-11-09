@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { baseUrlProblem } from "./ai-url";
+import { isDemoMode } from "./demo-gate";
 
 // Server-only: one OpenAI-compatible chat call to the user's model. Every preset (and any
 // local runner or the LiteLLM gateway) speaks this format, so nothing else changes with the
@@ -41,7 +42,7 @@ export const chatCompletion = async (
   messages: ChatMessage[],
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<ChatResult> => {
-  const problem = baseUrlProblem(target.baseUrl, target.isLocal);
+  const problem = baseUrlProblem(target.baseUrl, target.isLocal, isDemoMode());
   if (problem) return { ok: false, detail: `base URL ${problem}` };
   let response: Response;
   try {

@@ -6,8 +6,8 @@ import { Logo } from "@/components/Logo";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-/** The landing page brings its own nav and footer. */
-const NO_SHELL = new Set(["/welcome"]);
+/** The landing page brings its own nav and footer; the demo sign-in has no menu to offer yet. */
+const NO_SHELL = new Set(["/welcome", "/demo-login"]);
 
 type Props = { banner: ReactNode; children: ReactNode };
 
