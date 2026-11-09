@@ -139,6 +139,48 @@ const NEXT_STEPS = {
   courts: "pursue recovery through the courts or a collection agency",
 } as const;
 
+export type ClaimBasis = {
+  country: string;
+  region: string | null;
+  isBusiness: boolean;
+  hasUdyam: boolean;
+  outstandingCents: number;
+  currency: string;
+  dueOn: string;
+  asOf: string;
+  hasAgreement: boolean;
+};
+
+/** The approved law that applies to this debt and the claim under it, or null when none does. */
+export const lawClaim = (
+  basis: ClaimBasis,
+  laws: readonly Law[],
+  rates: ReferenceRates,
+): { law: Law; claim: Claim } | null => {
+  const law = laws.find((candidate) =>
+    lawApplies(candidate, basis.country, {
+      clientRegion: basis.region,
+      clientIsBusiness: basis.isBusiness,
+      freelancerHasUdyam: basis.hasUdyam,
+      amountCents: basis.outstandingCents,
+      currency: basis.currency,
+    }),
+  );
+  if (!law) return null;
+  return {
+    law,
+    claim: statutoryClaim({
+      law,
+      principalCents: basis.outstandingCents,
+      currency: basis.currency,
+      dueOn: basis.dueOn,
+      asOf: basis.asOf,
+      rates,
+      hasAgreement: basis.hasAgreement,
+    }),
+  };
+};
+
 /** The facts for one invoice, or why a final demand can't be made for it. */
 export const demandFacts = async (
   db: Db,
@@ -189,27 +231,23 @@ export const demandFacts = async (
     : undefined;
   const clause = agreement?.clause ?? row.late_fee_clause;
   const currency = row.currency;
-  const law =
-    laws.find((candidate) =>
-      lawApplies(candidate, row.country, {
-        clientRegion: row.region,
-        clientIsBusiness: row.is_business,
-        freelancerHasUdyam: row.udyam_number !== null,
-        amountCents: outstanding,
-        currency,
-      }),
-    ) ?? null;
-  const claim = law
-    ? statutoryClaim({
-        law,
-        principalCents: outstanding,
-        currency,
-        dueOn: row.due_date,
-        asOf,
-        rates,
-        hasAgreement: agreement !== undefined,
-      })
-    : null;
+  const applied = lawClaim(
+    {
+      country: row.country,
+      region: row.region,
+      isBusiness: row.is_business,
+      hasUdyam: row.udyam_number !== null,
+      outstandingCents: outstanding,
+      currency,
+      dueOn: row.due_date,
+      asOf,
+      hasAgreement: agreement !== undefined,
+    },
+    laws,
+    rates,
+  );
+  const law = applied?.law ?? null;
+  const claim = applied?.claim ?? null;
   const deadline = formatFullDay(addCalendarDays(asOf, deadlineDays));
   const clauseText = clause ? squash(clause) : null;
   const msmed = law?.id === MSMED_LAW_ID;

@@ -100,6 +100,31 @@ export const demandRelativePath = ({
     `${safeSegment(invoiceNumber)}-demand-${date}${attempt > 1 ? ` (${String(attempt)})` : ""}.pdf`,
   ].join("/");
 
+/** <Client>/<Project>/Demands: where a project's final demand letters are kept. */
+export const demandsDirRelative = (clientName: string, projectTitle: string): string =>
+  [safeSegment(clientName), safeSegment(projectTitle), "Demands"].join("/");
+
+export type PackName = {
+  clientName: string;
+  projectTitle: string;
+  /** The pack's date, yyyy-mm-dd. */
+  date: string;
+  attempt: number;
+};
+
+/** <Client>/<Project>/Lawyer-pack-2026-11-09.pdf. Always with forward slashes. */
+export const lawyerPackRelativePath = ({
+  clientName,
+  projectTitle,
+  date,
+  attempt,
+}: PackName): string =>
+  [
+    safeSegment(clientName),
+    safeSegment(projectTitle),
+    `Lawyer-pack-${date}${attempt > 1 ? ` (${String(attempt)})` : ""}.pdf`,
+  ].join("/");
+
 /** The file's full path, or undefined if it isn't a PDF inside the archive. */
 export const resolveInsideArchive = (dir: string, relativePath: string): string | undefined => {
   if (!relativePath.toLowerCase().endsWith(".pdf")) return undefined;

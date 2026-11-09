@@ -4,6 +4,7 @@ import { AgreementPanel } from "@/components/AgreementPanel";
 import { HoldPanel } from "@/components/HoldPanel";
 import { hasFilters, InvoiceFilters, InvoiceTable } from "@/components/InvoiceHistory";
 import { InvoicePanel } from "@/components/InvoicePanel";
+import { LawyerPackButton } from "@/components/LawyerPackButton";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
 import { ProjectForm } from "@/components/ProjectForm";
 import { listAgreements } from "@/lib/agreements";
@@ -101,6 +102,15 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
       <section className="card" aria-labelledby="agreement">
         <h2 id="agreement">Agreement</h2>
         <AgreementPanel projectId={project.id} agreements={agreements} />
+      </section>
+
+      <section className="card" aria-labelledby="lawyer-pack">
+        <h2 id="lawyer-pack">Lawyer pack</h2>
+        <p className="muted">
+          One PDF for a lawyer: the parties, amounts, the signed agreement, every invoice, a timeline
+          of everything sent and received, and any final demand. This is not legal advice.
+        </p>
+        <LawyerPackButton projectId={project.id} />
       </section>
 
       <section className="card" aria-labelledby="milestones">
