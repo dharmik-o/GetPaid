@@ -143,7 +143,7 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
   - Done when: the exported file imports into Google Calendar (the owner checks; see `docs/NEEDS_YOU.md`).
 - [x] **A4 Import:** guarded fetch, ICS parsing, sources screen, 30-minute sync workflow.
   - Done when: a Google secret iCal address shows its events (including recurring ones) on the calendar and refreshes on schedule.
-- [ ] **A5 AI assistant:** the `calendar` AI task, answer checks, proposals with an Apply button.
+- [x] **A5 AI assistant:** the `calendar` AI task, answer checks, proposals with an Apply button.
   - Done when: with the owner's configured model, "What are my deadlines next week?" lists the right items, and "Move <entry> to Friday" proposes a move that applies only after a click.
 
 ### Part C: Contracts and legal tools

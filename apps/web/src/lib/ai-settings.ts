@@ -11,7 +11,7 @@ import { toFieldIssues, type FieldIssue } from "./field-issues";
 // optional per-task model names. API keys are encrypted at rest, bound to the user and the
 // connection, never logged and never sent back to the browser (`hasKey` only).
 
-export const AI_TASKS = ["sort", "draft", "tier3"] as const;
+export const AI_TASKS = ["sort", "draft", "tier3", "calendar"] as const;
 export type AiTask = (typeof AI_TASKS)[number];
 
 const MODEL_ID = /^[\w.:/@+-]{1,200}$/;
@@ -41,6 +41,7 @@ const settingsSchema = z.strictObject({
     .strictObject({
       sort: modelSchema.nullable().optional(),
       tier3: modelSchema.nullable().optional(),
+      calendar: modelSchema.nullable().optional(),
     })
     .optional(),
 });
@@ -59,7 +60,7 @@ export type ConnectionView = {
 export type AiSettingsView = {
   main: ConnectionView | null;
   cloudFallback: ConnectionView | null;
-  taskModels: { sort: string | null; tier3: string | null };
+  taskModels: { sort: string | null; tier3: string | null; calendar: string | null };
 };
 
 type Row = {
@@ -106,7 +107,11 @@ const viewOf = (rows: Row[]): AiSettingsView => {
   return {
     main: main ? toView(main) : null,
     cloudFallback: fallback ? toView(fallback) : null,
-    taskModels: { sort: taskModel("sort"), tier3: taskModel("tier3") },
+    taskModels: {
+      sort: taskModel("sort"),
+      tier3: taskModel("tier3"),
+      calendar: taskModel("calendar"),
+    },
   };
 };
 

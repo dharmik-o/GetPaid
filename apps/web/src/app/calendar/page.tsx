@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CalendarAgenda } from "@/components/CalendarAgenda";
+import { CalendarAssistant } from "@/components/CalendarAssistant";
 import { CalendarExport, type ExportRange } from "@/components/CalendarExport";
 import { CalendarMonth } from "@/components/CalendarMonth";
 import { getOwnTimeZone } from "@/lib/account";
@@ -64,6 +65,7 @@ const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: 
           </Link>
         </div>
       </div>
+      <CalendarAssistant />
       <CalendarMonth month={month} today={today} items={monthItems} />
       <CalendarAgenda items={agendaItems} zone={zone} days={AGENDA_DAYS} />
       <CalendarExport ranges={exportRanges(today)} />

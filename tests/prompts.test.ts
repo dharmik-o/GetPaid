@@ -49,7 +49,13 @@ describe("prompts/*.md", () => {
   it("covers every kind of draft", () => {
     expect([...DRAFT_PROMPTS].sort()).toEqual(
       PROMPT_FILES.filter(
-        (name) => !["invoice_text", "redraft_from_feedback", "classify_reply"].includes(name),
+        (name) =>
+          ![
+            "invoice_text",
+            "redraft_from_feedback",
+            "classify_reply",
+            "calendar_assistant",
+          ].includes(name),
       ).sort(),
     );
   });
@@ -126,16 +132,14 @@ describe("draftTemplate", () => {
 
   it.each(
     REQUESTS.filter(
-      (r) => r.kind !== "maintenance" && r.kind !== "auto_pay_approval" && r.kind !== "hold_approval",
+      (r) =>
+        r.kind !== "maintenance" && r.kind !== "auto_pay_approval" && r.kind !== "hold_approval",
     ),
-  )(
-    "$kind carries the pay link and the amount",
-    (request) => {
-      const { body } = draftTemplate(request);
-      expect(body).toContain(PAY_LINK);
-      expect(body).toContain("USD 1,500.00");
-    },
-  );
+  )("$kind carries the pay link and the amount", (request) => {
+    const { body } = draftTemplate(request);
+    expect(body).toContain(PAY_LINK);
+    expect(body).toContain("USD 1,500.00");
+  });
 
   it("names the installment when there is one", () => {
     const facts = reminderFacts({ installment: "Installment 2 of 3", amountDue: "USD 500.00" });

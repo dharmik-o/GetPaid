@@ -32,6 +32,7 @@ export const PROMPT_FILES = [
   "invoice_text",
   "redraft_from_feedback",
   "classify_reply",
+  "calendar_assistant",
 ] as const;
 
 /** A prompt file without its title line. */

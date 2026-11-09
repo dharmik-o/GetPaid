@@ -194,10 +194,10 @@ CREATE INDEX calendar_events_user_time_idx ON public.calendar_events (user_id, o
 
 Imported event descriptions and attendee lists are **not stored** (privacy); only the matched `client_id` is kept.
 
-### 5.2 `db/migrations/028_contracts.sql` (C1, C2)
+### 5.2 `db/migrations/029_contracts.sql` (C1, C2)
 
 ```sql
--- 028_contracts: Phase 2 part C. Facts the late-payment laws need, project agreements and their
+-- 029_contracts: Phase 2 part C. Facts the late-payment laws need, project agreements and their
 -- signing audit trail.
 
 ALTER TABLE public.clients

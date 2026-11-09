@@ -13,3 +13,4 @@ One row per step. Both builder and tester update it (see `docs/PARALLEL-WORKFLOW
 | A2 | feat/A2-calendar-screens | done 9 Nov | pass 9 Nov (solo) | yes | check green; E2E 134 passed + more-menu spec fixed and rerun (15 pass); screens driven by a throwaway Playwright run |
 | A3 | feat/A3-export | done 9 Nov | pass 9 Nov (solo) | yes | check green (2487 tests), E2E 136 passed; Outlook link and Google import unverified (owner) |
 | A4 | feat/A4-calendar-import | done 9 Nov | pass 9 Nov (solo) | yes | check green (2534 tests), E2E 136 passed; Google secret address and n8n workflow need the owner |
+| A5 | feat/A5-ai-assistant | done 9 Nov | pass 9 Nov (solo) | yes | check green (2557 tests), E2E 136 passed; a run with a real model needs the owner |
