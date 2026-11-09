@@ -73,6 +73,13 @@ export const reminderFacts = (
         ? pickCitation({
             lateFeeClause: project?.lateFeeClause ?? null,
             country: ctx.client.country,
+            facts: {
+              clientRegion: ctx.client.region,
+              clientIsBusiness: ctx.client.isBusiness,
+              freelancerHasUdyam: ctx.freelancerHasUdyam,
+              amountCents: invoice.amountCents,
+              currency: invoice.currency,
+            },
             laws,
           })
         : null,

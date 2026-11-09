@@ -1,0 +1,156 @@
+// Generated from legal/reference-rates.json by `npm run ai:prompts`; don't edit by hand.
+// tests/legal.test.ts fails if this file and the table drift. Read it through lib/statutes.ts.
+
+export const REFERENCE_RATE_TABLE: unknown = {
+  $comment:
+    "Reference rates for statutory interest. Owner-maintained: set approved to true only after checking an entry against its source. Each entry is the rate in basis points (100 bp = 1%) in force from a date, until the next entry. Unapproved entries are never used.",
+  BOE_BASE: [
+    {
+      from: "2023-08-03",
+      bp: 525,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-08-01",
+      bp: 500,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-11-07",
+      bp: 475,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-02-06",
+      bp: 450,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-05-08",
+      bp: 425,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-08-07",
+      bp: 400,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-12-18",
+      bp: 375,
+      source: "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy/baserate.xlsx",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2026-11-05",
+      bp: 400,
+      source: "https://www.bankofengland.co.uk/monetary-policy/the-interest-rate-bank-rate",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+  ],
+  ECB_MRO: [
+    {
+      from: "2023-09-20",
+      bp: 450,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-06-12",
+      bp: 425,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-09-18",
+      bp: 365,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-10-23",
+      bp: 340,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2024-12-18",
+      bp: 315,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-02-05",
+      bp: 290,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-03-12",
+      bp: 265,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-04-23",
+      bp: 240,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2025-06-11",
+      bp: 215,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2026-06-17",
+      bp: 240,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+    {
+      from: "2026-09-16",
+      bp: 265,
+      source:
+        "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html",
+      checkedOn: "2026-11-09",
+      approved: false,
+    },
+  ],
+  RBI_BANK: [],
+};

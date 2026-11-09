@@ -150,6 +150,8 @@ const ClientPage = async ({ params, searchParams }: Props) => {
                 email: client.email,
                 country: client.country,
                 timeZone: client.timeZone,
+                region: client.region ?? "",
+                isBusiness: client.isBusiness,
               }}
             />
           </section>
