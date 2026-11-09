@@ -4,6 +4,8 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 ## Open
 
+- **Phase 2, calendar import (A4):** (1) In Google Calendar, open Settings, pick your calendar, Integrate calendar, and copy "Secret address in iCal format". In the app, open Calendar > Imported calendars, paste it under "Secret iCal address", and check that your events (including repeating ones) show on the calendar. Never share that address. I couldn't try a real Google calendar (no account), only a calendar served by a test server and an uploaded file. (2) Add the new n8n workflow: in n8n open Workflows > Import from file, choose `n8n/workflows/08_calendar_sync.json`, pick the credential `App internal API token` on its "Sync in the app" node, save, and publish it. It runs every 30 minutes. `npm run n8n:go-live` doesn't touch it. Until it is published, calendars refresh only when you press "Refresh now".
+
 - **Phase 2, calendar export (A3):** (1) Open Calendar, press Download .ics, and import the file into Google Calendar once (Settings > Import & export). Check that titles, dates, times and the all-day entries look right, then tell me. (2) Try "Add to Outlook" on a calendar entry in your Outlook on the web. Microsoft publishes no reference page for that link, so its parameter names come from Microsoft Q&A threads, not from Microsoft's documentation, and I couldn't try it with an Outlook account. If it opens a blank event, tell me and I'll adjust it.
 
 - **The public demo server (Deployment plan D1 to D4 are built; everything here is yours to do):** follow `docs/DEPLOY.md` from the top. In short:

@@ -379,6 +379,58 @@ const loadHolds = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
     }));
 };
 
+/** Events from imported calendars that are switched on. All-day events keep their date, whatever the zone. */
+const loadImported = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
+  const { rows } = await db.query<{
+    id: string;
+    title: string;
+    all_day: boolean;
+    occurrence_start: unknown;
+    occurrence_end: unknown;
+    status: string;
+    client_id: string | null;
+    client_name: string | null;
+    source_name: string;
+  }>(
+    `SELECT e.id::text, e.title, e.all_day, e.occurrence_start, e.occurrence_end, e.status,
+       e.client_id::text, c.name AS client_name, s.name AS source_name
+     FROM public.calendar_events e
+     JOIN public.calendar_sources s ON s.id = e.source_id AND s.enabled
+     LEFT JOIN public.clients c ON c.id = e.client_id
+     WHERE e.occurrence_start < $2 AND coalesce(e.occurrence_end, e.occurrence_start) >= $1`,
+    [
+      startOfLocalDay(range.from, range.zone),
+      startOfLocalDay(addCalendarDays(range.to, 1), range.zone),
+    ],
+  );
+  return rows
+    .map((row): CalendarItem => {
+      const start = toIso(row.occurrence_start);
+      const end = row.occurrence_end === null ? null : toIso(row.occurrence_end);
+      // An all-day end is the day after the last day.
+      const lastDay = row.all_day && end !== null ? addCalendarDays(end.slice(0, 10), -1) : null;
+      const startsOn = row.all_day ? start.slice(0, 10) : dateIn(start, range.zone);
+      return {
+        ...base,
+        key: `imported:${row.id}`,
+        type: "imported",
+        title: row.title,
+        startsOn,
+        endsOn: lastDay !== null && lastDay > startsOn ? lastDay : null,
+        startAt: row.all_day ? null : start,
+        endAt: row.all_day ? null : end,
+        allDay: row.all_day,
+        clientId: row.client_id,
+        clientName: row.client_name,
+        status: row.status,
+        sourceName: row.source_name,
+        isClientMeeting: row.client_id !== null,
+        href: "/calendar/sources",
+      };
+    })
+    .filter((item) => item.startsOn <= range.to && (item.endsOn ?? item.startsOn) >= range.from);
+};
+
 const byStart = (a: CalendarItem, b: CalendarItem): number =>
   a.startsOn.localeCompare(b.startsOn) ||
   (a.startAt ?? "").localeCompare(b.startAt ?? "") ||
@@ -400,6 +452,7 @@ export const calendarItems = async (db: Db, range: FeedRange): Promise<CalendarI
     await loadMaintenance(db, range),
     await loadRetainers(db, range),
     await loadHolds(db, range),
+    await loadImported(db, range),
   ];
   return lists.flat().sort(byStart);
 };

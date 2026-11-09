@@ -22,7 +22,7 @@ A landing page is at `/welcome`, and the dashboard is at `/`.
 | Layer      | What's used                                                                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------------------- |
 | Web        | Next.js 16 (App Router), React 19, TypeScript strict, Motion, GSAP on the landing page only                 |
-| Automation | n8n, with seven workflows as JSON in `n8n/workflows`                                                        |
+| Automation | n8n, with eight workflows as JSON in `n8n/workflows`                                                        |
 | Data       | Postgres 17 with row-level security, in SQL migrations (`db/migrations`); built to move to Supabase         |
 | Payments   | PayPal REST, sandbox: Invoicing v2, Orders v2, Payments v2, Subscriptions v1, Catalog Products v1, Webhooks |
 | AI         | Any OpenAI-compatible model; prompts in `prompts`, JSON schemas in `prompts/schemas`, LiteLLM as a gateway  |

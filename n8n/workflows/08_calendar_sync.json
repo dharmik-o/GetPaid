@@ -1,0 +1,76 @@
+{
+  "name": "Calendar sync: refreshes imported calendars every 30 minutes",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "2d7a6c10-0801-4f3b-8a2e-000000000801",
+      "name": "Every 30 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/internal/calendar/sync",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 300000
+        }
+      },
+      "id": "2d7a6c10-0802-4f3b-8a2e-000000000802",
+      "name": "Sync in the app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "app-internal-api-token",
+          "name": "App internal API token"
+        }
+      },
+      "notes": "The app refreshes the imported calendars that are due (CALENDAR_SYNC_MINUTES, at least 15), each as its own user. Safe to re-run: a source that was just synced or is being synced isn't touched again. Calendar addresses never leave the app."
+    }
+  ],
+  "connections": {
+    "Every 30 minutes": {
+      "main": [
+        [
+          {
+            "node": "Sync in the app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
