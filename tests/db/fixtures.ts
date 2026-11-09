@@ -21,6 +21,7 @@ export const OWNED_TABLES = [
   "calendar_entries",
   "calendar_sources",
   "calendar_events",
+  "agreements",
 ] as const;
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
@@ -93,4 +94,6 @@ export const seedOwnerSql = ({ label, userId: u, rows: r }: Owner): string => `
     VALUES ('${r.calendar_sources}', '${u}', 'Work', 'url', 'encrypted-${label}', 'calendar.example.test');
   INSERT INTO public.calendar_events (id, user_id, source_id, uid, occurrence_start, all_day, title)
     VALUES ('${r.calendar_events}', '${u}', '${r.calendar_sources}', 'uid-${label}', '2026-12-03T10:00:00Z', false, 'Imported meeting');
+  INSERT INTO public.agreements (id, user_id, project_id, client_id, number, status, options, facts, body_html, body_sha256)
+    VALUES ('${r.agreements}', '${u}', '${r.projects}', '${r.clients}', 'AGR-000001', 'void', '{}', '{}', '<p>Seed</p>', '${"0".repeat(64)}');
 `;

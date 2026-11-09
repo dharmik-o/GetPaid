@@ -25,12 +25,14 @@ const actingAs = <T>(
 /**
  * Events are append-only, and the archive nearly so: tests/api/invoice-archive.test.ts covers it.
  * The calendar source and event tables have no updated_at: tests/phase2/calendar-rls.test.ts covers them.
+ * Agreements can't be deleted (voided instead): tests/phase2/agreements.test.ts covers them.
  */
 const UNTOUCHED_BY_THIS_CHECK = new Set<string>([
   "events",
   "invoice_archive_files",
   "calendar_sources",
   "calendar_events",
+  "agreements",
 ]);
 const MUTABLE_TABLES = OWNED_TABLES.filter((table) => !UNTOUCHED_BY_THIS_CHECK.has(table));
 
