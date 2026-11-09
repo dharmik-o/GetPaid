@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FinalDemandButton } from "@/components/FinalDemandButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDay, formatMoney } from "@/lib/format";
 import {
@@ -78,9 +79,11 @@ export const InvoiceTable = ({
         </tr>
       </thead>
       <tbody>
-        {rowsOf(invoices).map((row) => {
+        {rowsOf(invoices).map((row, index, all) => {
           const { invoice } = row;
           const download = downloadHref(row);
+          const firstOfInvoice =
+            all.findIndex((other) => other.invoice.id === invoice.id) === index;
           return (
             <tr key={row.key}>
               <td data-label="Invoice" className="nowrap">
@@ -107,6 +110,9 @@ export const InvoiceTable = ({
                   <a href={invoice.link} target="_blank" rel="noreferrer">
                     Open PayPal invoice
                   </a>
+                ) : null}
+                {invoice.status === "overdue" && firstOfInvoice ? (
+                  <FinalDemandButton invoiceId={invoice.id} />
                 ) : null}
               </td>
             </tr>

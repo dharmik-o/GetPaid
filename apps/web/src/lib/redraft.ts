@@ -42,10 +42,13 @@ const prepare = (deps: RedraftDeps, userId: string, id: string): Promise<Ready |
     if (other?.approvalStatus !== "waiting" && ctx?.approvalStatus !== "waiting") return undefined;
     if (other?.stopReason) return undefined;
     if (ctx && (notPayable(ctx) || !ctx.invoice.link)) return undefined;
-    const { rows } = await db.query<{ draft: unknown; telegram_message_id: string | null }>(
-      "SELECT draft, telegram_message_id::text FROM public.reminders WHERE id = $1",
-      [id],
-    );
+    const { rows } = await db.query<{
+      draft: unknown;
+      telegram_message_id: string | null;
+      tier: string;
+    }>("SELECT draft, telegram_message_id::text, tier FROM public.reminders WHERE id = $1", [id]);
+    // A final demand letter is checked against its facts, so words can't change it.
+    if (rows[0]?.tier === "final_demand") return undefined;
     const current = storedDraftSchema.safeParse(rows[0]?.draft);
     if (!current.success) return undefined;
     const request: DraftRequest | undefined = ctx

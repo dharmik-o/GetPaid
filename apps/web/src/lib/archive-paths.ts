@@ -76,6 +76,30 @@ export const agreementRelativePath = ({
     `${safeSegment(number)}-v${String(version)}${attempt > 1 ? ` (${String(attempt)})` : ""}.pdf`,
   ].join("/");
 
+export type DemandName = {
+  clientName: string;
+  projectTitle: string;
+  invoiceNumber: string;
+  /** The letter's date, yyyy-mm-dd. */
+  date: string;
+  attempt: number;
+};
+
+/** <Client>/<Project>/Demands/FPR-000042-demand-2026-11-09.pdf. Always with forward slashes. */
+export const demandRelativePath = ({
+  clientName,
+  projectTitle,
+  invoiceNumber,
+  date,
+  attempt,
+}: DemandName): string =>
+  [
+    safeSegment(clientName),
+    safeSegment(projectTitle),
+    "Demands",
+    `${safeSegment(invoiceNumber)}-demand-${date}${attempt > 1 ? ` (${String(attempt)})` : ""}.pdf`,
+  ].join("/");
+
 /** The file's full path, or undefined if it isn't a PDF inside the archive. */
 export const resolveInsideArchive = (dir: string, relativePath: string): string | undefined => {
   if (!relativePath.toLowerCase().endsWith(".pdf")) return undefined;

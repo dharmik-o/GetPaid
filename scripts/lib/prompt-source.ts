@@ -28,6 +28,7 @@ export const PROMPT_FILES = [
   "tier1_friendly",
   "tier2_firm",
   "tier3_final_notice",
+  "final_demand",
   "maintenance_heads_up",
   "auto_pay_approval",
   "hold_approval",

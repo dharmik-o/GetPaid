@@ -3,6 +3,7 @@ import { secretBox } from "@/lib/crypto";
 import { withUserDb } from "@/lib/db";
 import { devEmailAllowlist, gmailOAuthEnv, internalApiToken } from "@/lib/env";
 import { signedPdfFile } from "@/lib/agreement-pdf";
+import { demandPdfFile } from "@/lib/final-demand-letter";
 import { renderPdf } from "@/lib/invoice-pdf";
 import { defaultArchiveDir } from "@/lib/archive-paths";
 import { markArchiveSent, stageInArchive } from "@/lib/invoice-archive";
@@ -28,6 +29,17 @@ const handler = senderHandler({
         archiveDir: defaultArchiveDir(),
       },
       invoiceId,
+    ),
+  demandPdf: (userId, invoiceId, draft) =>
+    demandPdfFile(
+      {
+        runAsUser: withUserDb(userId),
+        renderPdf: (html) => renderPdf(html),
+        archiveDir: defaultArchiveDir(),
+        now: () => appNow(),
+      },
+      invoiceId,
+      draft,
     ),
   signedPdf: (userId, agreementId) =>
     withUserDb(userId)((db) => signedPdfFile(db, defaultArchiveDir(), agreementId)),

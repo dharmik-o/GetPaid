@@ -87,6 +87,7 @@ const TIER_LABEL: Record<string, string> = {
   hold_approval: "Hold approval email",
   agreement_request: "Agreement email",
   agreement_signed_copy: "Signed agreement email",
+  final_demand: "Final demand letter",
 };
 
 /** True when both are real dates and `to` is not before `from` or more than 400 days after it. */

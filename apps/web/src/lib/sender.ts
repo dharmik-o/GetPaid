@@ -32,6 +32,12 @@ export type SenderDeps = {
   pdf: (userId: string, invoiceId: string) => Promise<PdfFile | undefined>;
   /** The signed agreement's PDF. The signed-copy email never goes without it. */
   signedPdf?: (userId: string, agreementId: string) => Promise<PdfFile | undefined>;
+  /** The final demand letter's PDF, made from the approved draft. A demand never goes without it. */
+  demandPdf?: (
+    userId: string,
+    invoiceId: string,
+    draft: StoredDraft,
+  ) => Promise<PdfFile | undefined>;
   /** Keeps a copy of what's sent: before Gmail is called, then marked once it has gone. */
   archive: {
     stage: (userId: string, invoiceId: string, file: PdfFile) => Promise<string>;
@@ -417,7 +423,17 @@ const deliver = async (
       return "held";
     }
   }
-  if (ready.source.kind === "invoice") {
+  if (ready.source.kind === "invoice" && ready.tier === "final_demand") {
+    try {
+      pdf = (await deps.demandPdf?.(userId, ready.source.invoiceId, ready.draft)) ?? null;
+    } catch (error) {
+      logEvent("sender.pdf_failed", { reminderId: id, error: errorKind(error) });
+    }
+    if (!pdf) {
+      await release(deps, userId, id, "pdf_failed");
+      return "held";
+    }
+  } else if (ready.source.kind === "invoice") {
     try {
       pdf = (await deps.pdf(userId, ready.source.invoiceId)) ?? null;
     } catch (error) {

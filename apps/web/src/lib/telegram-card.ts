@@ -24,6 +24,7 @@ const TIER_NAMES: Record<OutboxItem["tier"], string> = {
   hold_approval: "Hold approval",
   agreement_request: "Agreement to sign",
   agreement_signed_copy: "Signed agreement copy",
+  final_demand: "Final demand letter",
 };
 
 export type CardData = { approve: string; edit: string; skip: string };

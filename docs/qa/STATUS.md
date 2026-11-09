@@ -17,3 +17,4 @@ One row per step. Both builder and tester update it (see `docs/PARALLEL-WORKFLOW
 | C1 | feat/C1-facts-law-table | done 9 Nov | pass 9 Nov (solo) | yes | check green (2574 tests), E2E 136 passed; no law could be read from an official page, so `statutes.json` is empty and all 19 rates are unapproved (owner) |
 | C2 | feat/C2-agreement-builder | done 9 Nov | pass 9 Nov (solo) | yes | check green (2593 tests), E2E 136 passed; builder driven in a browser; template needs a lawyer's review (owner) |
 | C3 | feat/C3-signing | done 9 Nov | pass 9 Nov (solo) | yes | check green (2616 tests), E2E 136 passed; whole flow driven in a browser against fakes; real Gmail and APP_PUBLIC_URL need the owner |
+| C4 | feat/C4-interest-final-demand | done 9 Nov | pass 9 Nov (solo) | yes | check green (2663 tests), E2E 136 passed; button, draft, approval and email driven in a browser against fakes; the MSMED method and the wording need the owner |
