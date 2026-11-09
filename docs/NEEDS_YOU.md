@@ -4,6 +4,8 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 ## Open
 
+- **Phase 2, agreement signing (C3): set `APP_PUBLIC_URL` and check it live.** "Send for signature" refuses until `APP_PUBLIC_URL` is this app's public address (the signing link is built from it), and the client must be able to reach `/sign/...` from outside: in the public demo that is already open past the password gate. Then try it once with a second inbox: send an agreement from the Project page, approve the email in the Outbox, open the link from the email, sign, and approve the signed copy. I ran all of that in a browser against fakes (Chromium made the PDF), but not against real Gmail. Also run `npm run db:migrate` for migrations 030 and 031.
+
 - **Phase 2, legal tables (C1): approve or fill them. Nothing is cited or calculated until you do.** `npm run legal:check` lists every entry and whether it is approved.
   1. **`legal/statutes.json` is empty.** The plan says to draft each law from its official page and leave it unapproved, but none of the pages could be read from here: legislation.gov.uk answered with an empty page, irishstatutebook.ie, indiacode.nic.in, msme.gov.in and leginfo.legislature.ca.gov answered 403, ilga.gov refused the connection, and the nysenate.gov address I tried had no entry. I did not fill any law from memory. For each row, open the official page, copy the sentence a letter may quote into `citation`, set `sourceUrl`, `checkedOn`, `appliesWhen`, `interest` and `compensation` as the schema in `lib/legal.ts` requires, leave `approved` false, run `npm run ai:prompts`, check it, then set `approved: true`. Or paste me the official text and I'll draft the entries.
 

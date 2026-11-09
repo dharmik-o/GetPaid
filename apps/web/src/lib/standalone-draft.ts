@@ -1,3 +1,4 @@
+import { signingLinkProblem } from "./agreement-email";
 import type { Db } from "./db";
 import { toCents } from "./db-values";
 import type { DraftRequest } from "./draft-facts";
@@ -12,17 +13,24 @@ import { mergeSettings, type ScheduleSettings } from "./settings";
 export type StandaloneSource =
   | { kind: "maintenance"; taskId: string }
   | { kind: "auto_pay_approval"; retainerId: string }
-  | { kind: "hold_approval"; holdId: string };
+  | { kind: "hold_approval"; holdId: string }
+  | { kind: "agreement_request"; agreementId: string }
+  | { kind: "agreement_signed_copy"; agreementId: string };
+
+export type StandaloneTier = StandaloneSource["kind"];
 
 export type StandaloneContext = {
   reminderId: string;
   approvalStatus: "waiting" | "approved" | "skipped";
   hasDraft: boolean;
   source: StandaloneSource;
-  tier: "maintenance" | "auto_pay_approval" | "hold_approval";
-  request: DraftRequest;
+  tier: StandaloneTier;
+  /** What an AI draft is made from; undefined for fixed-text emails (an agreement's), which are never redrafted. */
+  request: DraftRequest | undefined;
   /** The one link the email must carry, or null when it has none. */
   requiredLink: string | null;
+  /** Why this wording may not go out, for emails whose link is checked another way. */
+  bodyProblem?: (body: string) => string | undefined;
   /** Why it mustn't go out any more, if so. */
   stopReason: string | undefined;
   client: { name: string; timeZone: string };
@@ -183,6 +191,67 @@ const loadHoldContext = async (
   };
 };
 
+type AgreementEmailRow = {
+  agreement_id: string;
+  tier: "agreement_request" | "agreement_signed_copy";
+  approval_status: StandaloneContext["approvalStatus"];
+  has_draft: boolean;
+  status: string;
+  token_sha256: string | null;
+  client_name: string;
+  time_zone: string;
+  client_settings: unknown;
+  project_settings: unknown;
+  freelancer_name: string;
+  account_settings: unknown;
+};
+
+/** An agreement's two emails: the request to sign and the signed copy. Fixed text, so no AI request. */
+const loadAgreementContext = async (
+  db: Db,
+  reminderId: string,
+): Promise<StandaloneContext | undefined> => {
+  const { rows } = await db.query<AgreementEmailRow>(
+    `SELECT a.id::text AS agreement_id, r.tier, r.approval_status, r.draft IS NOT NULL AS has_draft,
+       a.status, a.token_sha256, c.name AS client_name, c.time_zone, c.settings AS client_settings,
+       p.settings AS project_settings, u.name AS freelancer_name,
+       u.default_settings AS account_settings
+     FROM public.reminders r
+     JOIN public.agreements a ON a.id = r.agreement_id
+     JOIN public.clients c ON c.id = a.client_id
+     JOIN public.projects p ON p.id = a.project_id
+     JOIN public.users u ON u.id = r.user_id
+     WHERE r.id = $1`,
+    [reminderId],
+  );
+  const row = rows[0];
+  if (!row) return undefined;
+  const isRequest = row.tier === "agreement_request";
+  const stillValid = isRequest ? row.status === "sent" : row.status === "signed";
+  return {
+    reminderId,
+    approvalStatus: row.approval_status,
+    hasDraft: row.has_draft,
+    source: { kind: row.tier, agreementId: row.agreement_id },
+    tier: row.tier,
+    request: undefined,
+    requiredLink: null,
+    bodyProblem: isRequest ? (body) => signingLinkProblem(body, row.token_sha256) : undefined,
+    stopReason: stillValid
+      ? undefined
+      : isRequest
+        ? "the agreement is no longer waiting for the client's signature"
+        : "the agreement isn't signed",
+    client: { name: row.client_name, timeZone: row.time_zone },
+    freelancerName: row.freelancer_name,
+    settings: mergeSettings({
+      account: row.account_settings,
+      client: row.client_settings,
+      project: row.project_settings,
+    }),
+  };
+};
+
 /** The email with no invoice behind it, or undefined if this reminder has an invoice. */
 export const loadStandaloneContext = async (
   db: Db,
@@ -190,7 +259,11 @@ export const loadStandaloneContext = async (
 ): Promise<StandaloneContext | undefined> => {
   const job = await loadMaintenanceContext(db, reminderId);
   if (!job) {
-    return (await loadApprovalContext(db, reminderId)) ?? loadHoldContext(db, reminderId);
+    return (
+      (await loadApprovalContext(db, reminderId)) ??
+      (await loadHoldContext(db, reminderId)) ??
+      loadAgreementContext(db, reminderId)
+    );
   }
   return {
     reminderId,

@@ -1,8 +1,11 @@
-import { createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { z } from "zod";
 import { getLegalFacts, getOwnTimeZone } from "./account";
+import { requestDraft, sha256Hex } from "./agreement-email";
 import {
   AGREEMENT_OPTIONS_SCHEMA,
   agreementFactsSchema,
+  lateFeeClauseText,
   renderAgreement,
   type AgreementFacts,
   type AgreementOptions,
@@ -44,6 +47,9 @@ export type Agreement = {
   bodyHtml: string;
   bodySha256: string;
   signedPdfPath: string | null;
+  freelancerSignedName: string | null;
+  freelancerSignedAt: string | null;
+  tokenExpiresAt: string | null;
   sentAt: string | null;
   signedAt: string | null;
   createdAt: string;
@@ -75,13 +81,17 @@ type Row = {
   body_html: string;
   body_sha256: string;
   signed_pdf_path: string | null;
+  freelancer_signed_name: string | null;
+  freelancer_signed_at: unknown;
+  token_expires_at: unknown;
   sent_at: unknown;
   signed_at: unknown;
   created_at: unknown;
 };
 
 const COLUMNS = `id::text, project_id::text, client_id::text, number, version, status, options, facts,
-  body_html, body_sha256, signed_pdf_path, sent_at, signed_at, created_at`;
+  body_html, body_sha256, signed_pdf_path, freelancer_signed_name, freelancer_signed_at,
+  token_expires_at, sent_at, signed_at, created_at`;
 
 const dateOrNull = (value: unknown): string | null => (value === null ? null : toIso(value));
 
@@ -97,12 +107,13 @@ const toAgreement = (row: Row): Agreement => ({
   bodyHtml: row.body_html,
   bodySha256: row.body_sha256,
   signedPdfPath: row.signed_pdf_path,
+  freelancerSignedName: row.freelancer_signed_name,
+  freelancerSignedAt: dateOrNull(row.freelancer_signed_at),
+  tokenExpiresAt: dateOrNull(row.token_expires_at),
   sentAt: dateOrNull(row.sent_at),
   signedAt: dateOrNull(row.signed_at),
   createdAt: toIso(row.created_at),
 });
-
-export const sha256Hex = (text: string): string => createHash("sha256").update(text).digest("hex");
 
 const REPEAT_UNITS: Record<string, string> = { week: "week", month: "month" };
 
@@ -415,6 +426,15 @@ export const updateDraft = async (
   return agreement ? { ok: true, agreement } : { ok: false, notFound: true };
 };
 
+/** Stops the signing email if it hasn't gone out: a dead link must not wait in the Outbox. */
+export const skipUnsentRequest = (db: Db, agreementId: string) =>
+  db.query(
+    `UPDATE public.reminders SET approval_status = 'skipped', approved_via = NULL
+     WHERE agreement_id = $1 AND tier = 'agreement_request' AND sent_at IS NULL
+       AND send_attempted_at IS NULL AND approval_status IN ('waiting', 'approved')`,
+    [agreementId],
+  );
+
 /** Cancels a draft or an agreement that was sent but not yet signed. Nothing is deleted. */
 export const voidAgreement = async (db: Db, id: string): Promise<Saved> => {
   const current = await getAgreement(db, id);
@@ -429,6 +449,7 @@ export const voidAgreement = async (db: Db, id: string): Promise<Saved> => {
     "UPDATE public.agreements SET status = 'void', token_sha256 = NULL WHERE id = $1",
     [id],
   );
+  await skipUnsentRequest(db, id);
   const agreement = await getAgreement(db, id);
   return agreement ? { ok: true, agreement } : { ok: false, notFound: true };
 };
@@ -468,4 +489,114 @@ export const newVersion = async (db: Db, id: string, ctx: Context): Promise<Save
     version: rows[0]?.next ?? current.version + 1,
   });
   return { ok: true, agreement };
+};
+
+export type SendDeps = {
+  /** A fresh signing token: 32 random bytes as base64url. Injected so tests know it. */
+  token: () => string;
+  /** The app's public address (APP_PUBLIC_URL), or undefined when it isn't set. */
+  appUrl: string | undefined;
+};
+
+export const newSigningToken = (): string => randomBytes(32).toString("base64url");
+
+const SIGNING_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const signerNameSchema = z
+  .string({ error: "must be your full name" })
+  .trim()
+  .min(2, "must be your full name")
+  .max(160, "must be 160 characters or fewer");
+
+/**
+ * Sends a draft for signature: the document is rendered one last time from today's facts and then
+ * frozen, a one-use token is made (only its hash is kept), and the email carrying the link is
+ * saved as an Outbox draft. Nothing goes to the client until the freelancer approves that draft.
+ */
+export const sendAgreement = async (
+  db: Db,
+  id: string,
+  raw: unknown,
+  ctx: Context,
+  deps: SendDeps,
+): Promise<Saved> => {
+  const named = signerNameSchema.safeParse(
+    raw && typeof raw === "object" && "freelancerSignedName" in raw
+      ? raw.freelancerSignedName
+      : undefined,
+  );
+  if (!named.success) {
+    return {
+      ok: false,
+      errors: toFieldIssues(named.error, { prefix: "freelancerSignedName", noun: "field" }),
+    };
+  }
+  const current = await getAgreement(db, id);
+  if (!current) return { ok: false, notFound: true };
+  if (current.status !== "draft") {
+    return {
+      ok: false,
+      conflict: `${current.number} is ${current.status}, so it can't be sent again. Make a new version instead.`,
+    };
+  }
+  if (!deps.appUrl) {
+    return {
+      ok: false,
+      conflict:
+        "The signing link can't be made: set APP_PUBLIC_URL to this app's public address, then try again.",
+    };
+  }
+  const prepared = await prepare(db, current.projectId, current.options, ctx);
+  if (!prepared.ok) return prepared;
+  const facts = {
+    ...prepared.facts,
+    lateFeeClauseText: lateFeeClauseText(prepared.facts, prepared.options),
+  };
+  const html = renderAgreement(facts, prepared.options).html;
+  const token = deps.token();
+  const sentAt = ctx.now.toISOString();
+  const { rowCount } = await db.query(
+    `UPDATE public.agreements
+     SET status = 'sent', facts = $2, body_html = $3, body_sha256 = $4, token_sha256 = $5,
+       token_expires_at = $6, sent_at = $7, freelancer_signed_name = $8, freelancer_signed_at = $7
+     WHERE id = $1 AND status = 'draft'`,
+    [
+      id,
+      JSON.stringify(facts),
+      html,
+      sha256Hex(html),
+      sha256Hex(token),
+      new Date(ctx.now.getTime() + SIGNING_DAYS * DAY_MS).toISOString(),
+      sentAt,
+      named.data,
+    ],
+  );
+  if (rowCount === 0) {
+    return { ok: false, conflict: `${current.number} was changed by someone else. Reload it.` };
+  }
+  const { rows } = await db.query<{ name: string }>(
+    "SELECT name FROM public.users WHERE id = (SELECT auth.uid())",
+  );
+  const draft = requestDraft(
+    {
+      clientName: facts.client.name,
+      projectTitle: facts.project.title,
+      freelancerName: rows[0]?.name ?? facts.freelancer.legalName,
+      link: `${deps.appUrl}/sign/${token}`,
+    },
+    ctx.now,
+  );
+  await db.query(
+    `INSERT INTO public.reminders (user_id, agreement_id, tier, scheduled_at, draft)
+     VALUES ((SELECT auth.uid()), $1, 'agreement_request', $2, $3)`,
+    [id, sentAt, JSON.stringify(draft)],
+  );
+  await db.query(
+    `INSERT INTO public.events (user_id, entity, entity_id, type, payload)
+     VALUES ((SELECT auth.uid()), 'agreement', $1, 'agreement.sent', $2)`,
+    [id, JSON.stringify({ number: current.number, version: current.version })],
+  );
+  const agreement = await getAgreement(db, id);
+  return agreement ? { ok: true, agreement } : { ok: false, notFound: true };
 };

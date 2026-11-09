@@ -14,6 +14,8 @@ export const storedDraftSchema = z.strictObject({
     "maintenance",
     "auto_pay_approval",
     "hold_approval",
+    "agreement_request",
+    "agreement_signed_copy",
   ]),
   /** "model": an AI answer that passed every check; "template": the fixed fallback. */
   via: z.enum(["model", "template"]),

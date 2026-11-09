@@ -16,6 +16,8 @@ const TIER_LABELS: Record<OutboxItem["tier"], string> = {
   maintenance: "Maintenance heads-up",
   auto_pay_approval: "Auto-pay approval",
   hold_approval: "Hold approval",
+  agreement_request: "Agreement to sign",
+  agreement_signed_copy: "Signed agreement copy",
 };
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

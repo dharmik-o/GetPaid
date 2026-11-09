@@ -30,6 +30,8 @@ export type SenderDeps = {
   allowlist: () => ReadonlySet<string>;
   /** The invoice's PDF. A reminder never goes without it. */
   pdf: (userId: string, invoiceId: string) => Promise<PdfFile | undefined>;
+  /** The signed agreement's PDF. The signed-copy email never goes without it. */
+  signedPdf?: (userId: string, agreementId: string) => Promise<PdfFile | undefined>;
   /** Keeps a copy of what's sent: before Gmail is called, then marked once it has gone. */
   archive: {
     stage: (userId: string, invoiceId: string, file: PdfFile) => Promise<string>;
@@ -63,6 +65,8 @@ const THREAD_TABLES: Readonly<Record<Source["kind"], string>> = {
   maintenance: "maintenance_tasks",
   auto_pay_approval: "retainers",
   hold_approval: "milestone_holds",
+  agreement_request: "agreements",
+  agreement_signed_copy: "agreements",
 };
 
 const sourceId = (source: Source): string => {
@@ -75,6 +79,9 @@ const sourceId = (source: Source): string => {
       return source.retainerId;
     case "hold_approval":
       return source.holdId;
+    case "agreement_request":
+    case "agreement_signed_copy":
+      return source.agreementId;
   }
 };
 
@@ -109,8 +116,8 @@ const loadSendRow = async (db: Db, id: string): Promise<SendRow | undefined> => 
   const { rows } = await db.query<SendRow>(
     `SELECT r.invoice_id IS NOT NULL AS has_invoice, r.draft, r.send_blocked_reason, c.email AS client_email,
        u.gmail_email AS own_email, u.gmail_status,
-       coalesce(i.gmail_thread_id, mt.gmail_thread_id, ar.gmail_thread_id, h.gmail_thread_id) AS gmail_thread_id,
-       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject, h.gmail_thread_subject) AS gmail_thread_subject
+       coalesce(i.gmail_thread_id, mt.gmail_thread_id, ar.gmail_thread_id, h.gmail_thread_id, ag.gmail_thread_id) AS gmail_thread_id,
+       coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject, h.gmail_thread_subject, ag.gmail_thread_subject) AS gmail_thread_subject
      FROM public.reminders r
      LEFT JOIN public.invoices i ON i.id = r.invoice_id
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
@@ -119,8 +126,9 @@ const loadSendRow = async (db: Db, id: string): Promise<SendRow | undefined> => 
      LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
      LEFT JOIN public.milestone_holds h ON h.id = r.hold_id
      LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
-     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id)
-     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
+     LEFT JOIN public.agreements ag ON ag.id = r.agreement_id
+     LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id, ag.project_id)
+     JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id, ag.client_id)
      JOIN public.users u ON u.id = r.user_id
      WHERE r.id = $1 AND r.approval_status = 'approved' AND r.sent_at IS NULL
        AND r.send_attempted_at IS NULL`,
@@ -240,6 +248,7 @@ const standaloneTarget = async (
   if (other.requiredLink && !draft.data.body.includes(other.requiredLink)) {
     return { hold: "no_pay_link" };
   }
+  if (other.bodyProblem?.(draft.data.body)) return { hold: "no_pay_link" };
   const { settings, client } = other;
   if (settings.paused || isSnoozed(settings, client.timeZone, now)) return { hold: "paused" };
   return {
@@ -346,13 +355,16 @@ const recordSent = (
     );
     await db.query(
       `INSERT INTO public.messages (user_id, invoice_id, maintenance_task_id, retainer_id, hold_id,
-         direction, body, thread_id, gmail_message_id, rfc_message_id)
-       VALUES ((SELECT auth.uid()), $1, $2, $3, $4, 'out', $5, $6, $7, $8)`,
+         agreement_id, direction, body, thread_id, gmail_message_id, rfc_message_id)
+       VALUES ((SELECT auth.uid()), $1, $2, $3, $4, $5, 'out', $6, $7, $8, $9)`,
       [
         source.kind === "invoice" ? source.invoiceId : null,
         source.kind === "maintenance" ? source.taskId : null,
         source.kind === "auto_pay_approval" ? source.retainerId : null,
         source.kind === "hold_approval" ? source.holdId : null,
+        source.kind === "agreement_request" || source.kind === "agreement_signed_copy"
+          ? source.agreementId
+          : null,
         ready.draft.body,
         sent.threadId,
         sent.id,
@@ -394,6 +406,17 @@ const deliver = async (
   }
   let pdf: PdfFile | null = null;
   let archivedId: string | undefined;
+  if (ready.source.kind === "agreement_signed_copy") {
+    try {
+      pdf = (await deps.signedPdf?.(userId, ready.source.agreementId)) ?? null;
+    } catch (error) {
+      logEvent("sender.pdf_failed", { reminderId: id, error: errorKind(error) });
+    }
+    if (!pdf) {
+      await release(deps, userId, id, "pdf_failed");
+      return "held";
+    }
+  }
   if (ready.source.kind === "invoice") {
     try {
       pdf = (await deps.pdf(userId, ready.source.invoiceId)) ?? null;

@@ -52,6 +52,30 @@ export const archiveRelativePath = ({
   ].join("/");
 };
 
+export type AgreementName = {
+  clientName: string;
+  projectTitle: string;
+  number: string;
+  version: number;
+  /** 1 for the first try; later tries are named "(2)", "(3)" when a file already has the name. */
+  attempt: number;
+};
+
+/** <Client>/<Project>/Agreements/AGR-000001-v1.pdf. Always with forward slashes. */
+export const agreementRelativePath = ({
+  clientName,
+  projectTitle,
+  number,
+  version,
+  attempt,
+}: AgreementName): string =>
+  [
+    safeSegment(clientName),
+    safeSegment(projectTitle),
+    "Agreements",
+    `${safeSegment(number)}-v${String(version)}${attempt > 1 ? ` (${String(attempt)})` : ""}.pdf`,
+  ].join("/");
+
 /** The file's full path, or undefined if it isn't a PDF inside the archive. */
 export const resolveInsideArchive = (dir: string, relativePath: string): string | undefined => {
   if (!relativePath.toLowerCase().endsWith(".pdf")) return undefined;

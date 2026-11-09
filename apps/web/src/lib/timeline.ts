@@ -61,6 +61,8 @@ const SENT_NAMES: Record<string, string> = {
   maintenance: "Maintenance heads-up sent",
   auto_pay_approval: "Auto-pay approval email sent",
   hold_approval: "Hold approval email sent",
+  agreement_request: "Agreement sent for signature",
+  agreement_signed_copy: "Signed agreement sent to the client",
 };
 
 const APPROVED_VIA: Record<string, string> = {
@@ -117,6 +119,9 @@ const DESCRIBE: Record<string, (row: EventRow, payload: Payload) => Described> =
     title: `Hold captured: ${money(amountCents, currency) ?? "the full amount"}`,
   }),
   "hold.capture_denied": () => status("PayPal denied the capture"),
+  "agreement.sent": () => status("Agreement sent for signature"),
+  "agreement.signed": () => status("Agreement signed by the client"),
+  "agreement.declined": () => status("Agreement declined by the client"),
   "hold.voided": () => status("Hold voided: the money is released"),
   "hold.expired": () => status("Hold expired"),
   "retainer.created": () => status("Retainer set up"),
@@ -144,9 +149,11 @@ const eventRows = async (db: Db, clientId: string): Promise<EventRow[]> => {
      LEFT JOIN public.maintenance_tasks mt
        ON mt.id = coalesce(r.maintenance_task_id,
          CASE WHEN e.entity = 'maintenance' THEN e.entity_id END)
+     LEFT JOIN public.agreements ag
+       ON ag.id = coalesce(r.agreement_id, CASE WHEN e.entity = 'agreement' THEN e.entity_id END)
      LEFT JOIN public.milestones m ON m.id = coalesce(i.milestone_id, h.milestone_id)
      LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id)
-     WHERE coalesce(p.client_id, rt.client_id) = $1 AND e.type = ANY($2::text[])
+     WHERE coalesce(p.client_id, rt.client_id, ag.client_id) = $1 AND e.type = ANY($2::text[])
      ORDER BY e.created_at DESC LIMIT ${String(TIMELINE_LIMIT)}`,
     [clientId, EVENT_TYPES],
   );

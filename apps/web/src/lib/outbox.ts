@@ -3,6 +3,7 @@ import { toCents } from "./db-values";
 import { formatDay, formatMoney, formatSendTime } from "./format";
 import { effectiveSendAt, localTimeInput, type Tier } from "./schedule";
 import type { HoldReason } from "./sender";
+import type { StandaloneTier } from "./standalone-draft";
 import { mergeSettings, type SendWindow } from "./settings";
 import { storedDraftSchema, type StoredDraft } from "./stored-draft";
 
@@ -19,7 +20,7 @@ export type OutboxItem = {
   /** "Website · Build · FPR-000042 · Installment 2 of 3" */
   what: string;
   amountDue: string;
-  tier: Tier | "maintenance" | "auto_pay_approval" | "hold_approval";
+  tier: Tier | StandaloneTier;
   /** Both zones; null for a skipped draft, which has no send time. */
   sendTime: string | null;
   /** The send time as the reschedule input's value, in the client's zone. */
@@ -56,7 +57,7 @@ const LIST_LIMIT = 200;
 
 type Row = {
   id: string;
-  tier: Tier | "maintenance" | "auto_pay_approval" | "hold_approval";
+  tier: Tier | StandaloneTier;
   approval_status: "waiting" | "approved" | "skipped";
   chat_id: string | null;
   message_id: string | null;
@@ -82,6 +83,8 @@ type Row = {
   hold_milestone_name: string | null;
   hold_cents: unknown;
   hold_currency: string | null;
+  agreement_number: string | null;
+  agreement_version: number | null;
   installment_number: number | null;
   installment_count: number | null;
   milestone_name: string | null;
@@ -98,11 +101,12 @@ type Row = {
 
 const SELECT = `
   SELECT r.id::text, r.tier, r.approval_status, r.scheduled_at, r.sent_at, r.draft, r.approved_via,
-    r.send_blocked_reason, coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject, h.gmail_thread_subject) AS gmail_thread_subject,
+    r.send_blocked_reason, coalesce(i.gmail_thread_subject, mt.gmail_thread_subject, ar.gmail_thread_subject, h.gmail_thread_subject, ag.gmail_thread_subject) AS gmail_thread_subject,
     u.telegram_chat_id::text AS chat_id, r.telegram_message_id::text AS message_id, r.telegram_card_sent_at AS card_sent_at,
     i.invoice_number, i.amount_cents::text, i.amount_paid_cents::text, i.currency,
     coalesce(i.link, ar.paypal_approval_link, h.approval_link) AS link, ar.name AS approval_name,
     hm.name AS hold_milestone_name, h.amount_cents::text AS hold_cents, h.currency AS hold_currency,
+    ag.number AS agreement_number, ag.version AS agreement_version,
     ar.amount_cents::text AS approval_cents, ar.currency AS approval_currency,
     i.installment_number, i.installment_count, mt.task AS task_name,
     mt.est_cost_cents::text AS task_cost_cents, mt.currency AS task_currency,
@@ -119,8 +123,9 @@ const SELECT = `
   LEFT JOIN public.retainers ar ON ar.id = r.retainer_id
   LEFT JOIN public.milestone_holds h ON h.id = r.hold_id
   LEFT JOIN public.milestones hm ON hm.id = h.milestone_id
-  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id)
-  JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id)
+  LEFT JOIN public.agreements ag ON ag.id = r.agreement_id
+  LEFT JOIN public.projects p ON p.id = coalesce(m.project_id, rt.project_id, mt.project_id, ar.project_id, hm.project_id, ag.project_id)
+  JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id, ar.client_id, ag.client_id)
   JOIN public.users u ON u.id = r.user_id
   WHERE r.draft IS NOT NULL`;
 
@@ -131,6 +136,9 @@ const whatOf = (row: Row): string =>
     row.approval_name === null ? null : "auto-pay approval",
     row.hold_milestone_name,
     row.hold_milestone_name === null ? null : "hold approval",
+    row.agreement_number === null
+      ? null
+      : `Agreement ${row.agreement_number} v${String(row.agreement_version)}`,
     row.invoice_number,
     row.task_due_on === null ? null : `due ${formatDay(row.task_due_on)}`,
     row.installment_number === null || row.installment_count === null
@@ -151,6 +159,7 @@ const amountOf = (row: Row): string => {
   if (row.hold_currency !== null) {
     return formatMoney(toCents(row.hold_cents), row.hold_currency);
   }
+  if (row.agreement_number !== null) return "For signature";
   return row.task_cost_cents === null || row.task_currency === null
     ? "No cost given"
     : `Estimate ${formatMoney(toCents(row.task_cost_cents), row.task_currency)}`;
