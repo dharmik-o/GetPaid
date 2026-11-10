@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
 import { sendJson } from "@/lib/api-client";
+import { CALENDAR_CHANGED } from "./CalendarMonth";
 
 // The calendar assistant: ask a question, read the answer, and press Apply on any change it proposes.
 // Nothing changes until Apply. The last 3 exchanges live in this component only; the server keeps none.
@@ -133,7 +134,10 @@ export const CalendarAssistant = () => {
       ...current,
       [index]: result.ok ? { status: "applied" } : { status: "error", message: result.message },
     }));
-    if (result.ok) router.refresh();
+    if (result.ok) {
+      window.dispatchEvent(new Event(CALENDAR_CHANGED)); // redraw the month grid in place
+      router.refresh();
+    }
   };
 
   return (

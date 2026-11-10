@@ -2558,22 +2558,18 @@ button.chip:hover {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  position: relative;
 }
 
 .cal-outside {
   opacity: 0.55;
 }
 
-.cal-today .cal-daynum {
-  color: var(--accent-ink);
-  font-weight: 700;
-}
-
-.cal-daynum {
-  font-size: 13px;
-}
-
 .cal-item {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
   display: block;
   overflow: hidden;
   white-space: nowrap;
@@ -2604,6 +2600,92 @@ button.chip:hover {
 .cal-more {
   font-size: 12px;
   color: var(--muted);
+}
+
+/* Calendar day panel (A6): a native dialog; a bottom sheet on narrow screens. */
+.cal-daybtn {
+  all: unset;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cal-daybtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.cal-daybtn:focus-visible,
+.cal-item:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.cal-today .cal-daybtn {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.cal-dialog {
+  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - 2 * var(--space-6));
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+.cal-dialog::backdrop {
+  background: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+.cal-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.cal-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cal-panel-row {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+}
+
+.cal-panel-focus {
+  border-color: var(--accent);
+}
+
+.cal-panel-title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cal-panel-notes,
+.cal-panel-row .muted {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 640px) {
+  .cal-dialog {
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0 0;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
 }
 
 @media (max-width: 640px) {

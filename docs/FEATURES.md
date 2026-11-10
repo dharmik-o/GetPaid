@@ -145,6 +145,8 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
   - Done when: a Google secret iCal address shows its events (including recurring ones) on the calendar and refreshes on schedule.
 - [x] **A5 AI assistant:** the `calendar` AI task, answer checks, proposals with an Apply button.
   - Done when: with the owner's configured model, "What are my deadlines next week?" lists the right items, and "Move <entry> to Friday" proposes a move that applies only after a click.
+- [x] **A6 Calendar clicks:** month buttons without a reload, a day panel to see, add, edit and delete entries, no separate "Add entry" button.
+  - Done when: changing the month doesn't reload or scroll the page; a day or item opens a panel with a description and a link; an entry can be added, edited and deleted from the panel.
 
 ### Part C: Contracts and legal tools
 

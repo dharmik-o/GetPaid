@@ -48,6 +48,8 @@ const item = (overrides: Partial<CalendarItem>): CalendarItem => ({
   href: "/calendar/1",
   editable: true,
   notes: null,
+  summary: "",
+  own: null,
   ...overrides,
 });
 

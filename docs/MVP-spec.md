@@ -433,6 +433,8 @@ Targets are set after a pilot. These are the measures to track from day one.
 
 An installment that replaced an overdue invoice counts from that invoice's due date and first reminder. An unpaid invoice still inside its 30 days isn't counted against the recovery rate yet. Disputed money isn't counted as recovered.
 
+
+**Calendar screen (built, Phase 2 part A):** `/calendar` shows a month grid and the next 30 days. Previous, Today and Next change the month without reloading the page. A click on a day, or on one of its items, opens a panel with what is on that day: each item's type, title, a one-line description and a link to its project, invoice or agreement. The freelancer's own entries can be added ("Add entry on <date>"), edited and deleted in the panel. Dates the app makes (deadlines, invoices, reminders, holds, agreements) and imported calendar events are read-only there; imported text is shown as plain text and never linked. There is no separate "New entry" button on the page.
 ## Phase 2: calendar and client notes (not in the MVP)
 
 Phase 2 adds meeting scheduling through Cal.com and typed meeting notes with an AI summary. It builds on the MVP's client records and Upcoming list.
