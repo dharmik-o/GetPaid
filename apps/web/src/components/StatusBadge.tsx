@@ -16,7 +16,12 @@ export const statusBadgeKind = (status: string): BadgeKind => KINDS[status] ?? "
 
 type Props = { status: string; children: ReactNode };
 
-/** A status pill. The label is always there, so colour is never the only signal. */
+/** A status pill. The label is always there, so colour is never the only signal. A part payment
+ * keeps the plain kind but gets a yellow outline (`badge-part`), as Paid is the only yellow fill. */
 export const StatusBadge = ({ status, children }: Props) => (
-  <span className={`badge badge-${statusBadgeKind(status)}`}>{children}</span>
+  <span
+    className={`badge badge-${statusBadgeKind(status)}${status === "partially_paid" ? " badge-part" : ""}`}
+  >
+    {children}
+  </span>
 );

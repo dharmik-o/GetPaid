@@ -77,7 +77,10 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
             <>
               <p className="metric-value">{Math.round((recovery.paid / recovery.total) * 100)}%</p>
               <p className="muted">
-                {recovery.paid} of {recovery.total} paid within 30 days of the first reminder.
+                <strong>
+                  {recovery.paid} of {recovery.total}
+                </strong>{" "}
+                paid within 30 days of the first reminder.
               </p>
             </>
           )}
@@ -85,7 +88,7 @@ export const RecoveryMetrics = ({ metrics }: { metrics: Metrics }) => {
       </div>
       {daysLate.length > 0 ? (
         <div className="table-scroll">
-          <table className="table table-stack">
+          <table className="table table-stack ledger-days">
             <caption className="muted">Days late per invoice</caption>
             <thead>
               <tr>

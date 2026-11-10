@@ -4,15 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DottedTriangle } from "@/components/DottedTriangle";
+import { Icon, type IconName } from "@/components/Icon";
 import { Logo } from "@/components/Logo";
 import { MoreMenu } from "@/components/MoreMenu";
 
-type NavItem = { href: string; label: string; onPhone: boolean };
+type NavItem = { href: string; label: string; onPhone: boolean; icon?: IconName };
 
 const NAV: NavItem[] = [
-  { href: "/", label: "Home", onPhone: true },
-  { href: "/outbox", label: "Outbox", onPhone: true },
-  { href: "/clients", label: "Clients", onPhone: true },
+  { href: "/", label: "Home", onPhone: true, icon: "home" },
+  { href: "/outbox", label: "Outbox", onPhone: true, icon: "send" },
+  { href: "/clients", label: "Clients", onPhone: true, icon: "user" },
   { href: "/projects", label: "Projects", onPhone: false },
   { href: "/calendar", label: "Calendar", onPhone: false },
   { href: "/retainers", label: "Retainers", onPhone: false },
@@ -64,6 +65,11 @@ export const Sidebar = () => {
               href={item.href}
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
             >
+              {item.icon ? (
+                <span className="nav-icon">
+                  <Icon name={item.icon} />
+                </span>
+              ) : null}
               {item.label}
               {item.href === "/outbox" && waiting > 0 ? (
                 <span className="count-badge">

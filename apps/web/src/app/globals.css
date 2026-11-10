@@ -27,7 +27,7 @@
 :root {
   color-scheme: dark;
   --bg: #000000;
-  --surface: #141414;
+  --surface: #161616;
   --surface-2: #1d1d1d;
   --line: #2c2c2c;
   --line-control: #686868;
@@ -43,6 +43,8 @@
   --logo-ink: #ffc300;
   --dots: #e8a800;
   --danger: #ff6b4a;
+  --secondary: #875b00;
+  --on-secondary: #ffffff;
   --focus: #e8a800;
   --edge: transparent;
   --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -57,7 +59,7 @@
   --font-code: ui-monospace, "Cascadia Code", Consolas, monospace;
 
   --radius-control: 14px;
-  --radius-card: 16px;
+  --radius-card: 20px;
   --radius-pill: 999px;
 
   --space-1: 4px;
@@ -70,6 +72,49 @@
   --space-10: 40px;
 
   --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Tonal ramps from the four Calm Kinetic colours: 50 is nearly white, 900 nearly black, and 500
+     is the colour itself (neutral: 900). New styles take their tints from here, not new hex. */
+  --primary-50: #fdf8eb;
+  --primary-100: #faeecc;
+  --primary-200: #f6dc99;
+  --primary-300: #f1cb66;
+  --primary-400: #edb933;
+  --primary-500: #e8a800;
+  --primary-600: #ba8600;
+  --primary-700: #8b6500;
+  --primary-800: #5d4300;
+  --primary-900: #2e2200;
+  --secondary-50: #f5f2eb;
+  --secondary-100: #e7decc;
+  --secondary-200: #cfbd99;
+  --secondary-300: #b79d66;
+  --secondary-400: #9f7c33;
+  --secondary-500: #875b00;
+  --secondary-600: #6c4900;
+  --secondary-700: #513700;
+  --secondary-800: #362400;
+  --secondary-900: #1b1200;
+  --tertiary-50: #fff3f1;
+  --tertiary-100: #ffe1db;
+  --tertiary-200: #ffc4b7;
+  --tertiary-300: #ffa692;
+  --tertiary-400: #ff896e;
+  --tertiary-500: #ff6b4a;
+  --tertiary-600: #cc563b;
+  --tertiary-700: #99402c;
+  --tertiary-800: #662b1e;
+  --tertiary-900: #33150f;
+  --neutral-50: #f3f3f3;
+  --neutral-100: #e3e3e3;
+  --neutral-200: #c7c7c7;
+  --neutral-300: #a6a6a6;
+  --neutral-400: #858585;
+  --neutral-500: #646464;
+  --neutral-600: #484848;
+  --neutral-700: #303030;
+  --neutral-800: #202020;
+  --neutral-900: #141414;
 }
 
 [data-theme="light"] {
@@ -180,11 +225,81 @@ input[type="file"] {
   opacity: 1;
 }
 
+/* Checkbox and radio: drawn by us, 24px. On, a checkbox is yellow with a black tick and a radio is a
+   yellow ring with a yellow dot; off, both are a hairline. The real input stays, so labels,
+   keyboard and screen readers work as before. */
 input[type="checkbox"],
 input[type="radio"] {
-  accent-color: var(--accent-ink);
-  width: 18px;
-  height: 18px;
+  appearance: none;
+  flex: none;
+  display: inline-grid;
+  place-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 1.5px solid var(--line-control);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+input[type="checkbox"] {
+  border-radius: 8px;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  background: var(--on-accent);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+  transform: scale(0);
+  transition: transform 0.15s var(--ease-enter);
+}
+
+input[type="radio"]::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  transform: scale(0);
+  transition: transform 0.15s var(--ease-enter);
+}
+
+input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--edge);
+}
+
+input[type="radio"]:checked {
+  border-color: var(--accent-ink);
+}
+
+input[type="checkbox"]:checked::before,
+input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  border-color: var(--line);
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+
+input[type="checkbox"]:disabled:checked::before {
+  background: var(--muted);
+}
+
+input[type="radio"]:disabled:checked::before {
+  background: var(--muted);
 }
 
 h1,
@@ -336,6 +451,11 @@ h3 {
 }
 
 .sidebar .more {
+  display: none;
+}
+
+/* The icons belong to the phone's bottom bar: the sidebar on a desktop is words only. */
+.nav-icon {
   display: none;
 }
 
@@ -697,7 +817,7 @@ h3 {
   margin-bottom: var(--space-1);
 }
 
-.field input,
+.field input:not([type="checkbox"], [type="radio"]),
 .field select,
 .field textarea {
   width: 100%;
@@ -755,11 +875,6 @@ fieldset.form {
   font-weight: normal;
 }
 
-.form > label.inline input {
-  flex: none;
-  width: 18px;
-}
-
 .schedule-form {
   display: grid;
   gap: var(--space-3);
@@ -778,7 +893,7 @@ fieldset.form {
   padding: 0 var(--space-1);
 }
 
-.schedule-group input,
+.schedule-group input:not([type="checkbox"], [type="radio"]),
 .schedule-group select {
   width: auto;
 }
@@ -798,9 +913,10 @@ fieldset.form {
 
 label.inline {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: flex-start;
+  gap: var(--space-3);
   min-height: 44px;
+  padding-block: var(--space-2);
   font-weight: normal;
   margin-right: var(--space-3);
 }
@@ -1227,10 +1343,10 @@ button.chip:hover {
   margin: var(--space-2) 0 var(--space-1);
 }
 
-.form > input,
+.form > input:not([type="checkbox"], [type="radio"]),
 .form > select,
 .form > textarea,
-.editor-form input:not([type="file"]),
+.editor-form input:not([type="file"], [type="checkbox"], [type="radio"]),
 .editor-form select,
 .editor-form textarea {
   width: 100%;
@@ -1394,7 +1510,7 @@ button.chip:hover {
   position: absolute;
   top: var(--space-4);
   bottom: var(--space-4);
-  left: 11px;
+  left: 5px;
   border-left: 2px dotted var(--accent-ink);
 }
 
@@ -1404,16 +1520,26 @@ button.chip:hover {
   padding: var(--space-3) 0;
 }
 
-.timeline-icon {
+/* The ring on the spine: 12px with a 4px dot, in the brand yellow. */
+.timeline-node {
   position: relative;
   flex: none;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--line-control);
-  border-radius: var(--radius-pill);
+  display: grid;
+  place-content: center;
+  width: 12px;
+  height: 12px;
+  margin-top: var(--space-2);
+  border: 2px solid var(--accent-ink);
+  border-radius: 50%;
   background: var(--surface);
-  line-height: 22px;
-  text-align: center;
+}
+
+.timeline-node::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-ink);
 }
 
 .timeline-body time {
@@ -1426,12 +1552,6 @@ button.chip:hover {
   font-weight: 600;
   overflow-wrap: anywhere;
   cursor: pointer;
-}
-
-.timeline-payment {
-  border-color: var(--edge);
-  background: var(--accent);
-  color: var(--on-accent);
 }
 
 .timeline-body {
@@ -1675,19 +1795,21 @@ button.chip:hover {
     flex-direction: column;
   }
 
+  /* A floating pill: the page you're on is a yellow circle behind its icon. */
   .sidebar {
     position: fixed;
     top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: var(--space-3);
+    left: var(--space-3);
+    right: var(--space-3);
     z-index: 10;
     width: auto;
     height: auto;
     overflow: visible;
-    padding: 0;
-    border-right: none;
-    border-top: 1px solid var(--line);
+    padding: var(--space-1) var(--space-2);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
   }
 
   .sidebar-brand,
@@ -1709,25 +1831,39 @@ button.chip:hover {
     flex: 1;
   }
 
-  .sidebar a {
+  .sidebar > ul > li > a {
+    flex-direction: column;
     justify-content: center;
-    min-height: 56px;
-    padding: 0 var(--space-1);
-    font-size: 14px;
+    gap: 2px;
+    min-height: 60px;
+    padding: var(--space-1);
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    line-height: 1.2;
   }
 
   .sidebar a[aria-current="page"]::before,
   .more-button.is-current::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: auto;
-    left: var(--space-3);
-    right: var(--space-3);
-    width: auto;
-    height: 3px;
+    content: none;
+  }
+
+  .nav-icon {
+    display: grid;
+    place-content: center;
+    width: 40px;
+    height: 32px;
+    border-radius: var(--radius-pill);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .sidebar a[aria-current="page"] .nav-icon,
+  .more-button.is-current .nav-icon,
+  .more-button[aria-expanded="true"] .nav-icon {
     background: var(--accent);
     box-shadow: 0 0 0 1px var(--edge);
+    color: var(--on-accent);
   }
 
   .more-box {
@@ -1737,16 +1873,20 @@ button.chip:hover {
   .more-button {
     position: relative;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
     width: 100%;
-    min-height: 56px;
-    padding: 0 var(--space-1);
+    min-height: 60px;
+    padding: var(--space-1);
     border: 0;
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--muted);
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.2;
     font-weight: 500;
     cursor: pointer;
     transition:
@@ -1791,6 +1931,7 @@ button.chip:hover {
   }
 
   .sidebar .more-menu a[aria-current="page"]::before {
+    content: "";
     top: var(--space-2);
     bottom: var(--space-2);
     left: 0;
@@ -1809,7 +1950,7 @@ button.chip:hover {
   }
 
   .content {
-    padding: var(--space-4) var(--space-5) 88px;
+    padding: var(--space-4) var(--space-5) 104px;
   }
 
   .card {
@@ -2696,5 +2837,619 @@ button.chip:hover {
 
   .cal-item {
     font-size: 11px;
+  }
+}
+
+/* Calm Kinetic (R2) ------------------------------------------------------------------------
+   The approved look from docs/design/stitch/. Visual only: nothing here changes what a screen
+   does. Everything takes its colour from the tokens at the top of this file. */
+
+/* Small meta labels (a section tag, a ledger total's caption): 12px caps with tracking. Never for
+   headings, buttons or sentences. */
+.meta-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.card-head h2 {
+  margin: 0;
+}
+
+@media (min-width: 761px) {
+  .card {
+    padding: 28px;
+  }
+}
+
+/* Buttons and icons */
+.icon {
+  flex: none;
+}
+
+.button,
+.link-button {
+  gap: var(--space-2);
+}
+
+/* Light fill with dark text in dark mode, and the reverse in light mode. */
+.button-inverted {
+  border-color: var(--neutral-50);
+  background: var(--neutral-50);
+  color: var(--neutral-900);
+}
+
+[data-theme="light"] .button-inverted {
+  border-color: var(--neutral-900);
+  background: var(--neutral-900);
+  color: var(--neutral-50);
+}
+
+.button-inverted:hover {
+  background: var(--neutral-100);
+  border-color: var(--neutral-100);
+}
+
+[data-theme="light"] .button-inverted:hover {
+  background: var(--neutral-800);
+  border-color: var(--neutral-800);
+}
+
+/* Badges: 28px pills. A part payment is outlined in yellow, a settled one is solid. */
+.badge,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  line-height: 1.2;
+}
+
+.badge-part {
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+/* The tier of a reminder: a chip in the brand colour. */
+.chip-tier {
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
+}
+
+/* Timeline kinds: an email is the ochre fill, a payment is yellow, the rest stay plain. */
+.chip-sent {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.chip-payment {
+  border-color: var(--edge);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.chip-status {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+/* The stamp: a tilted, dashed rectangle in the heading font. Decoration only: the badge says it. */
+.status-stamp {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border: 2px dashed currentcolor;
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-synthesis: none;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  white-space: nowrap;
+  rotate: -8deg;
+  pointer-events: none;
+  user-select: none;
+}
+
+.status-stamp-paid {
+  color: var(--accent-ink);
+}
+
+.status-stamp-part {
+  color: var(--primary-300);
+}
+
+[data-theme="light"] .status-stamp-part {
+  color: var(--primary-700);
+}
+
+.status-stamp-overdue {
+  color: var(--danger);
+}
+
+/* Progress: a thin rounded bar, yellow on the surface. The fill carries the light-mode edge. */
+.progress {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+/* Project page: totals, then a card per milestone. */
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.summary-strip p {
+  margin: 0;
+}
+
+.summary-strip .progress {
+  grid-column: 1 / -1;
+}
+
+.strip-amount {
+  font-family: var(--font-display);
+  font-synthesis: none;
+  font-size: clamp(24px, 3vw, 36px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.milestone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.milestone-grid > .ms-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-6);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ms-card h3,
+.ms-card p {
+  margin: 0;
+}
+
+.ms-card input,
+.ms-card select,
+.ms-card textarea {
+  max-width: 100%;
+}
+
+.ms-stamp {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+}
+
+/* The stamp sits in the top-right corner, so the name gives it room and no amount is under it. */
+.ms-card:has(.ms-stamp) .ms-name {
+  padding-right: 9rem;
+}
+
+.ms-name {
+  font-size: 22px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.ms-amount {
+  font-family: var(--font-display);
+  font-synthesis: none;
+  font-size: clamp(30px, 3vw, 40px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-top: var(--space-2);
+}
+
+.ms-invoices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.ms-invoices > .paid-moment {
+  align-self: stretch;
+}
+
+.ms-actions {
+  margin-top: auto;
+  padding-top: var(--space-3);
+}
+
+.ms-actions:empty {
+  display: none;
+}
+
+.invoice-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* Ledger rows: the name and its invoice number on the left, the amount and its state on the right.
+   The Home table keeps its table markup, so each cell is placed on the grid by its label. */
+@media (min-width: 761px) {
+  .ledger-days,
+  .ledger-days tbody {
+    display: block;
+  }
+
+  .ledger-days caption {
+    display: block;
+    padding: var(--space-4) var(--space-6) var(--space-2);
+  }
+
+  .ledger-days thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ledger-days tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name amount"
+      "sub status";
+    align-items: center;
+    gap: 2px var(--space-4);
+    padding: var(--space-3) var(--space-6);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ledger-days tr:last-child {
+    border-bottom: none;
+  }
+
+  .ledger-days td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .ledger-days td[data-label="Client"] {
+    grid-area: name;
+    font-size: 18px;
+    font-weight: 500;
+  }
+
+  .ledger-days td[data-label="Invoice"] {
+    grid-area: sub;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .ledger-days td[data-label="Amount"] {
+    grid-area: amount;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* The paid stamp lands beside the status words, never over the amount above them. */
+  .ledger-days .paid-moment:has(> .paid-stamp) .paid-stamp {
+    right: 100%;
+    margin-right: var(--space-2);
+  }
+
+  .ledger-days td[data-label="Paid"] {
+    grid-area: status;
+    justify-self: end;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: right;
+  }
+}
+
+.history-table td.money {
+  font-weight: 700;
+}
+
+/* A currency's totals close the list: a small caps label on the left, the big amount on the right. */
+.history-totals li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+}
+
+.history-totals .muted {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.history-totals .metric-value {
+  color: var(--accent-ink);
+  font-size: clamp(24px, 3vw, 32px);
+  text-align: right;
+}
+
+/* A list of billed cycles, such as a retainer's. */
+.ledger-list {
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.ledger-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ledger-main,
+.ledger-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ledger-side {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ledger-main span,
+.ledger-side span {
+  font-size: 14px;
+}
+
+.ledger-side strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-pending {
+  color: var(--accent-ink);
+}
+
+.ledger-late {
+  color: var(--danger);
+}
+
+/* Outbox: the email as the client will read it, in a box of its own. */
+.outbox-body.email-card {
+  padding: 0;
+  border-radius: var(--radius-card);
+  white-space: normal;
+  overflow: hidden;
+}
+
+.email-head {
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+
+.outbox-subject {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.outbox-subject::before {
+  content: "Subject: ";
+}
+
+.email-text {
+  margin: 0;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Only in the preview: the invoice number and amount stand out. The email itself is unchanged. */
+.hl {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.paylink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin: var(--space-2) var(--space-5) var(--space-5);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.paylink:hover {
+  border-color: var(--accent-ink);
+}
+
+.paylink-tile {
+  display: grid;
+  flex: none;
+  place-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.paylink-text {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.paylink-text .muted {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.paylink-domain {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-ink);
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.outbox-send {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* Timeline: each entry's heading line, with its time on the right, and the AI's reading of a reply. */
+.timeline-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+}
+
+.timeline-head .timeline-title {
+  flex: 1 1 220px;
+  margin: 0;
+}
+
+.timeline-time {
+  margin-left: auto;
+  text-align: right;
+}
+
+.ai-panel {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.ai-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  color: var(--accent-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ai-quote {
+  margin: 0;
+  font-style: italic;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Home tiles */
+.metric-tile {
+  padding: var(--space-5);
+  border-radius: var(--radius-card);
+}
+
+@media (max-width: 760px) {
+  .milestone-grid,
+  .summary-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ms-stamp {
+    top: var(--space-4);
+    right: var(--space-4);
+  }
+
+  .milestone-grid > .ms-card {
+    padding: var(--space-5);
+  }
+
+  .ms-card:has(.ms-stamp) .ms-name {
+    padding-right: 7.5rem;
+  }
+}
+
+a.link-button {
+  text-decoration: none;
+}
+
+/* On the phone bar the waiting count rides on the icon, not under the label. */
+@media (max-width: 760px) {
+  .sidebar .count-badge {
+    position: absolute;
+    top: 2px;
+    left: calc(50% + 8px);
+    min-width: 18px;
+    margin: 0;
+    font-size: 11px;
+    line-height: 18px;
   }
 }

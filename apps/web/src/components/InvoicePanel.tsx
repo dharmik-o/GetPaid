@@ -14,9 +14,12 @@ import {
   startsTicked,
   type SignatureChoice,
 } from "@/components/IncludeSignature";
+import { CopyButton } from "@/components/CopyButton";
+import { Icon } from "@/components/Icon";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
 import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
 import { StatusBadge } from "@/components/StatusBadge";
+import { stampFor, StatusStamp } from "@/components/StatusStamp";
 import { sendJson } from "@/lib/api-client";
 import { parseAmount } from "@/lib/currencies";
 import { formatDay, formatMoney } from "@/lib/format";
@@ -51,6 +54,8 @@ export type InvoiceRowData = {
   deadline?: string;
   /** The open invoices (one, or one per installment), else the latest cancelled one. */
   invoices: InvoiceRowInvoice[];
+  /** When the next reminder for this milestone goes, in both zones; null when none is planned. */
+  nextReminder?: string | null;
   plan: { createdFrom: "setup" | "deposit" | "client_request"; items: InstallmentItem[] } | null;
 };
 
@@ -90,6 +95,28 @@ const FIELD_NAMES: Record<string, string> = {
 const NO_DOCUMENT_CHOICE: DocumentFields = { templateId: "", text: null };
 
 const openInvoices = (row: InvoiceRowData) => row.invoices.filter((i) => i.status !== "cancelled");
+
+const DAY_MS = 86_400_000;
+
+/** Whole days from one ISO date to a later one (both calendar dates, so no time zone applies). */
+const daysBetween = (from: string, to: string): number =>
+  Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
+
+const percentOf = (part: number, whole: number): number =>
+  whole <= 0 ? 0 : Math.min(100, Math.round((part / whole) * 100));
+
+const Progress = ({ percent, label }: { percent: number; label: string }) => (
+  <div
+    className="progress"
+    role="progressbar"
+    aria-label={label}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={percent}
+  >
+    <span style={{ width: `${String(percent)}%` }} />
+  </div>
+);
 
 /** Why a milestone can't be invoiced yet, or undefined when it can. */
 const blockedReason = (row: InvoiceRowData): string | undefined => {
@@ -135,12 +162,15 @@ const InvoiceLine = ({ invoice, currency }: { invoice: InvoiceRowInvoice; curren
     ) : null}
     <div className="field-hint">Due {formatDay(invoice.dueDate)} (client&apos;s date)</div>
     {invoice.link && invoice.status !== "cancelled" ? (
-      <div>
-        <a href={invoice.link} target="_blank" rel="noreferrer">
+      <div className="invoice-links">
+        <a className="link-button" href={invoice.link} target="_blank" rel="noreferrer">
+          <Icon name="external" size={16} />
           PayPal pay link
         </a>
-        {" · "}
-        <a href={`/api/invoices/${invoice.id}/pdf`}>Invoice PDF</a>
+        <a className="link-button button-inverted" href={`/api/invoices/${invoice.id}/pdf`}>
+          <Icon name="file" size={16} />
+          Invoice PDF
+        </a>
       </div>
     ) : null}
   </PaidMoment>
@@ -349,57 +379,98 @@ export const InvoicePanel = ({
     );
   };
 
+  const sum = (pick: (invoice: InvoiceRowInvoice) => number): number =>
+    rows.reduce((total, row) => total + openInvoices(row).reduce((t, i) => t + pick(i), 0), 0);
+  const invoiced = sum((i) => i.amountCents);
+  const paidTotal = sum((i) => i.amountPaidCents);
+
   return (
     <div>
-      <table className="table milestone-table stack-wide">
-        <thead>
-          <tr>
-            <th scope="col">Milestone</th>
-            <th scope="col" className="money">
-              Amount
-            </th>
-            <th scope="col">Invoices</th>
-            <th scope="col">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const paid = openInvoices(row).reduce((sum, i) => sum + i.amountPaidCents, 0);
-            return (
-              <tr key={row.milestoneId}>
-                <td data-label="Milestone">
-                  {row.name}
-                  <div className="field-hint">{statusLabel(row.status)}</div>
-                  {row.deadline ? (
-                    <Link
-                      className="field-hint"
-                      href={`/calendar/new?${new URLSearchParams({ link: `milestone:${row.milestoneId}`, date: row.deadline, title: row.name }).toString()}`}
-                    >
-                      Add to calendar
-                    </Link>
-                  ) : null}
-                </td>
-                <td className="money" data-label="Amount">
-                  {formatMoney(row.cents, currency)}
-                  {paid > 0 ? (
-                    <div className="field-hint">Paid {formatMoney(paid, currency)}</div>
-                  ) : null}
-                </td>
-                <td data-label="Invoices">
-                  {row.invoices.length > 0 ? (
-                    row.invoices.map((invoice) => (
-                      <InvoiceLine key={invoice.id} invoice={invoice} currency={currency} />
-                    ))
-                  ) : (
-                    <span className="muted">No invoice yet</span>
-                  )}
-                </td>
-                <td data-label="Action">{actions(row)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="summary-strip" aria-label="Project totals">
+        <div>
+          <p className="meta-label">Invoiced</p>
+          <p className="strip-amount">{formatMoney(invoiced, currency)}</p>
+        </div>
+        <div>
+          <p className="meta-label">Paid</p>
+          <p className="strip-amount">{formatMoney(paidTotal, currency)}</p>
+        </div>
+        <div>
+          <p className="meta-label">Outstanding</p>
+          <p className="strip-amount">{formatMoney(Math.max(0, invoiced - paidTotal), currency)}</p>
+        </div>
+        <Progress percent={percentOf(paidTotal, invoiced)} label="Paid of invoiced" />
+      </div>
+      <div className="milestone-grid">
+        {rows.map((row) => {
+          const open = openInvoices(row);
+          const first = open[0];
+          const paid = open.reduce((sum2, i) => sum2 + i.amountPaidCents, 0);
+          // Overdue isn't stored: it's an unpaid invoice past its date, as in the invoice log.
+          const lateInvoice = open.find(
+            (i) => ["sent", "partially_paid"].includes(i.status) && i.dueDate < today,
+          );
+          const late = lateInvoice ? daysBetween(lateInvoice.dueDate, today) : 0;
+          const shown = late > 0 ? "overdue" : row.status;
+          const stamp = stampFor(shown);
+          return (
+            <article className="ms-card" key={row.milestoneId} aria-label={row.name}>
+              {stamp ? (
+                <span className="ms-stamp">
+                  <StatusStamp kind={stamp} />
+                </span>
+              ) : null}
+              <h3 className="ms-name">{row.name}</h3>
+              <p className="ms-terms muted">
+                {first
+                  ? `${first.invoiceNumber} · due ${formatDay(first.dueDate)}`
+                  : "No invoice yet"}
+              </p>
+              <p className="ms-amount">{formatMoney(row.cents, currency)}</p>
+              <p className="ms-status">
+                <StatusBadge status={shown}>
+                  {late > 0 ? `Overdue ${String(late)}d` : statusLabel(row.status)}
+                </StatusBadge>
+              </p>
+              {open.length > 0 ? (
+                <>
+                  <Progress
+                    percent={percentOf(paid, row.cents)}
+                    label={`${row.name}: paid of ${formatMoney(row.cents, currency)}`}
+                  />
+                  <p className="field-hint">
+                    Paid {formatMoney(paid, currency)} of {formatMoney(row.cents, currency)}
+                  </p>
+                </>
+              ) : null}
+              {row.nextReminder ? (
+                <p className="field-hint">Next reminder: {row.nextReminder}</p>
+              ) : null}
+              {row.deadline ? (
+                <Link
+                  className="field-hint"
+                  href={`/calendar/new?${new URLSearchParams({ link: `milestone:${row.milestoneId}`, date: row.deadline, title: row.name }).toString()}`}
+                >
+                  Add to calendar
+                </Link>
+              ) : null}
+              <div className="ms-invoices">
+                {row.invoices.length > 0 ? (
+                  row.invoices.map((invoice) => (
+                    <InvoiceLine key={invoice.id} invoice={invoice} currency={currency} />
+                  ))
+                ) : (
+                  <span className="muted">No invoice yet</span>
+                )}
+                {first?.link && first.status !== "cancelled" ? (
+                  <CopyButton value={first.link} label={`Copy the pay link for ${row.name}`} />
+                ) : null}
+              </div>
+              <div className="ms-actions">{actions(row)}</div>
+            </article>
+          );
+        })}
+      </div>
       {message ? (
         <div className={message.error ? "banner banner-error" : "banner"} role="status">
           {message.text}

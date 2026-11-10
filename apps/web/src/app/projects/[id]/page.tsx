@@ -18,6 +18,7 @@ import { filterInvoices, listProjectInvoices, parseHistoryFilters } from "@/lib/
 import { listInvoicesForProject } from "@/lib/invoices";
 import { listHoldsForProject } from "@/lib/milestone-holds";
 import { listMilestones } from "@/lib/milestones";
+import { listOutbox } from "@/lib/outbox";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { listTemplates } from "@/lib/invoice-templates";
 import { runAsCurrentUser } from "@/lib/request-user";
@@ -45,23 +46,38 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
   if (!isUuid(id)) notFound();
   const filters = parseHistoryFilters(await searchParams);
   const now = appNow();
-  const { project, clients, milestones, invoices, plans, templates, holds, signature, agreements, ...log } =
-    await runAsCurrentUser(async (db) => {
-      const found = await getProject(db, id);
-      return {
-        project: found,
-        clients: await listClientChoices(db),
-        milestones: found ? await listMilestones(db, found) : [],
-        invoices: found ? await listInvoicesForProject(db, found.id) : [],
-        plans: found ? await listActivePlansForProject(db, found.id) : [],
-        templates: await listTemplates(db),
-        holds: found ? await listHoldsForProject(db, found.id, now) : [],
-        signature: signatureChoiceFrom(await getFreelancerDetails(db)),
-        agreements: found ? await listAgreements(db, found.id) : [],
-        history: found ? await listProjectInvoices(db, found.id, now) : [],
-        ownZone: await getOwnTimeZone(db),
-      };
-    });
+  const {
+    project,
+    clients,
+    milestones,
+    invoices,
+    plans,
+    templates,
+    holds,
+    signature,
+    agreements,
+    queued,
+    ...log
+  } = await runAsCurrentUser(async (db) => {
+    const found = await getProject(db, id);
+    return {
+      project: found,
+      clients: await listClientChoices(db),
+      milestones: found ? await listMilestones(db, found) : [],
+      invoices: found ? await listInvoicesForProject(db, found.id) : [],
+      plans: found ? await listActivePlansForProject(db, found.id) : [],
+      templates: await listTemplates(db),
+      holds: found ? await listHoldsForProject(db, found.id, now) : [],
+      signature: signatureChoiceFrom(await getFreelancerDetails(db)),
+      agreements: found ? await listAgreements(db, found.id) : [],
+      history: found ? await listProjectInvoices(db, found.id, now) : [],
+      ownZone: await getOwnTimeZone(db),
+      // Drafts that haven't gone out yet: each invoice's next reminder is the first one here.
+      queued: found
+        ? [...(await listOutbox(db, "waiting", now)), ...(await listOutbox(db, "scheduled", now))]
+        : [],
+    };
+  });
   if (!project) notFound();
   const shown = filterInvoices(log.history, filters);
 
@@ -107,8 +123,8 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
       <section className="card" aria-labelledby="lawyer-pack">
         <h2 id="lawyer-pack">Lawyer pack</h2>
         <p className="muted">
-          One PDF for a lawyer: the parties, amounts, the signed agreement, every invoice, a timeline
-          of everything sent and received, and any final demand. This is not legal advice.
+          One PDF for a lawyer: the parties, amounts, the signed agreement, every invoice, a
+          timeline of everything sent and received, and any final demand. This is not legal advice.
         </p>
         <LawyerPackButton projectId={project.id} />
       </section>
@@ -164,6 +180,13 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
               deadline: m.deadline,
               paymentMode: m.paymentMode,
               status: m.status,
+              nextReminder:
+                invoices
+                  .filter((i) => i.milestoneId === m.id)
+                  .flatMap((i) =>
+                    queued.filter((q) => q.what.split(" · ").includes(i.invoiceNumber)),
+                  )
+                  .at(0)?.sendTime ?? null,
               invoices: invoices
                 .filter((i) => i.milestoneId === m.id)
                 .map((i) => ({

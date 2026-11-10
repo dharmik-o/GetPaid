@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Icon } from "@/components/Icon";
 
 type Props = { id: string; name: string };
 
@@ -41,6 +42,7 @@ export const DeleteClientButton = ({ id, name }: Props) => {
         onClick={() => void remove()}
         disabled={deleting}
       >
+        <Icon name="ban" />
         {deleting ? "Deleting…" : "Delete client"}
       </button>
       {error ? (

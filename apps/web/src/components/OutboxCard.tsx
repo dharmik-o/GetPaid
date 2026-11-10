@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type SyntheticEvent } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
+import { Icon } from "@/components/Icon";
 import { sendJson } from "@/lib/api-client";
 import type { OutboxItem } from "@/lib/outbox";
 
@@ -10,9 +11,9 @@ import type { OutboxItem } from "@/lib/outbox";
 
 const TIER_LABELS: Record<OutboxItem["tier"], string> = {
   courtesy: "Courtesy",
-  tier1: "Tier 1",
-  tier2: "Tier 2",
-  tier3: "Tier 3: final notice",
+  tier1: "Friendly reminder · Tier 1",
+  tier2: "Firm reminder · Tier 2",
+  tier3: "Final notice · Tier 3",
   maintenance: "Maintenance heads-up",
   auto_pay_approval: "Auto-pay approval",
   hold_approval: "Hold approval",
@@ -86,12 +87,71 @@ const useDraftAction = (id: string) => {
   return { busy, error, act };
 };
 
+/** The invoice number inside "Website · Build · FPR-000042 · Installment 2 of 3". */
+const invoiceNumberOf = (what: string): string | undefined =>
+  what.split(" · ").find((part) => /^[A-Z]{2,}-\d+$/.test(part));
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Bold the invoice number and amount, in the preview only: the email itself is never changed. */
+const highlight = (text: string, terms: (string | undefined)[]): ReactNode[] => {
+  const found = terms.filter((term): term is string => Boolean(term));
+  if (found.length === 0) return [text];
+  const pattern = new RegExp(`(${found.map(escapeRegExp).join("|")})`, "g");
+  return text.split(pattern).map((part, index) =>
+    found.includes(part) ? (
+      <strong className="hl" key={index}>
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+};
+
+const domainOf = (link: string): string => {
+  try {
+    return new URL(link).hostname;
+  } catch {
+    return link;
+  }
+};
+
+/** The pay link as a card of its own, so it's plain what the client taps. */
+const PayLinkCard = ({ item, link }: { item: OutboxItem; link: string }) => {
+  const number = invoiceNumberOf(item.what);
+  return (
+    <a className="paylink" href={link} target="_blank" rel="noreferrer">
+      <span className="paylink-tile" aria-hidden="true">
+        P
+      </span>
+      <span className="paylink-text">
+        <strong>PayPal pay link</strong>
+        <span className="muted">
+          {number ? `Invoice ${number} · ` : ""}
+          {item.amountDue}
+        </span>
+      </span>
+      <span className="paylink-domain">
+        {domainOf(link)}
+        <Icon name="external" size={16} />
+      </span>
+    </a>
+  );
+};
+
 const Message = ({ item }: { item: OutboxItem }) =>
   item.draft ? (
-    <>
-      <p className="outbox-subject">{item.threadSubject ?? item.draft.subject}</p>
-      <p className="outbox-body">{item.draft.body}</p>
-    </>
+    <div className="outbox-body email-card">
+      <div className="outbox-meta email-head">
+        <span className="outbox-subject">{item.threadSubject ?? item.draft.subject}</span>
+        <span className="chip chip-tier">{TIER_LABELS[item.tier]}</span>
+      </div>
+      <p className="email-text">
+        {highlight(item.draft.body, [invoiceNumberOf(item.what), item.amountDue])}
+      </p>
+      {item.payLink ? <PayLinkCard item={item} link={item.payLink} /> : null}
+    </div>
   ) : (
     <p className="banner banner-warning">
       This draft failed its checks, so it can&apos;t be sent. Skip it; the next reminder gets a new
@@ -257,6 +317,7 @@ const Buttons = ({
               void act({ action: "approve" });
             }}
           >
+            <Icon name="mail" />
             Approve and send
           </button>
           {FIXED_TEXT_KINDS.has(item.tier) ? null : (
@@ -267,6 +328,7 @@ const Buttons = ({
                 setMode("edit");
               }}
             >
+              <Icon name="pencil" />
               Edit
             </button>
           )}
@@ -328,8 +390,7 @@ export const OutboxCard = ({ item }: { item: OutboxItem }) => {
         </div>
         <div className="money">{item.amountDue}</div>
       </div>
-      <p className="outbox-meta">
-        <span className="chip">{TIER_LABELS[item.tier]}</span>
+      <p className="outbox-send">
         {item.sendTime ? `${SEND_LABEL[item.tab]}: ${item.sendTime}` : "Skipped: not sent"}
       </p>
       {item.blockedReason ? (

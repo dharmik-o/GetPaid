@@ -41,8 +41,8 @@ describe("Timeline", () => {
       entry({ id: "2", kind: "reply", title: "The client replied" }),
       entry({ id: "3", kind: "payment", title: "USD 900.00 paid" }),
     ]);
-    expect(html).toContain("Sent");
-    expect(html).toContain("Reply");
+    expect(html).toContain("Email");
+    expect(html).toContain("Client reply");
     expect(html).toContain("Payment");
     expect(html).toContain("FPR-000001");
   });
