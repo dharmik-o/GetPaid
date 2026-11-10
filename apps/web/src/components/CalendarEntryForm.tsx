@@ -45,12 +45,18 @@ const linkFields = (link: string): Record<string, string | null> => {
   };
 };
 
+/** `compact` is the form inside the calendar's day panel: no page change, no mark-done or delete
+ *  (the panel has those), and `onDone` / `onCancel` tell the panel what happened. */
+export type CompactHooks = { onDone: () => void; onCancel: () => void };
+
 export const CalendarEntryForm = ({
   initial,
   links,
+  compact,
 }: {
   initial: EntryFormValues;
   links: LinkOption[];
+  compact?: CompactHooks;
 }) => {
   const router = useRouter();
   const [values, setValues] = useState(initial);
@@ -66,6 +72,10 @@ export const CalendarEntryForm = ({
     setBusy(false);
     if (!result.ok) {
       setError(result.message);
+      return;
+    }
+    if (compact) {
+      compact.onDone();
       return;
     }
     router.push("/calendar");
@@ -110,7 +120,7 @@ export const CalendarEntryForm = ({
   };
 
   return (
-    <form className="card form" onSubmit={(event) => void submit(event)}>
+    <form className={compact ? "form" : "card form"} onSubmit={(event) => void submit(event)}>
       <div className="field">
         <label htmlFor="entry-title">Title</label>
         <input
@@ -237,7 +247,7 @@ export const CalendarEntryForm = ({
         <button className="button" type="submit" disabled={busy}>
           {busy ? "Saving…" : values.id ? "Save changes" : "Add entry"}
         </button>
-        {values.id ? (
+        {values.id && !compact ? (
           <>
             <button
               className="button button-secondary"
@@ -257,9 +267,15 @@ export const CalendarEntryForm = ({
             </button>
           </>
         ) : null}
-        <Link className="button button-secondary" href="/calendar">
-          Cancel
-        </Link>
+        {compact ? (
+          <button className="button button-secondary" type="button" onClick={compact.onCancel}>
+            Cancel
+          </button>
+        ) : (
+          <Link className="button button-secondary" href="/calendar">
+            Cancel
+          </Link>
+        )}
       </div>
     </form>
   );

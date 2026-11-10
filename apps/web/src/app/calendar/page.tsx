@@ -5,13 +5,14 @@ import { CalendarExport, type ExportRange } from "@/components/CalendarExport";
 import { CalendarMonth } from "@/components/CalendarMonth";
 import { getOwnTimeZone } from "@/lib/account";
 import { calendarItems } from "@/lib/calendar-feed";
+import { loadLinkOptions } from "@/lib/calendar-link-options";
 import { monthGrid, monthOrToday, shiftMonth } from "@/lib/calendar-month";
 import { appNow } from "@/lib/clock";
 import { runAsCurrentUser } from "@/lib/request-user";
 import { addCalendarDays, todayIn } from "@/lib/schedule";
 
 // The calendar: a month view and the next 30 days, from the freelancer's own entries and every date
-// the app already knows about. App-made dates open their own pages.
+// the app already knows about. Click a day to see it and add your own entries there.
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ const exportRanges = (today: string): ExportRange[] => {
 const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: string }> }) => {
   const { month: monthParam } = await searchParams;
   const now = appNow();
-  const { zone, today, month, monthItems, agendaItems } = await runAsCurrentUser(async (db) => {
+  const { zone, today, month, monthItems, agendaItems, links } = await runAsCurrentUser(async (db) => {
     const ownZone = await getOwnTimeZone(db);
     const todayDate = todayIn(now, ownZone);
     const shown = monthOrToday(monthParam, todayDate);
@@ -45,6 +46,7 @@ const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: 
         to: grid.at(-1) ?? todayDate,
         zone: ownZone,
       }),
+      links: await loadLinkOptions(db),
       agendaItems: await calendarItems(db, {
         from: todayDate,
         to: addCalendarDays(todayDate, AGENDA_DAYS),
@@ -60,13 +62,10 @@ const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: 
           <Link className="button button-secondary" href="/calendar/sources">
             Imported calendars
           </Link>
-          <Link className="button" href="/calendar/new">
-            Add entry
-          </Link>
         </div>
       </div>
       <CalendarAssistant />
-      <CalendarMonth month={month} today={today} items={monthItems} />
+      <CalendarMonth month={month} today={today} items={monthItems} zone={zone} links={links} />
       <CalendarAgenda items={agendaItems} zone={zone} days={AGENDA_DAYS} />
       <CalendarExport ranges={exportRanges(today)} />
     </div>

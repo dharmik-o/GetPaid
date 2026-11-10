@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import { linkValueOf } from "./calendar-link-options";
 import { listEntries, type CalendarEntry } from "./calendar-entries";
 import type { Db } from "./db";
 import { toCents, toIso } from "./db-values";
@@ -30,6 +31,15 @@ export type CalendarItemType =
   | "agreement_deadline"
   | "imported";
 
+export type OwnEntryFields = {
+  kind: string;
+  startsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+  remindOnDay: boolean;
+  linkValue: string;
+};
+
 export type CalendarItem = {
   /** "entry:<id>", "milestone:<id>", "invoice:<id>", "imported:<id>", ... */
   key: string;
@@ -56,6 +66,10 @@ export type CalendarItem = {
   editable: boolean;
   /** Entries only. */
   notes: string | null;
+  /** One plain line saying what this is: built here from stored fields, never from message bodies. */
+  summary: string;
+  /** Own entries only: the stored fields the edit form needs (the entry's own date and zone). */
+  own: OwnEntryFields | null;
 };
 
 export type FeedRange = { from: string; to: string; zone: string };
@@ -74,7 +88,23 @@ const base = {
   isClientMeeting: false,
   editable: false,
   notes: null,
+  summary: "",
+  own: null,
 } satisfies Partial<CalendarItem>;
+
+const KIND_LABEL: Record<string, string> = {
+  task: "Task",
+  event: "Event",
+  deadline: "Deadline",
+  call: "Call",
+};
+const INVOICE_STATE: Record<string, string> = { sent: "unpaid", partially_paid: "partly paid" };
+const APPROVAL_STATE: Record<string, string> = {
+  waiting: "waiting for your approval",
+  approved: "approved, goes out at the planned time",
+};
+const joinParts = (parts: (string | null)[]): string =>
+  parts.filter((part) => part !== null && part !== "").join(" · ");
 
 const HOLD_MAX_DAYS = 29;
 const TIER_LABEL: Record<string, string> = {
@@ -132,6 +162,19 @@ const entryItem = (
     href: `/calendar/${entry.id}`,
     editable: true,
     notes: entry.notes,
+    own: {
+      kind: entry.kind,
+      startsOn: entry.startsOn,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+      remindOnDay: entry.remindOnDay,
+      linkValue: linkValueOf(entry),
+    },
+    summary: joinParts([
+      KIND_LABEL[entry.kind] ?? "Entry",
+      entry.clientId === null ? null : (clientNames.get(entry.clientId) ?? null),
+      entry.status === "done" ? "done" : null,
+    ]),
   };
 };
 
@@ -156,13 +199,18 @@ const loadMilestones = async (db: Db, range: FeedRange): Promise<CalendarItem[]>
     id: string;
     name: string;
     deadline: string;
+    position: number;
+    amount_cents: string | null;
+    percent_bp: number | null;
+    currency: string;
     status: string;
     project_id: string;
     project_title: string;
     client_id: string;
     client_name: string;
   }>(
-    `SELECT m.id::text, m.name, m.deadline::text, m.status, p.id::text AS project_id,
+    `SELECT m.id::text, m.name, m.deadline::text, m.position, m.amount_cents::text, m.percent_bp,
+       m.currency, m.status, p.id::text AS project_id,
        p.title AS project_title, c.id::text AS client_id, c.name AS client_name
      FROM public.milestones m
      JOIN public.projects p ON p.id = m.project_id
@@ -182,12 +230,20 @@ const loadMilestones = async (db: Db, range: FeedRange): Promise<CalendarItem[]>
     milestoneId: row.id,
     status: row.status,
     href: `/projects/${row.project_id}`,
+    summary: joinParts([
+      `Milestone ${String(row.position)} of ${row.project_title} for ${row.client_name}`,
+      row.amount_cents === null
+        ? `${String((row.percent_bp ?? 0) / 100)}% of the project`
+        : formatMoney(toCents(row.amount_cents), row.currency),
+      "due",
+    ]),
   }));
 };
 
 const loadInvoices = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
   const { rows } = await db.query<{
     id: string;
+    invoice_number: string | null;
     due_date: string;
     owed_cents: string;
     currency: string;
@@ -197,7 +253,7 @@ const loadInvoices = async (db: Db, range: FeedRange): Promise<CalendarItem[]> =
     client_id: string;
     client_name: string;
   }>(
-    `SELECT i.id::text, i.due_date::text, (i.amount_cents - i.amount_paid_cents)::text AS owed_cents,
+    `SELECT i.id::text, i.invoice_number, i.due_date::text, (i.amount_cents - i.amount_paid_cents)::text AS owed_cents,
        i.currency, i.status, m.id::text AS milestone_id, p.id::text AS project_id,
        c.id::text AS client_id, c.name AS client_name
      FROM public.invoices i
@@ -220,6 +276,11 @@ const loadInvoices = async (db: Db, range: FeedRange): Promise<CalendarItem[]> =
     milestoneId: row.milestone_id,
     status: row.status,
     href: row.project_id ? `/projects/${row.project_id}` : "/retainers",
+    summary: joinParts([
+      row.invoice_number === null ? "Invoice" : `Invoice ${row.invoice_number}`,
+      formatMoney(toCents(row.owed_cents), row.currency),
+      INVOICE_STATE[row.status] ?? row.status,
+    ]),
   }));
 };
 
@@ -274,6 +335,10 @@ const loadReminders = async (db: Db, range: FeedRange): Promise<CalendarItem[]> 
       projectId: row.project_id,
       status: row.approval_status,
       href: "/outbox",
+      summary: joinParts([
+        `${TIER_LABEL[row.tier] ?? "Reminder"}${row.client_name ? ` to ${row.client_name}` : ""}`,
+        APPROVAL_STATE[row.approval_status] ?? row.approval_status,
+      ]),
     };
   });
 };
@@ -309,6 +374,10 @@ const loadMaintenance = async (db: Db, range: FeedRange): Promise<CalendarItem[]
         clientName: row.client_name,
         projectId: row.project_id,
         href: "/maintenance",
+        summary: joinParts([
+          `${row.type === "renewal" ? "Renewal" : "Maintenance job"} for ${row.client_name}`,
+          `repeats every ${row.repeat_months === 1 ? "month" : `${String(row.repeat_months)} months`}`,
+        ]),
       })),
   );
 };
@@ -339,6 +408,11 @@ const loadRetainers = async (db: Db, range: FeedRange): Promise<CalendarItem[]> 
         clientId: row.client_id,
         clientName: row.client_name,
         href: "/retainers",
+        summary: joinParts([
+          `Retainer for ${row.client_name}`,
+          formatMoney(toCents(row.amount_cents), row.currency),
+          `every ${row.interval_count === 1 ? "" : `${String(row.interval_count)} `}${row.interval_unit}${row.interval_count === 1 ? "" : "s"}`,
+        ]),
       })),
     );
 };
@@ -380,6 +454,7 @@ const loadHolds = async (db: Db, range: FeedRange): Promise<CalendarItem[]> => {
       milestoneId: row.milestone_id,
       status: "authorized",
       href: `/projects/${row.project_id}`,
+      summary: `Authorised payment hold for ${row.milestone_name} (${row.client_name}) runs out today`,
     }));
 };
 
@@ -411,6 +486,7 @@ const loadAgreementDeadlines = async (db: Db, range: FeedRange): Promise<Calenda
       projectId: row.project_id,
       status: "sent",
       href: `/projects/${row.project_id}/agreement`,
+      summary: `Agreement ${row.number} with ${row.client_name} · waiting for signature · the signing link stops working`,
     }))
     .filter((item) => inRange(item.startsOn, range));
 };
@@ -461,6 +537,10 @@ const loadImported = async (db: Db, range: FeedRange): Promise<CalendarItem[]> =
         sourceName: row.source_name,
         isClientMeeting: row.client_id !== null,
         href: "/calendar/sources",
+        summary: joinParts([
+          `From ${row.source_name}`,
+          row.client_name === null ? null : `client meeting with ${row.client_name}`,
+        ]),
       };
     })
     .filter((item) => item.startsOn <= range.to && (item.endsOn ?? item.startsOn) >= range.from);

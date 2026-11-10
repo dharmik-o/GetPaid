@@ -669,6 +669,7 @@ Migration 027; `lib/calendar-entries.ts`; `lib/calendar-feed.ts` (without the `i
 ### A2 Calendar screens
 `/calendar` (month view with Today and previous/next month, plus a 30-day agenda list; colours by item type; client meetings marked), `/calendar/new`, `/calendar/[id]`, the sidebar link, "Add to calendar" on milestone rows, entries due in 7 days on Home, the Telegram morning nudge.
 **Done when:** entries can be added, edited, marked done, deleted and linked to a milestone; app-made dates open their own pages. **Tests:** none.
+(A6 changed how `/calendar` works: there is no "Add entry" button above the calendar, and clicks open a panel instead of another page. See A6.)
 
 ### A3 Export
 `lib/ics.ts`, `lib/calendar-links.ts`, the export route, an Export button (this month / next 3 months / everything; "Include notes"), and "Add to Google Calendar" and "Add to Outlook" on each item's detail.
@@ -681,6 +682,12 @@ Migration 027; `lib/calendar-entries.ts`; `lib/calendar-feed.ts` (without the `i
 ### A5 AI assistant
 AI task `calendar`; `calendarAnswerSchema` in `lib/ai-schemas.ts` (then `npm run ai:schemas`); `prompts/calendar_assistant.md` (then `npm run ai:prompts`); `lib/calendar-assistant.ts`; the two assistant routes; `components/CalendarAssistant.tsx` on `/calendar`.
 **Done when:** with the owner's configured model, "What are my deadlines next week?" lists the right items, and "Move <entry> to Friday" proposes a move that applies only after a click (record the run in the commit). **Tests:** A-S6.
+Then write `docs/SUMMARY-P2-calendar.md`.
+
+### A6 Calendar clicks (owner's feedback after A5)
+Month buttons (Previous, Today, Next) fetch `GET /api/calendar` for that month and swap only the grid: no page load, the scroll stays, and `?month=YYYY-MM` is kept in the address with `history.replaceState`. Each day is a button that opens a native `<dialog>` (a bottom sheet on narrow screens) listing that day's items: type, title, a one-line `summary` built on the server (money from integer minor units, no message text), and a link to the project, invoice or agreement. Clicking an item chip opens the same panel at that item. App-made and imported items are read-only (imported text is shown as plain text, never as HTML, and never linked). Your own entries have Edit (the compact entry form) and Delete (a confirm step inside the panel). "Add entry on <date>" at the bottom of the panel posts to the existing entries route and the grid updates in place. The calendar page has no separate "Add entry" button; `/calendar/new` and `/calendar/[id]` still work for links from elsewhere. After the assistant's Apply, the grid also redraws in place.
+**Done when:** `docs/qa/A6.md` is written and its E2E passes. **Tests:** the items route (bad range, own items only, summary), imported text rendered as text, one Playwright run.
+
 Then write `docs/SUMMARY-P2-calendar.md`.
 
 ### C1 Facts, law table and rates
