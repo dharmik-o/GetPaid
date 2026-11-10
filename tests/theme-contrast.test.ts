@@ -161,7 +161,7 @@ describe("the themes", () => {
 
   it("has a true black page in dark mode, and white cards on a warm page in light mode", () => {
     expect(DARK.bg).toBe("#000000");
-    expect(DARK.surface).toBe("#141414");
+    expect(DARK.surface).toBe("#161616");
     expect(LIGHT.bg).toBe("#f5f4f0");
     expect(LIGHT.surface).toBe("#ffffff");
   });

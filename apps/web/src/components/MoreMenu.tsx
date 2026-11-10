@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/Icon";
 
 type Item = { href: string; label: string };
 
@@ -52,6 +53,9 @@ export const MoreMenu = ({ items, isCurrent }: Props) => {
           setOpen((now) => !now);
         }}
       >
+        <span className="nav-icon">
+          <Icon name="more" />
+        </span>
         More
       </button>
       <AnimatePresence>

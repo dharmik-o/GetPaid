@@ -26,6 +26,13 @@ const INVOICE_STATUS_NAMES: Record<string, string> = {
   disputed: "Disputed",
 };
 
+/** Paid is quiet, an open invoice is the brand colour, and a dispute is flagged. */
+const LEDGER_TONE: Record<string, string | undefined> = {
+  sent: "ledger-pending",
+  partially_paid: "ledger-pending",
+  disputed: "ledger-late",
+};
+
 const APPROVAL_EMAIL_TEXT: Record<Retainer["approvalEmail"], string> = {
   none: "The client hasn't been asked to approve auto-pay. Draft the email, then review it in the Outbox.",
   waiting: "The email asking the client to approve auto-pay is waiting for you in the Outbox.",
@@ -84,13 +91,20 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
         <p>{APPROVAL_EMAIL_TEXT[retainer.approvalEmail]}</p>
       ) : null}
       {retainer.invoices.length > 0 ? (
-        <ul>
+        <ul className="ledger-list" aria-label="Billed cycles">
           {retainer.invoices.map((invoice) => (
             <li key={invoice.id}>
-              {formatDay(invoice.cycleOn)}: {invoice.number},{" "}
-              {formatMoney(invoice.amountCents, retainer.currency)},{" "}
-              {INVOICE_STATUS_NAMES[invoice.status] ?? invoice.status}
-              {invoice.afterFailedCharge ? " (auto-pay failed)" : ""}
+              <span className="ledger-main">
+                <strong>{formatDay(invoice.cycleOn)}</strong>
+                <span className="muted">{invoice.number}</span>
+              </span>
+              <span className="ledger-side">
+                <strong>{formatMoney(invoice.amountCents, retainer.currency)}</strong>
+                <span className={LEDGER_TONE[invoice.status]}>
+                  {INVOICE_STATUS_NAMES[invoice.status] ?? invoice.status}
+                  {invoice.afterFailedCharge ? " (auto-pay failed)" : ""}
+                </span>
+              </span>
             </li>
           ))}
         </ul>

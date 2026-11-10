@@ -48,7 +48,7 @@ const openProject = (page: Page) => page.goto(`/projects/${PROJECT}`, { waitUnti
 const invoiceRow = (page: Page, name: string) =>
   page
     .locator("section", { has: page.getByRole("heading", { name: "Bill your milestones" }) })
-    .getByRole("row")
+    .getByRole("article")
     .filter({ hasText: name });
 
 const newestInvoice = async (page: Page) => {
