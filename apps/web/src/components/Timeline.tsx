@@ -66,7 +66,7 @@ const Row = ({ entry, clientZone, ownZone }: { entry: TimelineEntry } & Omit<Pro
           <p className="timeline-text">{entry.body}</p>
         ) : null}
         {entry.aiLabel ? (
-          <div className="ai-panel">
+          <div className="ai-panel" data-tour="client-ai-suggestion">
             <p className="ai-title">
               <Icon name="sparkle" size={16} />
               AI suggestion: {REPLY_LABEL_NAMES[entry.aiLabel]}
@@ -86,7 +86,7 @@ const Row = ({ entry, clientZone, ownZone }: { entry: TimelineEntry } & Omit<Pro
 };
 
 export const Timeline = ({ entries, clientZone, ownZone }: Props) => (
-  <section className="card" aria-labelledby="timeline">
+  <section className="card" aria-labelledby="timeline" data-tour="client-timeline">
     <div className="card-head">
       <h2 id="timeline">Timeline</h2>
       <span className="meta-label">Activity log</span>

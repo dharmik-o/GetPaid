@@ -414,7 +414,12 @@ export const InvoicePanel = ({
           const shown = late > 0 ? "overdue" : row.status;
           const stamp = stampFor(shown);
           return (
-            <article className="ms-card" key={row.milestoneId} aria-label={row.name}>
+            <article
+              className="ms-card"
+              key={row.milestoneId}
+              aria-label={row.name}
+              data-tour="milestone-card"
+            >
               {stamp ? (
                 <span className="ms-stamp">
                   <StatusStamp kind={stamp} />

@@ -64,6 +64,7 @@ export const Sidebar = () => {
             <Link
               href={item.href}
               aria-current={isActive(pathname, item.href) ? "page" : undefined}
+              data-tour={item.href === "/clients" ? "nav-clients" : undefined}
             >
               {item.icon ? (
                 <span className="nav-icon">

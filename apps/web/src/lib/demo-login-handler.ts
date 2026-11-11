@@ -11,7 +11,7 @@ import {
 } from "./demo-gate";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, notFound, readJson } from "./http";
-import { logEvent } from "./log";
+import { errorKind, logEvent } from "./log";
 
 // Server-only: POST /api/demo-login { password, next }. Checks the shared demo password, with a
 // limit on wrong guesses per IP, and sets the signed cookie that proxy.ts looks for.
@@ -69,6 +69,8 @@ type Deps = {
   env?: DemoEnv;
   now?: () => number;
   limiter?: ReturnType<typeof createLoginLimiter>;
+  /** Runs after a correct password: a new demo session starts the guided tour again. */
+  onLogin?: () => Promise<void>;
 };
 
 /** Caddy sets X-Forwarded-For; the first value is the visitor. */
@@ -79,6 +81,7 @@ export const demoLoginHandler = ({
   env = process.env,
   now = Date.now,
   limiter = createLoginLimiter(),
+  onLogin,
 }: Deps = {}) => ({
   post: async (request: Request): Promise<Response> => {
     if (!isDemoMode(env) || demoSettingsProblem(env)) return notFound("This page");
@@ -105,6 +108,12 @@ export const demoLoginHandler = ({
     }
     limiter.reset(key);
     logEvent("demo_login.ok", {});
+    try {
+      await onLogin?.();
+    } catch (error) {
+      // The tour is a nicety: a failed reset must not lock the demo out.
+      logEvent("demo_login.tour_reset_failed", { error: errorKind(error) });
+    }
     const response = jsonResponse({ next: safeNext(parsed.data.next) });
     const cookie = signDemoCookie(env.DEMO_COOKIE_SECRET ?? "", now());
     response.headers.append(

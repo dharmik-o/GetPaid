@@ -59,7 +59,11 @@ const CalendarPage = async ({ searchParams }: { searchParams: Promise<{ month?: 
       <div className="page-header">
         <h1>Calendar</h1>
         <div className="actions">
-          <Link className="button button-secondary" href="/calendar/sources">
+          <Link
+            className="button button-secondary"
+            href="/calendar/sources"
+            data-tour="calendar-sources"
+          >
             Imported calendars
           </Link>
         </div>

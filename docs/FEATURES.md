@@ -161,6 +161,11 @@ Presentation only: no changes to API calls, data, routes, form field names, vali
 - [x] **C5 Lawyer pack:** one PDF with agreement, invoices, timeline and demands.
   - Done when: the demo project's pack downloads as one PDF with the cover, agreement, invoices, timeline and demands.
 
+## T1 Guided tour [docs/CHANGE-onboarding-tour.md]
+
+- [x] **T1 Guided tour:** migration 032 (progress on the user's row), `GET/POST /api/tour`, a custom tour component with a 9-step main tour and page tips, Replay tour and Reset page tips in Settings.
+  - Done when: a new user sees step 1, "Got it" walks all 9 steps across pages, a reload shows no tour; Replay restarts it; Skip on step 2 ends it; a page tip shows on the first Calendar visit and not the second; the progress route rejects bad input and another user can't touch someone else's progress.
+
 ## Out of scope (not planned)
 
 Cal.com scheduling, meeting notes, transcripts, speech-to-text, email auto-import, WhatsApp, multi-user PayPal partner onboarding.

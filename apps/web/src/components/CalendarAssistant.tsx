@@ -141,7 +141,7 @@ export const CalendarAssistant = () => {
   };
 
   return (
-    <section className="card" aria-labelledby="assistant">
+    <section className="card" aria-labelledby="assistant" data-tour="calendar-assistant">
       <h2 id="assistant">Ask about your calendar</h2>
       <p className="muted">
         It answers from your calendar only, and can suggest changes to your own entries. Nothing

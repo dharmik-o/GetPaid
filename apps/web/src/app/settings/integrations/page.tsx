@@ -23,6 +23,7 @@ const IntegrationsPage = async ({ searchParams }: Props) => {
       <div className="page-header">
         <h1>Integrations</h1>
       </div>
+      <div data-tour="integrations">
       <section className="card" aria-labelledby="integration-telegram">
         <h2 id="integration-telegram">Telegram</h2>
         <TelegramConnect
@@ -43,6 +44,7 @@ const IntegrationsPage = async ({ searchParams }: Props) => {
         <h2 id="integration-paypal">PayPal</h2>
         <p className="muted">Works through the sandbox app set up in your local env file.</p>
       </section>
+      </div>
       <Link href="/settings">Back to settings</Link>
     </div>
   );

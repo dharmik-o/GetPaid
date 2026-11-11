@@ -10,14 +10,14 @@ type Props = { waiting: number; overdue: Metrics["overdue"] };
 export const NeedsAttention = ({ waiting, overdue }: Props) => {
   if (waiting === 0 && overdue.length === 0) {
     return (
-      <section className="card" aria-labelledby="attention">
+      <section className="card" aria-labelledby="attention" data-tour="needs-attention">
         <h2 id="attention">Needs attention</h2>
         <p className="muted">Nothing needs you right now.</p>
       </section>
     );
   }
   return (
-    <section className="card" aria-labelledby="attention">
+    <section className="card" aria-labelledby="attention" data-tour="needs-attention">
       <h2 id="attention">Needs attention</h2>
       {waiting > 0 ? (
         <p>

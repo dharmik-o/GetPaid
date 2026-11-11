@@ -3,6 +3,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { DemoClockForm } from "@/components/DemoClockForm";
 import { LegalFactsForm } from "@/components/LegalFactsForm";
 import { TimeZoneForm } from "@/components/TimeZoneForm";
+import { TourSettings } from "@/components/TourSettings";
 import { UsualDelayForm } from "@/components/UsualDelayForm";
 import { getLegalFacts, getOwnTimeZone, getUsualDaysLate } from "@/lib/account";
 import { defaultArchiveDir } from "@/lib/archive-paths";
@@ -71,6 +72,11 @@ const SettingsPage = async () => (
         <code>{defaultArchiveDir()}</code>
         <CopyButton value={defaultArchiveDir()} label="Copy the archive folder's path" />
       </div>
+    </section>
+    <section className="card" aria-labelledby="settings-tour">
+      <h2 id="settings-tour">Guided tour</h2>
+      <p>Walk through the dashboard again, or bring back the tips that show on a page&apos;s first visit.</p>
+      <TourSettings />
     </section>
     <section className="card" aria-labelledby="settings-integrations">
       <h2 id="settings-integrations">Integrations</h2>
