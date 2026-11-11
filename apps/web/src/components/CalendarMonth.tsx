@@ -129,7 +129,7 @@ export const CalendarMonth = ({
   };
 
   return (
-    <section className="card" aria-label="Month">
+    <section className="card" aria-label="Month" data-tour="calendar-month">
       <div className="page-header">
         <h2>
           {monthName(month)}

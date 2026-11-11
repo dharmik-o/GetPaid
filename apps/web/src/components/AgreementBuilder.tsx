@@ -174,7 +174,7 @@ export const AgreementBuilder = ({
         This is not legal advice. Have a lawyer read the wording before you use it with a client.
       </p>
       {editable ? (
-        <form className="form" onSubmit={save} noValidate>
+        <form className="form" onSubmit={save} noValidate data-tour="agreement-options">
           {number(
             "depositPercent",
             "Deposit (% of the total)",
@@ -278,7 +278,7 @@ export const AgreementBuilder = ({
             ) : null}
           </div>
           {agreement ? (
-            <div className="field">
+            <div className="field" data-tour="agreement-send">
               <label htmlFor="ag-signName">Send for signature</label>
               <input
                 id="ag-signName"
@@ -345,7 +345,13 @@ export const AgreementBuilder = ({
         </div>
       )}
       {html ? (
-        <iframe title="Agreement preview" sandbox="" srcDoc={html} className="template-preview" />
+        <iframe
+          title="Agreement preview"
+          sandbox=""
+          srcDoc={html}
+          className="template-preview"
+          data-tour="agreement-preview"
+        />
       ) : (
         <p className="muted">The preview appears here once the options are valid.</p>
       )}

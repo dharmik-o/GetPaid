@@ -26,7 +26,7 @@ const AiSettingsPage = async () => {
           template.
         </p>
       )}
-      <section className="card" aria-labelledby="ai-model">
+      <section className="card" aria-labelledby="ai-model" data-tour="ai-model">
         <h2 id="ai-model">Model</h2>
         <AiSettingsForm
           initial={settings}

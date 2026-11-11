@@ -52,6 +52,7 @@ The rules for the dashboard and landing page in `apps/web`. The look comes from 
 - **MoreMenu:** the phone's More button and its small menu.
 - **DottedTriangle:** the brand's decoration (see below).
 - **Logo:** the GetPaid stamp (`public/getpaid-stamp.svg`) and the name, replacing the mock's yellow triangle. The stamp is gold in dark mode and `--accent-ink` ochre in light, through `--logo-ink`. It's also the browser tab's icon. The name lives in one constant, `BRAND_NAME` (`lib/brand.ts`), but the stamp's lettering is part of the drawing, so a rename also needs a new stamp.
+- **Tour (`TourProvider`, `TourCard`):** the guided tour and page tips (`docs/CHANGE-onboarding-tour.md`). The page dims with a cut-out round one real element (`data-tour="..."`), edged by a 2px `--accent` ring at 12px radius. The card is an app card (20px radius, `--shadow-pop`): a muted "3 of 9" counter and a quiet "Skip tour" on top, a Clash 22px title, one sentence, then Back (secondary pill) and "Got it" (primary pill; "Finish" on the last step). It sits beside the target, flipped to stay on screen; on phones it is a bottom sheet (along the top when the target is low on the screen). With no target it is centred. Focus moves into the card; Esc skips; reduced motion removes the slide.
 - **ThemeToggle:** a 44px round button in the header, named "Switch to light mode" or "Switch to dark mode".
 
 ## Visual tokens

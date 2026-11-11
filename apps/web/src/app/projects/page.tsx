@@ -14,7 +14,7 @@ const ProjectsPage = async () => {
       <div className="page-header">
         <h1>Projects</h1>
         {projects.length > 0 ? (
-          <Link className="button" href="/projects/new">
+          <Link className="button" href="/projects/new" data-tour="new-project">
             New project
           </Link>
         ) : null}
@@ -22,7 +22,7 @@ const ProjectsPage = async () => {
       {projects.length === 0 ? (
         <div className="card empty">
           <p>No projects yet. Create one to set the deadline, terms and reminders.</p>
-          <Link className="button" href="/projects/new">
+          <Link className="button" href="/projects/new" data-tour="new-project">
             New project
           </Link>
         </div>

@@ -382,6 +382,7 @@ export const OutboxCard = ({ item }: { item: OutboxItem }) => {
     <article
       className="card outbox-card outbox-card-open"
       aria-label={`Draft for ${item.clientName}`}
+      data-tour="outbox-card"
     >
       <div className="outbox-head">
         <div>

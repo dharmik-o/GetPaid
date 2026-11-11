@@ -6,6 +6,7 @@ import { createSecretBox } from "../../apps/web/src/lib/crypto";
 import { decodeEncryptionKey } from "../../apps/web/src/lib/encryption-key";
 import { saveAiSettings } from "../../apps/web/src/lib/ai-settings";
 import { runAsUser } from "../../apps/web/src/lib/db";
+import { TIP_KEYS } from "../../apps/web/src/lib/tour-steps";
 import { saveGmailConnection } from "../../apps/web/src/lib/gmail-account";
 import { assertLocalDatabase } from "../../scripts/lib/local-db";
 import { AUTH_STUB_FILE, MIGRATIONS_DIR, SEED_FILE } from "../../scripts/lib/paths";
@@ -67,6 +68,11 @@ const connectServices = async (client: pg.Client): Promise<void> => {
     TELEGRAM_CHAT_ID,
     DEMO_USER_ID,
   ]);
+  // The tour would cover every page the other specs click on; tour.spec.ts starts it by hand.
+  await db.query(
+    "UPDATE public.users SET tour_skipped_at = now(), tour_tips_seen = $1 WHERE id = $2",
+    [[...TIP_KEYS], DEMO_USER_ID],
+  );
   await saveGmailConnection(db, {
     userId: DEMO_USER_ID,
     refreshToken: FAKE_REFRESH_TOKEN,

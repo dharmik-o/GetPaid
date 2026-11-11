@@ -27,9 +27,9 @@ const LIST_PAGES = [
   { page: "projects/page.tsx", href: "/projects/new", label: "New project" },
 ];
 
-/** Every `<Link className="button" href="...">label</Link>` on a page, with its text tidied. */
+/** Every `<Link className="button" href="..." ...>label</Link>` on a page, with its text tidied. */
 const primaryLinks = (text: string): { href: string; label: string }[] =>
-  [...text.matchAll(/<Link className="button" href="([^"]+)">\s*([^<]+?)\s*<\/Link>/g)].map(
+  [...text.matchAll(/<Link className="button" href="([^"]+)"[^>]*>\s*([^<]+?)\s*<\/Link>/g)].map(
     ([, href = "", label = ""]) => ({ href, label }),
   );
 

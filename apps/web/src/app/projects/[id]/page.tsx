@@ -92,7 +92,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
         <Link href={`/clients/${project.clientId}`}>Back to {project.clientName}</Link>
       </div>
 
-      <section className="card" aria-labelledby="summary">
+      <section className="card" aria-labelledby="summary" data-tour="project-summary">
         <h2 id="summary">Summary</h2>
         <dl className="details">
           <dt>Client</dt>
@@ -115,12 +115,12 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
         </dl>
       </section>
 
-      <section className="card" aria-labelledby="agreement">
+      <section className="card" aria-labelledby="agreement" data-tour="project-agreement">
         <h2 id="agreement">Agreement</h2>
         <AgreementPanel projectId={project.id} agreements={agreements} />
       </section>
 
-      <section className="card" aria-labelledby="lawyer-pack">
+      <section className="card" aria-labelledby="lawyer-pack" data-tour="project-lawyer-pack">
         <h2 id="lawyer-pack">Lawyer pack</h2>
         <p className="muted">
           One PDF for a lawyer: the parties, amounts, the signed agreement, every invoice, a

@@ -45,7 +45,7 @@ const HomePage = async () => {
       </div>
       <RetainerAlerts alerts={alerts} />
       {clientCount === 0 ? (
-        <div className="card empty">
+        <div className="card empty" data-tour="needs-attention">
           <p>Nothing needs your attention yet. Start by adding a client.</p>
           <Link className="button" href="/clients">
             Go to clients
