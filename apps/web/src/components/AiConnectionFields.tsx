@@ -77,6 +77,9 @@ export const AiConnectionFields = ({
   const presets = cloudOnly ? AI_PRESETS.filter((p) => p.local !== true) : AI_PRESETS;
   const id = (name: string) => `${idPrefix}-${name}`;
   const error = (name: string) => errors[`${idPrefix}.${name}`];
+  const suggestions = [
+    ...new Set([...(preset?.models ?? []), ...(value.provider === "ollama" ? localModels : [])]),
+  ];
 
   const pickPreset = (next: AiPresetId) => {
     const draft = draftFromPreset(next, localAiUrl);
@@ -166,9 +169,27 @@ export const AiConnectionFields = ({
       ) : null}
 
       <Field id={id("model")} label="Model" error={error("model")} hint={preset?.modelHint}>
+        {suggestions.length > 0 ? (
+          <select
+            className="model-pick"
+            aria-label="Pick a suggested model"
+            value={suggestions.includes(value.model) ? value.model : ""}
+            onChange={(e) => {
+              if (e.target.value !== "") onChange({ ...value, model: e.target.value });
+            }}
+          >
+            <option value="">Pick a suggested model, or type your own below</option>
+            {suggestions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <input
           id={id("model")}
           value={value.model}
+          placeholder="Type a model id"
           list={value.provider === "ollama" ? id("models") : undefined}
           aria-invalid={Boolean(error("model"))}
           onChange={(e) => {

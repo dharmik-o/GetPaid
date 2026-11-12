@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { aiSettingsHandlers } from "@/lib/ai-settings-handlers";
+import { loadAiConnections } from "@/lib/ai-settings";
+import { aiSettingsHandlers, DEMO_AI_LOCKED } from "@/lib/ai-settings-handlers";
 import { createSecretBox } from "@/lib/crypto";
 import { runAsUser, type UserDbRunner } from "@/lib/db";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
@@ -18,11 +19,11 @@ const runnerFor =
   (work) =>
     runAsUser(handle.db, userId, work);
 
-const handlersFor = (userId = USER_A.userId) =>
-  aiSettingsHandlers({ runAsUser: runnerFor(userId), box: () => box });
+const handlersFor = (userId = USER_A.userId, demoMode?: () => boolean) =>
+  aiSettingsHandlers({ runAsUser: runnerFor(userId), box: () => box, demoMode });
 
-const put = (body: unknown, userId = USER_A.userId) =>
-  handlersFor(userId).save(
+const put = (body: unknown, userId = USER_A.userId, demoMode?: () => boolean) =>
+  handlersFor(userId, demoMode).save(
     new Request("http://127.0.0.1:3000/api/settings/ai", {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -278,13 +279,45 @@ describe("PUT /api/settings/ai", () => {
   });
 });
 
-describe("PUT /api/settings/ai on the public demo", () => {
+describe("/api/settings/ai on the public demo", () => {
   const demo = () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("DEMO_MODE", "true");
   };
+  const builtIn = () => {
+    vi.stubEnv("AI_DEFAULT_PROVIDER", "gemini");
+    vi.stubEnv("AI_DEFAULT_MODEL", "gemini-3.5-flash-lite");
+    vi.stubEnv("AI_DEFAULT_API_KEY", "built-in-test-key");
+  };
+  /** The settings lock is off here, to check the address rule underneath it (decision E9). */
+  const unlocked = () => false;
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("refuses to save: every visitor shares one account", async () => {
+    demo();
+    const response = await put({ main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: DEMO_AI_LOCKED });
+    expect(await rows()).toEqual([]);
+  });
+
+  it("refuses to clear saved settings", async () => {
+    await put({ main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null });
+    demo();
+    expect((await handlersFor().clear()).status).toBe(403);
+    expect(await rows()).not.toEqual([]);
+  });
+
+  it("uses the built-in model even if the shared account has one saved", async () => {
+    await put({ main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null });
+    demo();
+    builtIn();
+    const connections = await runnerFor(USER_A.userId)((db) => loadAiConnections(db, "draft", box));
+    expect(connections).toEqual([
+      expect.objectContaining({ provider: "gemini", model: "gemini-3.5-flash-lite" }),
+    ]);
   });
 
   it.each(["http://postgres:5432/v1", "http://n8n:5678/v1", "https://evil.example.com/v1"])(
@@ -292,20 +325,30 @@ describe("PUT /api/settings/ai on the public demo", () => {
     async (baseUrl) => {
       demo();
       const errors = await errorsOf(
-        await put({
-          main: { provider: "custom", baseUrl, model: "m1", isLocal: true },
-          cloudFallback: null,
-        }),
+        await put(
+          {
+            main: { provider: "custom", baseUrl, model: "m1", isLocal: true },
+            cloudFallback: null,
+          },
+          USER_A.userId,
+          unlocked,
+        ),
       );
       expect(errors[0]?.field).toBe("main.baseUrl");
       expect(await rows()).toEqual([]);
     },
   );
 
-  it("still saves a known provider", async () => {
+  it("still accepts a known provider's address", async () => {
     demo();
     expect(
-      (await put({ main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null })).status,
+      (
+        await put(
+          { main: { ...claude, apiKey: CLAUDE_KEY }, cloudFallback: null },
+          USER_A.userId,
+          unlocked,
+        )
+      ).status,
     ).toBe(200);
   });
 });

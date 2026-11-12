@@ -66,6 +66,7 @@ Make **new random values for every secret. Never copy your laptop's file.** Gene
 | `DEMO_COOKIE_SECRET`                                            | `openssl rand -hex 32` (32 or more characters)                                                                                                                                        |
 | `LOCAL_AI_URL`                                                  | `http://ollama:11434`                                                                                                                                                                 |
 | `DEV_EMAIL_ALLOWLIST`                                           | the demo inbox only. Real emails can go to no other address                                                                                                                           |
+| `AI_DEFAULT_PROVIDER`, `AI_DEFAULT_MODEL`, `AI_DEFAULT_API_KEY` | `gemini`, `gemini-3.5-flash-lite` and your Google AI Studio key. Every visitor uses this built-in model; the key never leaves the server                                              |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` | your sandbox app (the webhook ID comes in step 8)                                                                                                                                     |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`                        | your Google OAuth client (step 8)                                                                                                                                                     |
 | `TELEGRAM_BOT_USERNAME`                                         | the bot's username                                                                                                                                                                    |
@@ -84,10 +85,10 @@ The first build takes several minutes on the Arm VM. The command returns when Po
 
 ```bash
 npm ci
-npm run db:dev-auth && npm run db:migrate && npm run db:seed
+npm run db:dev-auth && npm run db:migrate && npm run db:seed:showcase
 ```
 
-This runs from the server's shell against the Postgres that listens on `127.0.0.1` only. `db:seed` loads the demo freelancer and demo data.
+This runs from the server's shell against the Postgres that listens on `127.0.0.1` only. `db:seed:showcase` loads the demo freelancer, the demo-script project ("Website redesign" for Hudson Street Bakery) and four more clients with projects in every state, so the dashboard looks lived-in: paid history in EUR, GBP and AUD, a first reminder and a Tier 3 final notice waiting in the Outbox, a client reply waiting in Replies, and a renewal on the calendar. Those extra invoices are history only: their PayPal links are made up. The live PayPal flow is the Website redesign project. Running it again changes nothing.
 
 ## 7. Set up n8n (privately)
 
@@ -156,16 +157,16 @@ gunzip -c deploy/backups/2026-11-09.sql.gz | docker compose exec -T postgres sh 
 
 ## If something goes wrong
 
-| What you see                                         | What to check                                                                                                                                      |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The address doesn't open                             | DuckDNS points at the VM's IP (step 2). Ports 80 and 443 are open in **both** the security list and the VM firewall (steps 1 and 3)                |
+| What you see                                         | What to check                                                                                                                                                                                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The address doesn't open                             | DuckDNS points at the VM's IP (step 2). Ports 80 and 443 are open in **both** the security list and the VM firewall (steps 1 and 3)                                                                                              |
 | Browser warns about the certificate                  | Caddy needs a minute after it starts. Check `docker compose logs caddy`. The domain must point at this VM, with ports 80 and 443 open, before Caddy can get a certificate. After fixing that, run `docker compose restart caddy` |
-| The web container isn't healthy                      | `docker compose logs web`. It names a missing or weak setting (for example `DEMO_PASSWORD`)                                                        |
-| "Out of capacity" when creating the VM               | Try another availability domain, or try later                                                                                                      |
-| Telegram buttons do nothing                          | "Approval handler" must be published after `WEBHOOK_URL` is the https address. Publish it again                                                    |
-| PayPal events don't arrive                           | The sandbox webhook URL is `https://<domain>/webhook/paypal`, and `PAYPAL_WEBHOOK_ID` matches that webhook                                         |
-| `import-workflows.sh` says n8n already has workflows | That is the duplicate guard. Change workflows in the editor, or use `npm run n8n:go-live`                                                          |
-| `npm run n8n:go-live` can't find a credential        | It needs exactly one credential of each type (one Header Auth, one Telegram API). Create them first (step 7)                                       |
+| The web container isn't healthy                      | `docker compose logs web`. It names a missing or weak setting (for example `DEMO_PASSWORD`)                                                                                                                                      |
+| "Out of capacity" when creating the VM               | Try another availability domain, or try later                                                                                                                                                                                    |
+| Telegram buttons do nothing                          | "Approval handler" must be published after `WEBHOOK_URL` is the https address. Publish it again                                                                                                                                  |
+| PayPal events don't arrive                           | The sandbox webhook URL is `https://<domain>/webhook/paypal`, and `PAYPAL_WEBHOOK_ID` matches that webhook                                                                                                                       |
+| `import-workflows.sh` says n8n already has workflows | That is the duplicate guard. Change workflows in the editor, or use `npm run n8n:go-live`                                                                                                                                        |
+| `npm run n8n:go-live` can't find a credential        | It needs exactly one credential of each type (one Header Auth, one Telegram API). Create them first (step 7)                                                                                                                     |
 
 ## What stays private, and what to keep secret
 

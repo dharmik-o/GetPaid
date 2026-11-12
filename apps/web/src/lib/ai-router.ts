@@ -55,39 +55,64 @@ export const extractJson = (text: string): unknown => {
   }
 };
 
+/** Busy or rate-limited answers that are often fine a moment later. */
+const BUSY = new Set(["HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504"]);
+export const BUSY_RETRY_MS = 1_500;
+
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 type Outcome<T> = { kind: "ok"; output: T } | { kind: "invalid" } | { kind: "unavailable" };
 
-/** One model: one call, and one retry if the answer is invalid. */
+type Limits = { timeoutMs: number; busyRetryMs: number };
+
+/**
+ * One model: one call, one retry if the answer is invalid, and one more try after a short
+ * pause if the provider was busy (HTTP 429 or 5xx).
+ */
 const tryModel = async <T>(
   connection: AiConnection,
   request: RouteRequest<T>,
-  timeoutMs: number,
+  { timeoutMs, busyRetryMs }: Limits,
   attempts: Attempt[],
 ): Promise<Outcome<T>> => {
-  for (const retry of [false, true]) {
+  const record = (outcome: Attempt["outcome"], detail: string, started: number) => {
+    attempts.push({
+      provider: connection.provider,
+      model: connection.model,
+      isLocal: connection.isLocal,
+      outcome,
+      detail,
+      ms: Date.now() - started,
+    });
+  };
+  const ask = async (messages: ChatMessage[]) => {
     const started = Date.now();
-    const messages = retry ? [...request.messages, RETRY_REMINDER] : request.messages;
     const answer = await chatCompletion(connection, messages, timeoutMs);
-    const record = (outcome: Attempt["outcome"], detail: string) => {
-      attempts.push({
-        provider: connection.provider,
-        model: connection.model,
-        isLocal: connection.isLocal,
-        outcome,
-        detail,
-        ms: Date.now() - started,
-      });
-    };
+    return { answer, started };
+  };
+  let waited = false;
+  for (const retry of [false, true]) {
+    const messages = retry ? [...request.messages, RETRY_REMINDER] : request.messages;
+    let { answer, started } = await ask(messages);
+    if (!answer.ok && !waited && BUSY.has(answer.detail)) {
+      record("unavailable", answer.detail, started);
+      waited = true;
+      await wait(busyRetryMs);
+      ({ answer, started } = await ask(messages));
+    }
     if (!answer.ok) {
-      record("unavailable", answer.detail);
+      record("unavailable", answer.detail, started);
       return { kind: "unavailable" };
     }
     const parsed = request.schema.safeParse(extractJson(answer.text));
     if (parsed.success) {
-      record("ok", "valid");
+      record("ok", "valid", started);
       return { kind: "ok", output: parsed.data };
     }
-    record("invalid", "didn't match the schema");
+    record("invalid", "didn't match the schema", started);
   }
   return { kind: "invalid" };
 };
@@ -101,7 +126,10 @@ const inOrder = (connections: AiConnection[]): AiConnection[] => [
 export const routeTask = async <T>(
   connections: AiConnection[],
   request: RouteRequest<T>,
-  { timeoutMs = DEFAULT_TIMEOUT_MS }: { timeoutMs?: number } = {},
+  {
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    busyRetryMs = BUSY_RETRY_MS,
+  }: { timeoutMs?: number; busyRetryMs?: number } = {},
 ): Promise<RouteResult<T>> => {
   if (request.template !== undefined && !request.schema.safeParse(request.template).success) {
     throw new Error("The fallback template doesn't match the schema. Fix the template in code.");
@@ -113,7 +141,7 @@ export const routeTask = async <T>(
       : { ok: true, via: "template", output: request.template, attempts };
 
   for (const connection of inOrder(connections)) {
-    const outcome = await tryModel(connection, request, timeoutMs, attempts);
+    const outcome = await tryModel(connection, request, { timeoutMs, busyRetryMs }, attempts);
     if (outcome.kind === "ok") {
       return {
         ok: true,

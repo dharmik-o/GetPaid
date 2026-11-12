@@ -149,6 +149,23 @@ describe("routeTask", () => {
     },
   );
 
+  it("tries a busy model once more after a short pause", async () => {
+    const seen: Seen[] = [];
+    server.use(model(CLOUD_URL, [503, JSON.stringify(PROMISE)], seen));
+    const result = await routeTask([cloud], request, { busyRetryMs: 0 });
+    expect(result).toMatchObject({ ok: true, via: "model", model: "claude-sonnet-5-5" });
+    expect(seen).toHaveLength(2);
+    if (!result.ok) return;
+    expect(result.attempts.map((a) => a.outcome)).toEqual(["unavailable", "ok"]);
+  });
+
+  it("doesn't retry a model that refused the key", async () => {
+    const seen: Seen[] = [];
+    server.use(model(CLOUD_URL, [401, JSON.stringify(PROMISE)], seen));
+    await routeTask([cloud], request, { busyRetryMs: 0 });
+    expect(seen).toHaveLength(1);
+  });
+
   it("every model down: the template, or unavailable when there's none", async () => {
     server.use(model(LOCAL_URL, ["network", "network"]), model(CLOUD_URL, [503, 503]));
     expect(await routeTask([local, cloud], request)).toMatchObject({ ok: true, via: "template" });

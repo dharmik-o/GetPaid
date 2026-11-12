@@ -19,6 +19,7 @@ import type { Law } from "./legal";
 import { getProject } from "./projects";
 import type { ReferenceRates } from "./reference-rates";
 import { todayIn } from "./schedule";
+import { documentFontCss } from "./document-fonts";
 import { DOCUMENT_CSP } from "./template-render";
 
 // Server-only: the "lawyer pack", one PDF a freelancer can hand to a lawyer: a cover (parties, project,
@@ -88,7 +89,20 @@ type Gathered = {
   timeline: TimelineEntry[];
 };
 
-type TimelineEntry = { at: string; title: string; subject: string | null; body: string | null };
+type TimelineEntry = {
+  at: string;
+  title: string;
+  subject: string | null;
+  body: string | null;
+  /** For a recorded event: its system name and plain details, shown small under the title. */
+  code?: string;
+};
+
+/** "reminders.kept_on_hold" -> "Reminders kept on hold". */
+const eventTitle = (type: string): string => {
+  const words = type.replace(/[._]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 const EVENT_FIELDS = ["via", "tier", "count", "number", "version", "until"] as const;
 
@@ -213,9 +227,10 @@ const gather = async (db: Db, projectId: string): Promise<Gathered | undefined> 
     })),
     ...events.map((row) => ({
       at: toIso(row.at),
-      title: payloadText(row.payload) ? `${row.type} (${payloadText(row.payload)})` : row.type,
+      title: eventTitle(row.type),
       subject: null,
       body: null,
+      code: payloadText(row.payload) ? `${row.type} (${payloadText(row.payload)})` : row.type,
     })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   return {
@@ -247,18 +262,52 @@ const gather = async (db: Db, projectId: string): Promise<Gathered | undefined> 
   };
 };
 
-const STYLE =
-  "body{font-family:Georgia,serif;font-size:10.5pt;line-height:1.45;color:#111;margin:0}h1{font-size:19pt;margin:0 0 .2em}h2{font-size:13pt;margin:1.2em 0 .3em}" +
-  "table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:.25em .45em;text-align:left;vertical-align:top}" +
-  ".note{color:#444;font-size:9.5pt}.entry{margin:.6em 0;padding-bottom:.4em;border-bottom:1px solid #ddd;page-break-inside:avoid}" +
-  ".when{font-size:9pt;color:#555}pre{white-space:pre-wrap;font-family:inherit;margin:.2em 0 0}";
+// A quiet, professional look in the spirit of the Classic invoice theme: serif headings, a dark
+// table header, generous page margins. Fonts are embedded (the PDF is made with the network off).
+const STYLE = [
+  "@page{size:A4;margin:22mm 20mm 24mm 20mm}",
+  "*{box-sizing:border-box}",
+  "body{font-family:'IBM Plex Sans',Arial,sans-serif;font-size:10pt;line-height:1.55;color:#1d1b17;margin:0}",
+  "h1,h2{font-family:'IBM Plex Serif',Georgia,serif;color:#111;font-weight:600}",
+  "h1{font-size:26pt;line-height:1.1;margin:0 0 2mm;letter-spacing:-.01em}",
+  "h2{font-size:12.5pt;margin:9mm 0 3.5mm;padding-bottom:1.6mm;border-bottom:1px solid #d8d4c9;break-after:avoid;page-break-after:avoid}",
+  "p{margin:0 0 2.5mm}",
+  ".kicker{font-size:8pt;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#875B00;margin-bottom:3mm}",
+  ".sub{font-size:11.5pt;color:#3d3a33;margin:0 0 1.5mm}",
+  ".note{color:#5f5b52;font-size:8.8pt}",
+  ".head{padding-bottom:6mm;margin-bottom:2mm;border-bottom:2.5px solid #111}",
+  ".summary{display:flex;gap:4mm;margin:6mm 0 2mm}",
+  ".summary div{flex:1;border:1px solid #e3dfd5;border-radius:3mm;padding:3.5mm 4mm;background:#faf9f6}",
+  ".summary span{display:block;font-size:7.8pt;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#6b675e;margin-bottom:1mm}",
+  ".summary b{font-family:'IBM Plex Serif',Georgia,serif;font-size:14pt;font-weight:600}",
+  "table{border-collapse:collapse;width:100%;margin:1mm 0 3mm}",
+  "th{background:#1f1d1a;color:#fff;font-weight:600;font-size:8.6pt;text-align:left;padding:2.2mm 3mm;letter-spacing:.02em}",
+  "td{padding:2.2mm 3mm;border-bottom:1px solid #e3dfd5;vertical-align:top;font-size:9.4pt}",
+  "tr{break-inside:avoid;page-break-inside:avoid}",
+  "thead{display:table-header-group}",
+  ".invoices td:nth-child(n+4):nth-child(-n+6){text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}",
+  ".invoices th:nth-child(n+4):nth-child(-n+6){text-align:right}",
+  ".parties{border-collapse:separate;border-spacing:4mm 0;margin:0 -4mm;width:calc(100% + 8mm)}",
+  ".invoices td:nth-child(1),.invoices td:nth-child(3){white-space:nowrap}",
+  ".parties th{background:none;color:#875B00;font-size:8pt;letter-spacing:.12em;text-transform:uppercase;padding:0 0 1.5mm}",
+  ".parties td{width:50%;border:1px solid #e3dfd5;border-radius:3mm;background:#faf9f6;padding:4mm;font-size:9.6pt;line-height:1.6}",
+  ".contents td:last-child{text-align:right;white-space:nowrap;width:30mm}",
+  ".claim{border-left:3px solid #875B00;background:#faf9f6;padding:2.5mm 4mm;margin:0 0 2.5mm;font-size:9.4pt}",
+  "ul{margin:0;padding-left:5mm}li{margin-bottom:1mm;font-size:9.4pt}",
+  ".entry{margin:0 0 4mm;padding:0 0 0 4mm;border-left:3px solid #e3dfd5;break-inside:avoid;page-break-inside:avoid}",
+  ".entry strong{font-size:10.2pt}",
+  ".when{font-size:8.4pt;color:#6b675e;letter-spacing:.02em;margin-bottom:.6mm}",
+  ".subject{font-size:9.2pt;color:#3d3a33;margin-top:.6mm}",
+  ".code{font-size:8.2pt;color:#8a867c;margin-top:.4mm}",
+  "pre{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:9.2pt;line-height:1.5;margin:1.6mm 0 0;padding:2.5mm 3.5mm;background:#f6f4ef;border-radius:2mm}",
+].join("");
 
 const page = (title: string, body: string): string =>
   [
     "<!DOCTYPE html>",
     '<html lang="en"><head><meta charset="utf-8">',
     `<meta http-equiv="Content-Security-Policy" content="${DOCUMENT_CSP}">`,
-    `<title>${esc(title)}</title><style>${STYLE}</style></head><body>${body}</body></html>`,
+    `<title>${esc(title)}</title><style>${documentFontCss(STYLE)}${STYLE}</style></head><body>${body}</body></html>`,
   ].join("");
 
 const lines = (parts: (string | null)[]): string =>
@@ -298,12 +347,21 @@ const coverHtml = ({ data, today, toc, claims, notIncluded }: CoverInput): strin
         `<td>${money(owed(row), row.currency)}</td><td>${esc(row.status.replace("_", " "))}</td><td>${esc(paidBy(row))}</td></tr>`,
     )
     .join("");
+  const same = data.invoices.filter((row) => row.currency === data.currency);
+  const invoicedCents = same.reduce((sum, row) => sum + toCents(row.amount_cents), 0);
+  const paidCents = same.reduce((sum, row) => sum + toCents(row.amount_paid_cents), 0);
+  const outstandingCents = same
+    .filter((row) => row.status !== "cancelled")
+    .reduce((sum, row) => sum + Math.max(0, owed(row)), 0);
   return page(
     "Lawyer pack",
     [
+      '<div class="head"><div class="kicker">GetPaid · Payment record</div>',
       "<h1>Lawyer pack</h1>",
+      `<p class="sub">${esc(data.title)} · ${esc(data.clientName)}</p>`,
       `<p class="note">Prepared ${esc(formatFullDay(today))} from the records kept by GetPaid. This is a copy of records, not legal advice.</p>`,
-      "<h2>Parties</h2><table><tr><th>Freelancer</th><th>Client</th></tr><tr><td>",
+      `<div class="summary"><div><span>Project total</span><b>${money(data.totalCents, data.currency)}</b></div><div><span>Invoiced</span><b>${money(invoicedCents, data.currency)}</b></div><div><span>Paid</span><b>${money(paidCents, data.currency)}</b></div><div><span>Outstanding</span><b>${money(outstandingCents, data.currency)}</b></div></div></div>`,
+      '<h2>Parties</h2><table class="parties"><tr><th>Freelancer</th><th>Client</th></tr><tr><td>',
       lines([
         data.freelancer.legalName ?? data.freelancer.name,
         data.freelancer.business,
@@ -321,10 +379,10 @@ const coverHtml = ({ data, today, toc, claims, notIncluded }: CoverInput): strin
       ]),
       "</td></tr></table>",
       `<h2>Project</h2><p><strong>${esc(data.title)}</strong>, total ${money(data.totalCents, data.currency)}.</p>`,
-      `<h2>Invoices</h2>${data.invoices.length === 0 ? "<p>No invoices yet.</p>" : `<table><tr><th>Invoice</th><th>For</th><th>Due</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Paid by</th></tr>${rows}</table>`}`,
-      `<h2>Statutory interest and compensation</h2>${claims.length === 0 ? "<p>No overdue, unpaid invoice.</p>" : claims.map((c) => `<p>${esc(c)}</p>`).join("")}`,
+      `<h2>Invoices</h2>${data.invoices.length === 0 ? "<p>No invoices yet.</p>" : `<table class="invoices"><thead><tr><th>Invoice</th><th>For</th><th>Due</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Paid by</th></tr></thead>${rows}</table>`}`,
+      `<h2>Statutory interest and compensation</h2>${claims.length === 0 ? "<p>No overdue, unpaid invoice.</p>" : claims.map((c) => `<p class="claim">${esc(c)}</p>`).join("")}`,
       '<p class="note">Interest and compensation are calculated only under a law and reference rates the freelancer has checked and approved. Where none is approved, none is calculated.</p>',
-      "<h2>Contents</h2><table><tr><th>Part</th><th>Pages</th></tr>",
+      '<h2>Contents</h2><table class="contents"><thead><tr><th>Part</th><th>Pages</th></tr></thead>',
       toc
         .map(
           (item) =>
@@ -342,14 +400,15 @@ const coverHtml = ({ data, today, toc, claims, notIncluded }: CoverInput): strin
 const timelineHtml = (entries: readonly TimelineEntry[]): string =>
   page(
     "Timeline",
-    `<h1>Timeline</h1><p class="note">Every email sent, reply received and recorded event, oldest first. Times are UTC.</p>${
+    `<div class="head"><div class="kicker">GetPaid · Payment record</div><h1>Timeline</h1><p class="note">Every email sent, reply received and recorded event, oldest first. Times are UTC.</p></div><h2>Events</h2>${
       entries.length === 0
         ? "<p>Nothing recorded yet.</p>"
         : entries
             .map(
               (entry) =>
                 `<div class="entry"><div class="when">${esc(entry.at.slice(0, 16).replace("T", " "))} UTC</div><strong>${esc(entry.title)}</strong>` +
-                `${entry.subject ? `<div>Subject: ${esc(entry.subject)}</div>` : ""}${entry.body ? `<pre>${esc(entry.body)}</pre>` : ""}</div>`,
+                (entry.code ? `<div class="code">Recorded event: ${esc(entry.code)}</div>` : "") +
+                `${entry.subject ? `<div class="subject">Subject: ${esc(entry.subject)}</div>` : ""}${entry.body ? `<pre>${esc(entry.body)}</pre>` : ""}</div>`,
             )
             .join("")
     }`,

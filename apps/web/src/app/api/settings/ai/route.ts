@@ -6,3 +6,4 @@ const handlers = aiSettingsHandlers({ runAsUser: runAsCurrentUser, box: secretBo
 
 export const GET = handlers.get;
 export const PUT = handlers.save;
+export const DELETE = handlers.clear;

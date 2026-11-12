@@ -1,6 +1,6 @@
 import pg from "pg";
 import { assertLocalDatabase } from "./lib/local-db";
-import { AUTH_STUB_FILE, MIGRATIONS_DIR, SEED_FILE } from "./lib/paths";
+import { AUTH_STUB_FILE, MIGRATIONS_DIR, SEED_FILE, SHOWCASE_FILE } from "./lib/paths";
 import { migrate, runSqlFile } from "./lib/runner";
 import { fromPg, type SqlClient } from "./lib/sql-client";
 
@@ -21,6 +21,11 @@ const COMMANDS = {
   seed: async (db: SqlClient): Promise<void> => {
     await runSqlFile(db, SEED_FILE);
     say("seed data loaded");
+  },
+  showcase: async (db: SqlClient): Promise<void> => {
+    await runSqlFile(db, SEED_FILE);
+    await runSqlFile(db, SHOWCASE_FILE);
+    say("seed and showcase data loaded");
   },
   "dev-auth": async (db: SqlClient): Promise<void> => {
     await runSqlFile(db, AUTH_STUB_FILE);
@@ -47,7 +52,8 @@ const main = async (): Promise<void> => {
     );
   }
   // The auth stub and the fake seed data (which writes auth.users) are for local Postgres only.
-  if (command === "dev-auth" || command === "seed") assertLocalDatabase(connectionString);
+  if (command === "dev-auth" || command === "seed" || command === "showcase")
+    assertLocalDatabase(connectionString);
   const client = new pg.Client({ connectionString });
   await client.connect();
   try {

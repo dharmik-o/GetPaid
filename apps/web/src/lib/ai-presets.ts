@@ -13,6 +13,8 @@ export type AiPreset = {
   /** A model to start with, or "" to make the user type one. */
   model: string;
   modelHint: string;
+  /** A few model ids to pick from; the user can always type another. */
+  models: readonly string[];
 };
 
 export const AI_PRESETS = [
@@ -24,6 +26,7 @@ export const AI_PRESETS = [
     needsKey: true,
     model: "claude-sonnet-5-5",
     modelHint: "A Claude model id, for example claude-sonnet-5-5 or claude-haiku-5-5.",
+    models: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
   },
   {
     id: "openai",
@@ -33,6 +36,7 @@ export const AI_PRESETS = [
     needsKey: true,
     model: "",
     modelHint: "The model id from your OpenAI account.",
+    models: ["gpt-5-mini", "gpt-5-nano", "gpt-5"],
   },
   {
     id: "gemini",
@@ -40,8 +44,10 @@ export const AI_PRESETS = [
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     local: false,
     needsKey: true,
-    model: "",
-    modelHint: "The Gemini model id from Google AI Studio.",
+    model: "gemini-3.5-flash-lite",
+    modelHint:
+      "The model id from Google AI Studio. Flash-Lite models allow the most free requests a day.",
+    models: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"],
   },
   {
     id: "groq",
@@ -51,6 +57,7 @@ export const AI_PRESETS = [
     needsKey: true,
     model: "",
     modelHint: "The model id from your Groq console.",
+    models: ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "openai/gpt-oss-120b"],
   },
   {
     id: "openrouter",
@@ -60,6 +67,7 @@ export const AI_PRESETS = [
     needsKey: true,
     model: "",
     modelHint: "An OpenRouter model id, written provider/model.",
+    models: ["openrouter/auto"],
   },
   {
     id: "ollama",
@@ -69,6 +77,7 @@ export const AI_PRESETS = [
     needsKey: false,
     model: "",
     modelHint: "A model you've pulled, as `ollama list` shows it, for example llama3.2.",
+    models: ["llama3.2", "qwen2.5:3b"],
   },
   {
     id: "lmstudio",
@@ -78,6 +87,7 @@ export const AI_PRESETS = [
     needsKey: false,
     model: "",
     modelHint: "The model id LM Studio shows for the loaded model.",
+    models: [],
   },
   {
     id: "custom",
@@ -88,6 +98,7 @@ export const AI_PRESETS = [
     model: "",
     modelHint:
       "Any OpenAI-compatible endpoint, such as the local LiteLLM gateway (http://127.0.0.1:4000/v1) or vLLM.",
+    models: [],
   },
 ] as const satisfies readonly AiPreset[];
 

@@ -44,12 +44,22 @@ const toBody = (draft: ConnectionDraft) => ({
   ...(draft.apiKey === undefined ? {} : { apiKey: draft.apiKey }),
 });
 
-type Props = { initial: SavedAiSettings; localAiUrl?: string; localModels?: readonly string[] };
+type Props = {
+  initial: SavedAiSettings;
+  localAiUrl?: string;
+  localModels?: readonly string[];
+  /** With no saved model, the form starts on this provider and model (the server's built-in). */
+  start?: { provider: AiPresetId; model: string };
+};
 
-export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
+export const AiSettingsForm = ({ initial, localAiUrl, localModels, start }: Props) => {
   const router = useRouter();
   const [main, setMain] = useState<ConnectionDraft>(
-    initial.main ? fromSaved(initial.main) : draftFromPreset("ollama", localAiUrl),
+    initial.main
+      ? fromSaved(initial.main)
+      : start
+        ? { ...draftFromPreset(start.provider, localAiUrl), model: start.model }
+        : draftFromPreset("ollama", localAiUrl),
   );
   const [useFallback, setUseFallback] = useState(initial.cloudFallback !== null);
   const [fallback, setFallback] = useState<ConnectionDraft>(

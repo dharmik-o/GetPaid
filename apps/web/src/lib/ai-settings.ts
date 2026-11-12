@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultAiConnection } from "./ai-default";
 import { AI_PRESET_IDS, presetById, type AiPresetId } from "./ai-presets";
 import { baseUrlProblem, sameServer } from "./ai-url";
 import { isDemoMode } from "./demo-gate";
@@ -257,15 +258,22 @@ export type AiConnection = {
   apiKey: string | null;
 };
 
-/** The user's models for one task, in the order saved (main first). */
+/**
+ * The user's models for one task, in the order saved (main first). A user with no saved model
+ * gets the server's built-in one (lib/ai-default.ts), if the server has one.
+ */
 export const loadAiConnections = async (
   db: Db,
   task: AiTask,
   box: SecretBox,
 ): Promise<AiConnection[]> => {
+  const builtIn = defaultAiConnection();
+  // The public demo always uses the built-in model, even if the shared account has rows saved.
+  if (builtIn && isDemoMode()) return [builtIn];
   const { rows } = await db.query<Row>(`${SELECT_ROWS} WHERE task = $1 ORDER BY fallback_order`, [
     task,
   ]);
+  if (rows.length === 0) return builtIn ? [builtIn] : [];
   return rows.map((row) => ({
     order: row.fallback_order,
     provider: row.provider,
@@ -276,4 +284,9 @@ export const loadAiConnections = async (
       ? box.decrypt(row.api_key_enc, keyContext(row.user_id, row.fallback_order))
       : null,
   }));
+};
+
+/** Removes the user's own models, so the built-in model (if any) or the template is used. */
+export const clearAiSettings = async (db: Db): Promise<void> => {
+  await db.query("DELETE FROM public.ai_providers");
 };

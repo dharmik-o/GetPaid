@@ -1097,6 +1097,12 @@ dl.details {
   border-top: 1px solid var(--line);
 }
 
+/* Model field: a dropdown of suggestions above the free-text model id. */
+.field .model-pick {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
 /* A field whose input is followed by its own button. */
 .field > input + .button,
 .field > select + .button,

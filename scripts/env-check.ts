@@ -8,12 +8,20 @@ import {
   parseServerEnv,
   SERVER_ENV_NAMES,
 } from "../apps/web/src/lib/env";
+import { DEFAULT_AI_ENV_NAMES, readDefaultAi } from "../apps/web/src/lib/ai-default";
 
 const checks: [string, () => unknown, string[]][] = [
   ["Server environment", () => parseServerEnv(process.env), SERVER_ENV_NAMES],
   ["PayPal sandbox", () => parsePaypalEnv(process.env), PAYPAL_ENV_NAMES],
   ["Internal API (n8n to app)", () => parseInternalEnv(process.env), INTERNAL_ENV_NAMES],
 ];
+
+const builtInAi = () => {
+  const result = readDefaultAi(process.env);
+  if (!result.ok && result.problem !== null)
+    throw new Error(`Built-in AI model: ${result.problem}`);
+};
+checks.push(["Built-in AI model (optional)", builtInAi, [...DEFAULT_AI_ENV_NAMES]]);
 
 for (const [label, check, names] of checks) {
   try {
