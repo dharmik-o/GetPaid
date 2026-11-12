@@ -7,7 +7,7 @@ import { errorKind, logEvent } from "./log";
 import { PaypalError, type PaypalClient } from "./paypal";
 import { draftApprovalEmail } from "./retainer-approval-email";
 import { cancelRetainer, setUpAutoPay, type RetainerFlowDeps } from "./retainer-flow";
-import { createRetainer, dismissRetainerAlert, listRetainers } from "./retainers";
+import { createRetainer, deleteRetainer, dismissRetainerAlert, listRetainers } from "./retainers";
 
 // Server-only: /api/retainers. Runs as the signed-in freelancer. PayPal is called only after the
 // retainer is saved, so a failed call leaves something to retry.
@@ -126,6 +126,28 @@ export const retainerHandlers = (deps: Deps) => {
         return noContent();
       } catch (error) {
         return failure("retainers.action_failed", error);
+      }
+    },
+
+    remove: async (_request: Request, { params }: IdContext): Promise<Response> => {
+      const { id } = await params;
+      if (!isUuid(id)) return notFound(RETAINER);
+      try {
+        const result = await deps.runAsCurrent((db) => deleteRetainer(db, id));
+        if (result === "not_found") return notFound(RETAINER);
+        if (result === "has_charges") {
+          return jsonResponse(
+            {
+              error:
+                "This retainer has charged, or auto-pay is still set up in PayPal, so it can't be deleted. Cancel it instead: its records stay.",
+            },
+            409,
+          );
+        }
+        logEvent("retainers.deleted", { retainerId: id });
+        return noContent();
+      } catch (error) {
+        return serverError("retainers.delete_failed", error);
       }
     },
 

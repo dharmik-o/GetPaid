@@ -174,7 +174,8 @@ const METRIC_ROWS = `
     SELECT min(o.due_date) AS due_date FROM public.invoices o
     WHERE ip.id IS NOT NULL AND o.milestone_id = i.milestone_id AND o.status = 'cancelled'
   ) replaced ON true
-  WHERE i.due_date IS NOT NULL AND i.status <> 'cancelled' AND i.status <> 'draft'`;
+  WHERE i.due_date IS NOT NULL AND i.status <> 'cancelled' AND i.status <> 'draft'
+    AND p.archived_at IS NULL`;
 
 const toInvoice = (row: MetricRow): MetricInvoice => ({
   id: row.id,

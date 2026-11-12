@@ -274,6 +274,12 @@ A client may pay by bank transfer, UPI, cash, cheque or another app. The freelan
 - **Cancel invoice** needs a reason, stops the reminders and shows Cancelled. It is refused on an invoice with money on it.
 - **Mark project complete** is allowed when every invoice is paid, cancelled or refunded and no milestone hold is live (capture or void it first). The project shows a Completed badge and its waiting reminders stop.
 
+## Archiving and deleting
+
+- **Archive project:** hides the project from the Projects list (until "Show archived" is on), the client's page, Home's figures, Upcoming and the Maintenance list, and stops its reminders (waiting and approved drafts are skipped, and the scheduler plans none while it is archived). Every record stays, nothing is cancelled in PayPal, and Restore shows it again; reminders are planned afresh. The calendar still shows its dates.
+- **Delete project:** the freelancer types the project's exact name. It removes the project with its milestones, invoices, reminders, agreements, holds, maintenance jobs and the calendar entries tied to it, in one transaction as the signed-in user (RLS). Invoice PDFs already in the invoice archive stay on disk, as when a client is deleted. Unpaid open PayPal invoices and open holds are listed, and need the tick "Cancel them in PayPal too": invoices are cancelled and holds voided first, outside the transaction, and if any PayPal call fails nothing is deleted. An invoice with money on it is never cancelled, so it stops the delete.
+- **Delete one milestone:** only while it has no invoice (even a cancelled one) and no hold. **Delete a retainer:** only if it has never charged: no invoice, nothing paid, and no auto-pay still set up in PayPal. Otherwise it can only be cancelled.
+
 ## Invoice templates
 
 PayPal's own invoice page can't use custom HTML; it takes only a logo and PayPal's layout. So a template produces **the freelancer's own invoice document, as a PDF**, with the same PayPal pay link used everywhere else. It's attached to the PayPal invoice if the Invoicing API allows attachments in the sandbox (checked 3 Nov 2026: the API has no file upload, so it isn't), always attached to the reminder emails sent from the freelancer's Gmail, and downloadable from the dashboard.
@@ -328,7 +334,7 @@ Sixteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 | users | id, name, email, time_zone, usual_days_late (self-reported baseline for days saved), Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image), invoice_paper (A4 / Letter), invoice_show_qr, signature_source (upload / typed), signature_image_data_url, signature_typed_name, signature_name, signature_title, signature_default |
 | ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
 | clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
-| projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status |
+| projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status, archived_at |
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |
 | retainers | client_id, project_id, name, amount, currency, interval, start, end, method (auto-pay / invoice), paypal_subscription_id, status, include_signature (copied onto each cycle's invoice) |
 | milestone_holds | milestone_id, amount, currency, status (creating / pending_approval / authorized / capturing / captured / voided / expired / failed), paypal_order_id, authorization_id, authorized_at, reauthorized_at, capture_id, invoice_id, request ids, approval_link, notice_kind |

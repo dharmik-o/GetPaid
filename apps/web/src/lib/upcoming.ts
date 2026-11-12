@@ -71,7 +71,7 @@ const loadMaintenance = async (db: Db, from: string, to: string): Promise<Upcomi
      FROM public.maintenance_tasks mt
      JOIN public.projects p ON p.id = mt.project_id
      JOIN public.clients c ON c.id = p.client_id
-     WHERE mt.status = 'active'`,
+     WHERE mt.status = 'active' AND p.archived_at IS NULL`,
   );
   return rows.flatMap((row) =>
     maintenanceOccurrences(row.next_due, row.repeat_months, from, to).map((date): UpcomingItem => ({

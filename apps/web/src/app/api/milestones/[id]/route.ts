@@ -22,3 +22,4 @@ const handlers = milestoneHandlers({
 });
 
 export const PATCH = handlers.markStatus;
+export const DELETE = handlers.remove;

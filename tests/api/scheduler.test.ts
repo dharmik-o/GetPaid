@@ -132,6 +132,17 @@ beforeEach(async () => {
 });
 
 describe("planning", () => {
+  it("plans nothing for an archived project, and plans again once it is restored", async () => {
+    await handle.db.query("UPDATE public.projects SET archived_at = now() WHERE id = $1", [
+      USER_A.rows.projects,
+    ]);
+    expect((await run()).planned).toBe(0);
+    await handle.db.query("UPDATE public.projects SET archived_at = NULL WHERE id = $1", [
+      USER_A.rows.projects,
+    ]);
+    expect((await run()).planned).toBeGreaterThan(0);
+  });
+
   it("plans and drafts the tier the invoice has reached, and leaves it waiting", async () => {
     expect(await run()).toMatchObject({ planned: 1, drafted: 1 });
     const [reminder] = await reminders();

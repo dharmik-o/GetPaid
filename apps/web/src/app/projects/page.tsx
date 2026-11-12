@@ -7,8 +7,13 @@ import { runAsCurrentUser } from "@/lib/request-user";
 
 export const dynamic = "force-dynamic";
 
-const ProjectsPage = async () => {
-  const projects = await runAsCurrentUser((db) => listProjects(db));
+type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
+
+const ProjectsPage = async ({ searchParams }: Props) => {
+  const showArchived = (await searchParams).archived === "1";
+  const projects = await runAsCurrentUser((db) =>
+    listProjects(db, { includeArchived: showArchived }),
+  );
   return (
     <div className="page">
       <div className="page-header">
@@ -19,6 +24,13 @@ const ProjectsPage = async () => {
           </Link>
         ) : null}
       </div>
+      <p>
+        {showArchived ? (
+          <Link href="/projects">Hide archived projects</Link>
+        ) : (
+          <Link href="/projects?archived=1">Show archived</Link>
+        )}
+      </p>
       {projects.length === 0 ? (
         <div className="card empty">
           <p>No projects yet. Create one to set the deadline, terms and reminders.</p>
@@ -45,6 +57,7 @@ const ProjectsPage = async () => {
               <tr key={project.id}>
                 <td data-label="Project">
                   <Link href={`/projects/${project.id}`}>{project.title}</Link>
+                  {project.archived ? <span className="chip">Archived</span> : null}
                 </td>
                 <td data-label="Client">
                   <Link href={`/clients/${project.clientId}`}>{project.clientName}</Link>

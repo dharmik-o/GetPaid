@@ -337,3 +337,25 @@ export const dismissRetainerAlert = async (db: Db, id: string, now: Date): Promi
   );
   return rowCount > 0;
 };
+
+export type DeleteRetainerResult = "deleted" | "not_found" | "has_charges";
+
+/**
+ * Deletes a retainer that has never charged: no invoice, nothing paid, and no PayPal
+ * subscription that could still bill (one that was cancelled or ended is fine). Anything else can
+ * only be cancelled, so PayPal and the records stay in step.
+ */
+export const deleteRetainer = async (db: Db, id: string): Promise<DeleteRetainerResult> => {
+  const { rows } = await db.query<{ charged: boolean }>(
+    `SELECT (r.last_paid_at IS NOT NULL
+       OR (r.paypal_subscription_id IS NOT NULL AND r.status NOT IN ('cancelled', 'ended'))
+       OR EXISTS (SELECT 1 FROM public.invoices i WHERE i.retainer_id = r.id)) AS charged
+     FROM public.retainers r WHERE r.id = $1 FOR UPDATE`,
+    [id],
+  );
+  const found = rows[0];
+  if (!found) return "not_found";
+  if (found.charged) return "has_charges";
+  await db.query("DELETE FROM public.retainers WHERE id = $1", [id]);
+  return "deleted";
+};

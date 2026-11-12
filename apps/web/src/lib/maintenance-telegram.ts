@@ -31,7 +31,8 @@ export const planMaintenanceNotices = async (
       `SELECT mt.id::text, mt.next_due::text, mt.lead_days, mt.snoozed_until::text,
          mt.last_notice_on::text, u.time_zone AS own_zone
        FROM public.maintenance_tasks mt JOIN public.users u ON u.id = mt.user_id
-       WHERE mt.status = 'active' ORDER BY mt.next_due LIMIT ${String(RUN_LIMIT)}`,
+       JOIN public.projects p ON p.id = mt.project_id
+       WHERE mt.status = 'active' AND p.archived_at IS NULL ORDER BY mt.next_due LIMIT ${String(RUN_LIMIT)}`,
     );
     const due = rows.filter((row) =>
       maintenanceNoticeDue({

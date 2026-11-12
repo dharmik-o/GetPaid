@@ -47,6 +47,13 @@ const repeatText = ({ unit, count }: Retainer): string =>
 const canCancel = ({ status }: Retainer): boolean =>
   status === "pending_approval" || status === "active" || status === "suspended";
 
+/** Never charged, and no auto-pay that PayPal could still bill: the server checks it again. */
+const canDelete = (retainer: Retainer): boolean =>
+  retainer.invoices.length === 0 &&
+  (retainer.status === "cancelled" ||
+    retainer.status === "ended" ||
+    (retainer.status === "pending_approval" && !retainer.setUp));
+
 export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -56,6 +63,16 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
     setBusy(true);
     setError(undefined);
     const result = await sendJson(`/api/retainers/${retainer.id}`, "POST", { action }, {});
+    setBusy(false);
+    if (result.ok) router.refresh();
+    else setError(result.message);
+  };
+
+  const remove = async () => {
+    if (!window.confirm(`Delete the retainer "${retainer.name}"? This can't be undone.`)) return;
+    setBusy(true);
+    setError(undefined);
+    const result = await sendJson(`/api/retainers/${retainer.id}`, "DELETE", {}, {});
     setBusy(false);
     if (result.ok) router.refresh();
     else setError(result.message);
@@ -145,6 +162,16 @@ export const RetainerCard = ({ retainer }: { retainer: Retainer }) => {
             onClick={() => void act("cancel")}
           >
             Cancel retainer
+          </button>
+        ) : null}
+        {canDelete(retainer) ? (
+          <button
+            className="button button-danger"
+            type="button"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            Delete retainer
           </button>
         ) : null}
       </div>

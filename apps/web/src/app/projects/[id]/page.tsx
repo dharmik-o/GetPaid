@@ -7,6 +7,7 @@ import { hasFilters, InvoiceFilters, InvoiceTable } from "@/components/InvoiceHi
 import { InvoicePanel } from "@/components/InvoicePanel";
 import { LawyerPackButton } from "@/components/LawyerPackButton";
 import { MilestoneEditor } from "@/components/MilestoneEditor";
+import { ProjectDangerZone } from "@/components/ProjectDangerZone";
 import { ProjectForm } from "@/components/ProjectForm";
 import { listAgreements } from "@/lib/agreements";
 import { appNow } from "@/lib/clock";
@@ -20,6 +21,7 @@ import { listInvoicesForProject } from "@/lib/invoices";
 import { listHoldsForProject } from "@/lib/milestone-holds";
 import { listMilestones } from "@/lib/milestones";
 import { listOutbox } from "@/lib/outbox";
+import { loadOpenItems } from "@/lib/project-delete";
 import { getProject, listClientChoices } from "@/lib/projects";
 import { listTemplates } from "@/lib/invoice-templates";
 import { runAsCurrentUser } from "@/lib/request-user";
@@ -58,6 +60,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
     signature,
     agreements,
     queued,
+    open,
     ...log
   } = await runAsCurrentUser(async (db) => {
     const found = await getProject(db, id);
@@ -71,6 +74,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
       holds: found ? await listHoldsForProject(db, found.id, now) : [],
       signature: signatureChoiceFrom(await getFreelancerDetails(db)),
       agreements: found ? await listAgreements(db, found.id) : [],
+      open: found ? await loadOpenItems(db, found.id) : { invoices: [], holds: [] },
       history: found ? await listProjectInvoices(db, found.id, now) : [],
       ownZone: await getOwnTimeZone(db),
       // Drafts that haven't gone out yet: each invoice's next reminder is the first one here.
@@ -95,6 +99,12 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
             <>
               {" "}
               <span className="badge badge-paid">Completed</span>
+            </>
+          ) : null}
+          {project.archived ? (
+            <>
+              {" "}
+              <span className="badge">Archived</span>
             </>
           ) : null}
         </h1>
@@ -261,6 +271,13 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
           }}
         />
       </section>
+
+      <ProjectDangerZone
+        projectId={project.id}
+        title={project.title}
+        archived={project.archived}
+        open={open}
+      />
     </div>
   );
 };

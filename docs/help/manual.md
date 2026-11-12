@@ -259,6 +259,19 @@ Press **Cancel invoice** on a milestone card, pick a reason (Agreed not to charg
 
 When every invoice is paid or cancelled, press **Mark project complete** in the project's summary. The project gets a Completed badge and its waiting reminders stop. Any milestone hold still open must be captured or voided first, and GetPaid says so if one is.
 
+### Archive or delete a project
+
+At the bottom of a project page, the **Danger zone** card has two choices.
+
+- **Archive project** hides the project from the Projects list, the client's page and Home, and stops its reminders. Every record stays. On the Projects list, press **Show archived** to see archived projects, open one and press **Restore project** to bring it back (reminders are planned afresh).
+- **Delete project** removes the project for good, with its milestones, invoices, reminders, agreements, holds, maintenance jobs and calendar items. Type the project's name exactly to confirm. Invoice PDFs already saved in your invoice archive folder stay on disk; GetPaid never deletes them.
+
+If the project still has unpaid PayPal invoices or open holds, the card lists them and asks you to tick **Cancel them in PayPal too**. GetPaid then cancels the invoices and voids the holds first. If PayPal refuses any of them (for example, an invoice that already has some money on it), nothing is deleted and you see why.
+
+### Delete one milestone or one retainer
+
+In the milestone editor, a saved milestone with no invoice and no hold has a **Delete** button next to Remove; it goes at once. A milestone that has ever had an invoice or a hold can't be deleted, so the record stays. A retainer that has never charged (no invoice, nothing paid, no auto-pay still set up in PayPal) has a **Delete retainer** button; any other retainer can only be cancelled.
+
 ### Invoice history
 
 *Screen: Every invoice and saved version.*
