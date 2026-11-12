@@ -1,0 +1,34 @@
+{
+  "$comment": "Generated from apps/web/src/lib/ai-schemas.ts (helpAnswerSchema); tests/ai-schemas.test.ts keeps them identical.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "sources": {
+      "maxItems": 6,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 120
+      }
+    },
+    "links": {
+      "maxItems": 6,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 80
+      }
+    }
+  },
+  "required": [
+    "answer",
+    "sources",
+    "links"
+  ],
+  "additionalProperties": false
+}

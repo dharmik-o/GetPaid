@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type SyntheticEvent } from "react";
+import { HelpAnswerView, type HelpAnswerData } from "@/components/HelpAnswerView";
 import { sendJson } from "@/lib/api-client";
 import { CALENDAR_CHANGED } from "./CalendarMonth";
 
@@ -36,6 +37,8 @@ type Answer = {
   answer: string;
   references: { key: string; title: string; href: string }[];
   proposals: Proposal[];
+  /** Set when the question was about using the app: shown the way the Help panel shows it. */
+  help?: Pick<HelpAnswerData, "sources" | "links">;
 };
 
 type Turn = { q: string; a: string };
@@ -192,7 +195,11 @@ export const CalendarAssistant = () => {
       ) : null}
       {answer ? (
         <div aria-live="polite">
-          <p>{answer.answer}</p>
+          {answer.help ? (
+            <HelpAnswerView answer={answer.answer} {...answer.help} />
+          ) : (
+            <p>{answer.answer}</p>
+          )}
           {answer.references.length > 0 ? (
             <p className="field-hint">
               Based on:{" "}

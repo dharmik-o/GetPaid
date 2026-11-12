@@ -98,6 +98,20 @@ export const calendarAnswerSchema = z.strictObject({
   proposals: z.array(calendarProposalSchema).max(10),
 });
 
+/**
+ * The help assistant's answer: plain steps from the manual, which sections it used, and pages to
+ * open. Links are only ever shown from an allowlist (lib/help-links.ts), and sources only if they
+ * were among the sections it was given (lib/help-assistant.ts).
+ */
+export const helpAnswerSchema = z.strictObject({
+  answer: z.string().min(1).max(1200),
+  /** Ids of the manual sections the answer is based on. */
+  sources: z.array(z.string().max(120)).max(6),
+  /** App routes to open, such as /settings/ai. */
+  links: z.array(z.string().max(80)).max(6),
+});
+
+export type HelpAnswer = z.infer<typeof helpAnswerSchema>;
 export type CalendarAnswer = z.infer<typeof calendarAnswerSchema>;
 export type CalendarProposal = z.infer<typeof calendarProposalSchema>;
 
@@ -106,6 +120,7 @@ export const AI_SCHEMAS = {
   draft: draftSchema,
   invoiceText: invoiceTextSchema,
   calendarAnswer: calendarAnswerSchema,
+  helpAnswer: helpAnswerSchema,
 } as const;
 
 export type AiSchemaName = keyof typeof AI_SCHEMAS;

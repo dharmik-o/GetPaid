@@ -101,6 +101,15 @@ Things only you can do (values in your local env file, accounts or keys, install
 
 - **To do once: move your existing PDFs.** Run `npm run db:migrate`, then `npm run invoices:archive-existing`. It moves anything in `.data/invoice-pdfs` into the archive, and is safe to run again. I haven't run it, because it needs your database. After that, the next reminder for each of those invoices is saved as a v2 beside the moved file, because the old PDFs have no record of the document they were made from.
 
+- **E1 to E3 (12 Nov 2026), things only you can do:**
+  - Run `npm run db:migrate` on your dev database: it now has migrations 033 (recorded payments), 034 (archived projects) and 035 (the help AI task).
+  - Record one payment on a **sandbox** invoice and look at it in PayPal. Everything was proved against fakes; PayPal's page does not say whether the record-payment call accepts `PayPal-Request-Id`, or exactly what the invoice's payments list looks like afterwards (the app reads only the status and the paid amount).
+  - Regenerate `apps/web/public/GetPaid-User-Manual.pdf` from `docs/help/manual.md`: the text manual now has Record a payment, Cancel an invoice, Complete a project, Archive or delete a project, Delete one milestone or retainer, and Ask GetPaid; the PDF you supplied does not, and the Help panel links to it.
+  - Set a model for Ask GetPaid (or leave it empty to use your main model) in Settings > AI, then ask it three or four real questions. Until a real model has answered, the answers were only seen from a fake.
+  - Look at the new screens in dark mode and on a phone: the record-payment form, Danger zone and the Help panel use existing styles but I have not seen them there.
+  - Decide: archived projects now leave Home's recovery figures (so recovered money on an archived project stops being counted). Say if you want them counted.
+  - Decide: closing a **retainer-cycle** invoice by hand is not built (an auto-pay catch-up invoice has to reactivate PayPal's subscription, which only the webhook does).
+
 ## Later scope, not in the MVP
 
 - **Auto-accept:** capturing a hold after the acceptance window, when the contract allows it. Left out by your decision on 5 Nov 2026, so a hold is captured only when you mark the milestone Accepted. It would need a contract field first, and it moves money without you, so it's worth deciding carefully.

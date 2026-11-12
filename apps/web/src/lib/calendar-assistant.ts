@@ -15,9 +15,12 @@ import { calendarItems, type CalendarItem } from "./calendar-feed";
 import type { SecretBox } from "./crypto";
 import type { Db, UserDbRunner } from "./db";
 import { moneyIn } from "./draft-checks";
+import { askHelp, isHowToQuestion, type HelpAnswer } from "./help-assistant";
+import { retrieveSections } from "./help-search";
 import { unknownDates } from "./draft-dates";
 import type { FieldIssue } from "./field-issues";
 import { PROMPT_TEXT } from "./prompt-text";
+import { safeText } from "./quoted-text";
 import { addCalendarDays, todayIn } from "./schedule";
 
 // Server-only: the calendar assistant. It answers from the freelancer's calendar and proposes changes
@@ -50,16 +53,6 @@ type Context = {
 };
 
 // Building what the model sees -------------------------------------------------------------------
-
-/** One line per item: a title can't start a new line, add a separator, or close a tag. */
-const safeText = (text: string): string =>
-  Array.from(text)
-    .map((char) => (char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f ? " " : char))
-    .join("")
-    .replaceAll("|", "/")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .trim();
 
 const clockIn = (iso: string, zone: string): string =>
   new Intl.DateTimeFormat("en-GB", {
@@ -251,7 +244,10 @@ export type AssistantDeps = {
   route?: typeof routeTask;
 };
 
-export type AskResult = ({ ok: true } & CheckedAnswer) | { ok: false; error: string };
+/** `help` is set when the question was about using the app: the same answer the Help panel gives. */
+export type AskResult =
+  | ({ ok: true } & CheckedAnswer & { help?: Pick<HelpAnswer, "sources" | "links"> })
+  | { ok: false; error: string };
 
 /** The calendar task's models, or the draft task's when the user has no calendar rows yet. */
 const connectionsFor = async (db: Db, box: SecretBox): Promise<AiConnection[]> => {
@@ -263,6 +259,21 @@ export const askCalendar = async (
   deps: AssistantDeps,
   input: { question: string; history: HistoryTurn[] },
 ): Promise<AskResult> => {
+  // A how-to question about the app goes to the help task: same manual, same schema, same checks.
+  if (
+    isHowToQuestion(input.question) &&
+    retrieveSections(input.question, { limit: 1 }).length > 0
+  ) {
+    const help = await askHelp(deps, input.question);
+    if (!help.ok) return { ok: false, error: help.error };
+    return {
+      ok: true,
+      answer: help.answer,
+      references: [],
+      proposals: [],
+      help: { sources: help.sources, links: help.links },
+    };
+  }
   const prepared = await deps.runAsUser(async (db) => ({
     context: await loadContext(db, deps.now()),
     connections: await connectionsFor(db, deps.box()),

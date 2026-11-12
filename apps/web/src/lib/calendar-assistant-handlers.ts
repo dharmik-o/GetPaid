@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { applyProposal, askCalendar, UNAVAILABLE, type AssistantDeps } from "./calendar-assistant";
+import { applyProposal, askCalendar, type AssistantDeps } from "./calendar-assistant";
 import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, readJson, serverError } from "./http";
 import { logEvent } from "./log";
@@ -39,7 +39,7 @@ export const calendarAssistantHandlers = (deps: AssistantDeps) => ({
         ok: result.ok,
         proposals: result.ok ? result.proposals.length : 0,
       });
-      return result.ok ? jsonResponse(result) : jsonResponse({ error: UNAVAILABLE }, 503);
+      return result.ok ? jsonResponse(result) : jsonResponse({ error: result.error }, 503);
     } catch (error) {
       return serverError("calendar_assistant.failed", error);
     }

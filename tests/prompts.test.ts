@@ -55,6 +55,7 @@ describe("prompts/*.md", () => {
             "redraft_from_feedback",
             "classify_reply",
             "calendar_assistant",
+            "help-assistant",
             "final_demand",
           ].includes(name),
       ).sort(),

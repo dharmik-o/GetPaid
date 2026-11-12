@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { HelpPanel } from "@/components/HelpPanel";
 import { Logo } from "@/components/Logo";
 import { Sidebar } from "@/components/Sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -25,7 +26,10 @@ export const AppShell = ({ banner, children }: Props) => {
         <div className="shell-main">
           <header className="app-header">
             <Logo />
-            <ThemeToggle />
+            <div className="header-actions">
+              <HelpPanel />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="content">
             {banner}
