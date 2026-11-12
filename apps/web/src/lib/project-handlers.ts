@@ -1,6 +1,7 @@
 import { isUuid, type UserDbRunner } from "./db";
 import { fieldErrors, jsonResponse, notFound, readJson, serverError } from "./http";
 import { logEvent } from "./log";
+import { completeProject } from "./project-complete";
 import { createProject, getProject, updateProject, type ProjectResult } from "./projects";
 
 // Server-only: the /api/projects route handlers. `runAsUser` is injected so tests can drive
@@ -38,6 +39,23 @@ export const projectHandlers = ({ runAsUser }: Deps) => ({
       return project ? jsonResponse({ project }) : notFound(PROJECT);
     } catch (error) {
       return serverError("projects.get_failed", error);
+    }
+  },
+
+  complete: async (_request: Request, { params }: IdContext): Promise<Response> => {
+    const { id } = await params;
+    if (!isUuid(id)) return notFound(PROJECT);
+    try {
+      const result = await runAsUser((db) => completeProject(db, id));
+      if (result.ok) {
+        logEvent("projects.completed", { projectId: id });
+        return jsonResponse({ done: "complete" });
+      }
+      return "notFound" in result
+        ? notFound(PROJECT)
+        : jsonResponse({ error: result.conflict }, 409);
+    } catch (error) {
+      return serverError("projects.complete_failed", error);
     }
   },
 

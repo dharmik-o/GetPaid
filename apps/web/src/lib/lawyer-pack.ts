@@ -14,6 +14,7 @@ import { toCents, toIso } from "./db-values";
 import { lawClaim } from "./final-demand";
 import { formatFullDay, formatMoney } from "./format";
 import { getClientDetails } from "./invoice-details";
+import { methodLabel } from "./invoice-closing";
 import type { Law } from "./legal";
 import { getProject } from "./projects";
 import type { ReferenceRates } from "./reference-rates";
@@ -55,6 +56,8 @@ type InvoiceRow = {
   currency: string;
   due_date: string | null;
   what: string;
+  /** Methods of payments the freelancer recorded by hand, in the order received; null if none. */
+  methods: string[] | null;
 };
 
 type Gathered = {
@@ -132,7 +135,9 @@ const gather = async (db: Db, projectId: string): Promise<Gathered | undefined> 
   if (!client || !owner) return undefined;
   const { rows: invoices } = await db.query<InvoiceRow>(
     `SELECT i.id::text, i.invoice_number, i.status, i.amount_cents::text, i.amount_paid_cents::text,
-       i.currency, i.due_date::text, coalesce(m.name, rt.name) AS what
+       i.currency, i.due_date::text, coalesce(m.name, rt.name) AS what,
+       (SELECT array_agg(pay.method ORDER BY pay.created_at) FROM public.invoice_payments pay
+        WHERE pay.invoice_id = i.id) AS methods
      FROM public.invoices i
      LEFT JOIN public.milestones m ON m.id = i.milestone_id
      LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
@@ -272,6 +277,14 @@ type CoverInput = {
   notIncluded: string[];
 };
 
+/** How the money came: the recorded methods, else PayPal when something is paid. */
+const paidBy = (row: InvoiceRow): string => {
+  if (row.methods && row.methods.length > 0) {
+    return [...new Set(row.methods.map(methodLabel))].join(", ");
+  }
+  return toCents(row.amount_paid_cents) > 0 ? "PayPal" : "";
+};
+
 const owed = (row: InvoiceRow): number =>
   toCents(row.amount_cents) - toCents(row.amount_paid_cents);
 
@@ -282,7 +295,7 @@ const coverHtml = ({ data, today, toc, claims, notIncluded }: CoverInput): strin
       (row) =>
         `<tr><td>${esc(row.invoice_number)}</td><td>${esc(row.what)}</td><td>${esc(row.due_date ? formatFullDay(row.due_date) : "none")}</td>` +
         `<td>${money(toCents(row.amount_cents), row.currency)}</td><td>${money(toCents(row.amount_paid_cents), row.currency)}</td>` +
-        `<td>${money(owed(row), row.currency)}</td><td>${esc(row.status.replace("_", " "))}</td></tr>`,
+        `<td>${money(owed(row), row.currency)}</td><td>${esc(row.status.replace("_", " "))}</td><td>${esc(paidBy(row))}</td></tr>`,
     )
     .join("");
   return page(
@@ -308,7 +321,7 @@ const coverHtml = ({ data, today, toc, claims, notIncluded }: CoverInput): strin
       ]),
       "</td></tr></table>",
       `<h2>Project</h2><p><strong>${esc(data.title)}</strong>, total ${money(data.totalCents, data.currency)}.</p>`,
-      `<h2>Invoices</h2>${data.invoices.length === 0 ? "<p>No invoices yet.</p>" : `<table><tr><th>Invoice</th><th>For</th><th>Due</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr>${rows}</table>`}`,
+      `<h2>Invoices</h2>${data.invoices.length === 0 ? "<p>No invoices yet.</p>" : `<table><tr><th>Invoice</th><th>For</th><th>Due</th><th>Amount</th><th>Paid</th><th>Outstanding</th><th>Status</th><th>Paid by</th></tr>${rows}</table>`}`,
       `<h2>Statutory interest and compensation</h2>${claims.length === 0 ? "<p>No overdue, unpaid invoice.</p>" : claims.map((c) => `<p>${esc(c)}</p>`).join("")}`,
       '<p class="note">Interest and compensation are calculated only under a law and reference rates the freelancer has checked and approved. Where none is approved, none is calculated.</p>',
       "<h2>Contents</h2><table><tr><th>Part</th><th>Pages</th></tr>",

@@ -201,6 +201,22 @@ const invoiceBody = (draft: InvoiceDraft) => ({
   configuration: { allow_tip: false },
 });
 
+/** What PayPal calls the ways to pay outside PayPal (the record-payment `method`). */
+export type PaypalPaymentMethod = "BANK_TRANSFER" | "CASH" | "CHECK" | "OTHER";
+
+export type PaymentDraft = {
+  requestId: string;
+  method: PaypalPaymentMethod;
+  /** A calendar date, YYYY-MM-DD: when the money was received. */
+  paymentDate: string;
+  amountCents: number;
+  currency: string;
+  /** Shown on PayPal's copy of the invoice (at most 2000 characters). */
+  note: string;
+};
+
+const recordedSchema = z.object({ payment_id: z.string().min(1) });
+
 /** Neither PayPal nor the client gets an email from PayPal: reminders go out only after approval. */
 const NO_EMAILS = { send_to_invoicer: false, send_to_recipient: false };
 
@@ -400,6 +416,8 @@ export interface PaypalClient {
   sendInvoice(id: string): Promise<void>;
   getInvoice(id: string): Promise<PaypalInvoice>;
   cancelInvoice(id: string): Promise<void>;
+  /** Records money received outside PayPal; PayPal then stops the invoice being payable. */
+  recordInvoicePayment(id: string, draft: PaymentDraft): Promise<{ paymentId: string }>;
   deleteInvoice(id: string): Promise<void>;
   /**
    * Asks PayPal whether a webhook delivery is genuine. `rawBody` must be the exact bytes
@@ -411,7 +429,13 @@ export interface PaypalClient {
 type Credentials = { clientId: string; clientSecret: string };
 
 /** `raw` is sent as given, for bodies that must keep exact bytes. */
-type CallOptions = { body?: unknown; raw?: string; requestId?: string };
+type CallOptions = {
+  body?: unknown;
+  raw?: string;
+  requestId?: string;
+  /** No retry after a network failure: a repeat could record the same payment twice. */
+  once?: boolean;
+};
 
 const invoicePath = (id: string): string => `/v2/invoicing/invoices/${encodeURIComponent(id)}`;
 
@@ -458,7 +482,7 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
   };
 
   const send = async (method: string, path: string, options: CallOptions): Promise<Response> =>
-    fetchWithRetry(`${PAYPAL_SANDBOX_BASE}${path}`, {
+    (options.once ? fetch : fetchWithRetry)(`${PAYPAL_SANDBOX_BASE}${path}`, {
       method,
       headers: {
         authorization: `Bearer ${await accessToken()}`,
@@ -721,6 +745,21 @@ export const createPaypalClient = ({ clientId, clientSecret }: Credentials): Pay
 
     cancelInvoice: async (id) => {
       await call("cancel invoice", "POST", `${invoicePath(id)}/cancel`, { body: NO_EMAILS });
+    },
+
+    recordInvoicePayment: async (id, draft) => {
+      const action = "record invoice payment";
+      const body = await call(action, "POST", `${invoicePath(id)}/payments`, {
+        requestId: draft.requestId,
+        once: true,
+        body: {
+          method: draft.method,
+          payment_date: draft.paymentDate,
+          amount: paypalMoney(draft.amountCents, draft.currency),
+          note: draft.note,
+        },
+      });
+      return { paymentId: parse(recordedSchema, action, body).payment_id };
     },
 
     deleteInvoice: async (id) => {

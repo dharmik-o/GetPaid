@@ -324,6 +324,8 @@ describe("the cover's statutory calculation", () => {
     await build();
     expect(cover()).toContain("under Test Late Payment Act: interest GBP 9.86");
     expect(cover()).toContain("fixed compensation GBP 70.00; total GBP 2,079.86.");
+    // The seeded invoice has a payment recorded by hand: the cover says how it was paid.
+    expect(cover()).toContain("<td>Bank transfer</td>");
   });
 
   it("says plainly that none is calculated when no approved law applies, and skips invoices that aren't overdue or are paid", async () => {

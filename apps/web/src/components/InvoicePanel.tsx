@@ -14,10 +14,12 @@ import {
   startsTicked,
   type SignatureChoice,
 } from "@/components/IncludeSignature";
+import { CancelInvoice } from "@/components/CancelInvoice";
 import { CopyButton } from "@/components/CopyButton";
 import { Icon } from "@/components/Icon";
 import { InstallmentEditor } from "@/components/InstallmentEditor";
 import { PaidBadge, PaidMoment } from "@/components/PaidMoment";
+import { RecordPayment } from "@/components/RecordPayment";
 import { StatusBadge } from "@/components/StatusBadge";
 import { stampFor, StatusStamp } from "@/components/StatusStamp";
 import { sendJson } from "@/lib/api-client";
@@ -25,6 +27,7 @@ import { parseAmount } from "@/lib/currencies";
 import { formatDay, formatMoney } from "@/lib/format";
 import type { InstallmentItem } from "@/lib/installments";
 import { statusLabel, type MilestoneStatus } from "@/lib/milestone-status";
+import { RECORDABLE_STATUSES } from "@/lib/invoice-closing";
 import { invoiceStampId } from "@/lib/paid-stamps";
 
 // The project's invoices: one PayPal invoice per milestone, or one per installment, each with
@@ -256,19 +259,6 @@ export const InvoicePanel = ({
     );
   };
 
-  const cancel = (row: InvoiceRowData, invoice: InvoiceRowInvoice) => {
-    const what = invoice.installment
-      ? `the installment plan for ${row.name} (every unpaid installment)`
-      : `invoice ${invoice.invoiceNumber} for ${row.name}`;
-    if (!window.confirm(`Cancel ${what}? The client won't be able to pay it.`)) return;
-    void call(
-      row.milestoneId,
-      `/api/invoices/${invoice.id}/cancel`,
-      {},
-      `Cancelled ${invoice.installment ? "the installment plan" : "the invoice"} for ${row.name}.`,
-    );
-  };
-
   if (rows.length === 0) {
     return (
       <p className="empty">
@@ -299,21 +289,34 @@ export const InvoicePanel = ({
               Work delivered: invoice the rest ({formatMoney(next.amountCents, currency)})
             </button>
           ) : null}
+          {open
+            .filter((i) => RECORDABLE_STATUSES.includes(i.status))
+            .map((i) => (
+              <RecordPayment
+                key={i.id}
+                label={
+                  i.installment
+                    ? `Record a payment: installment ${String(i.installment.number)}`
+                    : "Record a payment"
+                }
+                invoice={{
+                  invoiceId: i.id,
+                  invoiceNumber: i.invoiceNumber,
+                  currency,
+                  owedCents: i.amountCents - i.amountPaidCents,
+                }}
+              />
+            ))}
           {unpaid ? (
-            <button
-              type="button"
-              className="button button-danger"
-              disabled={busy !== undefined}
-              onClick={() => {
-                cancel(row, first);
-              }}
-            >
-              {busy === row.milestoneId
-                ? "Working…"
-                : first.installment
-                  ? "Cancel installment plan"
-                  : "Cancel invoice"}
-            </button>
+            <CancelInvoice
+              invoiceId={first.id}
+              what={
+                first.installment
+                  ? `the installment plan for ${row.name} (every unpaid installment)`
+                  : `invoice ${first.invoiceNumber} for ${row.name}`
+              }
+              label={first.installment ? "Cancel installment plan" : "Cancel invoice"}
+            />
           ) : null}
         </>
       );

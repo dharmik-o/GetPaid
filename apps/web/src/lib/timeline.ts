@@ -2,6 +2,7 @@ import { z } from "zod";
 import { REPLY_LABELS, type Classification } from "./ai-schemas";
 import type { Db } from "./db";
 import { formatDay, formatMoney } from "./format";
+import { cancelReasonLabel, methodLabel } from "./invoice-closing";
 import { holdStampId, invoiceStampId } from "./paid-stamps";
 
 // Server-only: one client's evidence timeline, for disputes and for seeing where things stand. It
@@ -44,6 +45,8 @@ type EventRow = {
 const payloadSchema = z
   .object({
     via: z.string(),
+    method: z.string(),
+    reason: z.string(),
     until: z.string(),
     count: z.number(),
     amountPaidCents: z.number(),
@@ -96,7 +99,18 @@ const DESCRIBE: Record<string, (row: EventRow, payload: Payload) => Described> =
   "reminders.kept_on_hold": () => status("Reminders kept on hold"),
   "reminders.resumed": () => status("Reminders resumed"),
   "invoice.sent": () => status("Invoice sent"),
-  "invoice.cancelled": () => status("Invoice cancelled"),
+  "invoice.cancelled": (_row, { reason }) => {
+    const why = reason ? cancelReasonLabel(reason) : undefined;
+    return status(why ? `Invoice cancelled: ${why}` : "Invoice cancelled");
+  },
+  "payment.recorded": ({ currency }, { method, amountCents }) => ({
+    kind: "payment",
+    title: [
+      "Payment recorded by you",
+      methodLabel(method ?? "other"),
+      money(amountCents, currency) ?? "an amount",
+    ].join(" · "),
+  }),
   "invoice.disputed": () => status("The client opened a dispute"),
   "invoice.split": (_row, { count }) =>
     status(count ? `Split into ${String(count)} installments` : "Split into installments"),

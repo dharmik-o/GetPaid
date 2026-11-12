@@ -44,7 +44,7 @@ const eventSchema = z.object({
 type WebhookEvent = z.infer<typeof eventSchema>;
 
 /** Where an event points: PayPal's invoice id, or our invoice number. */
-type Target =
+export type Target =
   | { by: "paypal_invoice_id"; value: string; action: "sync" }
   | { by: "invoice_number"; value: string; action: "sync" | "dispute" };
 
@@ -84,7 +84,7 @@ const targetOf = (event: WebhookEvent): Target | undefined => {
   return undefined;
 };
 
-type LocalInvoice = {
+export type LocalInvoice = {
   id: string;
   user_id: string;
   milestone_id: string | null;
@@ -97,7 +97,7 @@ type LocalInvoice = {
   installment_plan_id: string | null;
 };
 
-const findInvoice = async (
+export const findInvoice = async (
   db: Db,
   target: Target,
   lock = false,
@@ -173,7 +173,7 @@ const installmentMilestoneStatus = async (
   return "partially_paid";
 };
 
-type Change = { status: InvoiceStatus; amountPaidCents: number };
+export type Change = { status: InvoiceStatus; amountPaidCents: number };
 
 /** Records the event id; false when this event was already applied. */
 const claimEvent = async (db: Db, invoice: LocalInvoice, event: WebhookEvent): Promise<boolean> => {
@@ -191,12 +191,15 @@ const claimEvent = async (db: Db, invoice: LocalInvoice, event: WebhookEvent): P
   return rowCount > 0;
 };
 
-/** Saves a status or amount change, moves the milestone, and stops reminders not yet sent. */
-const applyChange = async (
+/**
+ * Saves a status or amount change, moves the milestone, and stops reminders not yet sent.
+ * `cause` is logged with it: the PayPal event type, or the freelancer's own action.
+ */
+export const applyChange = async (
   db: Db,
   invoice: LocalInvoice,
   change: Change,
-  event: WebhookEvent,
+  cause: string,
 ): Promise<boolean> => {
   const unchanged =
     change.status === invoice.status &&
@@ -233,7 +236,7 @@ const applyChange = async (
       invoice.user_id,
       invoice.id,
       `invoice.${change.status}`,
-      JSON.stringify({ amountPaidCents: change.amountPaidCents, eventType: event.event_type }),
+      JSON.stringify({ amountPaidCents: change.amountPaidCents, eventType: cause }),
     ],
   );
   return true;
@@ -241,7 +244,7 @@ const applyChange = async (
 
 type Outcome = "ignored" | "duplicate" | "unchanged" | "applied";
 
-const changeFromPaypal = (invoice: LocalInvoice, remote: PaypalInvoice): Change => ({
+export const changeFromPaypal = (invoice: LocalInvoice, remote: PaypalInvoice): Change => ({
   status: syncedStatus(invoice.status, remote.status),
   amountPaidCents: Math.max(0, remote.paidCents - remote.refundedCents),
 });
@@ -269,7 +272,7 @@ const applyHoldRefund = async (
       status: "refunded",
       amountPaidCents: Math.max(0, toCents(invoice.amount_paid_cents) - cents),
     };
-    return (await applyChange(db, invoice, change, event)) ? "applied" : "unchanged";
+    return (await applyChange(db, invoice, change, event.event_type)) ? "applied" : "unchanged";
   });
 };
 
@@ -320,7 +323,7 @@ const applyEvent = async (
     const change: Change = remote
       ? changeFromPaypal(invoice, remote)
       : { status: "disputed", amountPaidCents: toCents(invoice.amount_paid_cents) };
-    return (await applyChange(db, invoice, change, event)) ? "applied" : "unchanged";
+    return (await applyChange(db, invoice, change, event.event_type)) ? "applied" : "unchanged";
   });
   if (found.retainer_id && outcome === "applied") {
     await reactivateAfterPayment(deps, paypal, found.retainer_id);

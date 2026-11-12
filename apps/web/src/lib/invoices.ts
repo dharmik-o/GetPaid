@@ -258,6 +258,7 @@ export const markCancelled = async (
   db: Db,
   record: InvoiceRecord,
   restoreTo: string,
+  reason?: string,
 ): Promise<void> => {
   const updated = await db.query(
     "UPDATE public.invoices SET status = 'cancelled' WHERE id = $1 AND status IN ('draft', 'sent')",
@@ -276,5 +277,8 @@ export const markCancelled = async (
      WHERE invoice_id = $1 AND approval_status = 'waiting'`,
     [record.id],
   );
-  await logEventRow(db, record.id, "invoice.cancelled", { invoiceNumber: record.invoiceNumber });
+  await logEventRow(db, record.id, "invoice.cancelled", {
+    invoiceNumber: record.invoiceNumber,
+    ...(reason ? { reason } : {}),
+  });
 };

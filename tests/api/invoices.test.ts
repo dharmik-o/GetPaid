@@ -72,7 +72,7 @@ const issue = async (milestoneId: string, body: unknown = {}, userId = USER_A.us
   handlersFor(userId).issue(post(body), idContext(milestoneId));
 
 const cancel = async (invoiceId: string) =>
-  handlersFor(USER_A.userId).cancel(post(), idContext(invoiceId));
+  handlersFor(USER_A.userId).cancel(post({ reason: "mistake" }), idContext(invoiceId));
 
 const savePlan = async (milestoneId: string, items: unknown, userId = USER_A.userId) =>
   planHandlers(userId).save(request("PUT", { items }), idContext(milestoneId));
@@ -595,7 +595,7 @@ describe("POST /api/invoices/[id]/cancel", () => {
   it("answers 404 for another user's invoice", async () => {
     const invoice = await invoiceOf(await issue(BUILD));
     const asB = handlersFor(USER_B.userId);
-    expect((await asB.cancel(post(), idContext(invoice.id))).status).toBe(404);
+    expect((await asB.cancel(post({ reason: "mistake" }), idContext(invoice.id))).status).toBe(404);
     expect(fake.invoices.get(await paypalIdOf(invoice.id))?.status).toBe("UNPAID");
   });
 });

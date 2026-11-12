@@ -158,12 +158,12 @@ Reminders escalate on the freelancer's schedule, react to what the client says, 
 | --- | --- |
 | Promises a date | Suggests pausing until the day after that date |
 | Asks to pay in parts | Drafts an installment split of the unpaid remainder for the freelancer to approve; on approval the open invoice is replaced by the installment invoices |
-| Says they paid another way | Keeps it on hold and asks the freelancer to confirm |
+| Says they paid another way | Keeps it on hold and asks the freelancer to confirm. The reply card has a Record their payment button that opens the Record a payment form (below), prefilled with the amount still owed; the freelancer must confirm it |
 | Disputes the work | Keeps reminders stopped, alerts the freelancer, links the evidence timeline |
 | Out of office | Suggests pausing until their return date |
 | Unclear or unrelated | Asks the freelancer what to do |
 
-Any reply puts that invoice's reminders on hold, whatever it says, because the hold can only delay a reminder. The AI's sorting only suggests: a pause, a split or a resume happens when the freelancer chooses it. It can never mark an invoice paid, change an amount or change a schedule on its own.
+Any reply puts that invoice's reminders on hold, whatever it says, because the hold can only delay a reminder. The AI's sorting only suggests: a pause, a split or a resume happens when the freelancer chooses it. It can never mark an invoice paid, change an amount or change a schedule on its own. Only a signed-in freelancer's confirmed form (Record a payment) or a verified webhook marks money paid.
 
 **Approval.** Every draft waits for review in the Outbox and on Telegram (next section). A draft that isn't answered is held, not sent. Approved messages go out from the freelancer's own Gmail, on the original invoice thread.
 
@@ -250,8 +250,9 @@ Each milestone, installment or retainer cycle gets one PayPal invoice, and the s
 | Invoice a milestone | `POST /v2/invoicing/invoices`, then `/send` | Created once and reused in all reminders |
 | Deposit or installments | One invoice per installment, with the same create and send calls | Never PayPal partial payments (`partial_payment`, `allow_partial_payment`, `minimum_amount_due`): they aren't offered in every country. `detail.note` carries the installment line |
 | Milestone hold | `POST /v2/checkout/orders` with `intent: AUTHORIZE`, `/authorize`, then `/v2/payments/authorizations/{id}/capture`, `/reauthorize` or `/void` | Capture on acceptance; reauthorize after day 3; void if cancelled. Listens for `CHECKOUT.ORDER.APPROVED`, `PAYMENT.AUTHORIZATION.VOIDED` and capture events, verified like every webhook |
-| Cancel an invoice | `POST /v2/invoicing/invoices/{id}/cancel` | When a milestone is dropped |
-| Payment status | Webhooks | `INVOICING.INVOICE.PAID`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED` |
+| Cancel an invoice | `POST /v2/invoicing/invoices/{id}/cancel` | When a milestone is dropped, or the freelancer cancels it with a required reason (Agreed not to charge, Client won't pay — writing it off, Mistake, Other). Never on an invoice with money on it |
+| Record a payment received outside PayPal | `POST /v2/invoicing/invoices/{id}/payments` with `PayPal-Request-Id` | Method `BANK_TRANSFER`, `CASH`, `CHECK` or `OTHER` (UPI, Wise/other app and Other are `OTHER`), `payment_date`, `amount` and a `note`; the answer is PayPal's `payment_id`. The invoice is then read back and our status follows PayPal's (`MARKED_AS_PAID`: paid, `PARTIALLY_PAID`: partially paid) |
+| Payment status | Webhooks, or the freelancer's recorded payment | `INVOICING.INVOICE.PAID`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED` |
 | Trust the webhook | `POST /v1/notifications/verify-webhook-signature` | Reject anything unverified |
 | No duplicates on retry | `PayPal-Request-Id` header, plus a unique invoice number | Header on every create call. Invoicing v2 ignores it, so each invoice also gets a unique number; PayPal refuses a repeat, and a retry reuses the existing invoice |
 
@@ -260,6 +261,18 @@ Each milestone, installment or retainer cycle gets one PayPal invoice, and the s
 **Accounts:** the MVP runs on one sandbox business account. Multi-user launch needs PayPal partner onboarding (partner referrals with invoicing permissions), so each freelancer connects their own account.
 
 **Positioning:** PayPal Invoicing can already send basic reminders. This product's value is the schedule rules, reply handling, AI escalation and milestone protection around it.
+
+## Recording a payment received outside PayPal
+
+A client may pay by bank transfer, UPI, cash, cheque or another app. The freelancer closes the invoice from every open invoice: a project's "Bill your milestones" card, the invoice history (project and client) and a client reply labelled "Says they've paid". This is a deliberate change to "only webhooks mark money paid" (decided 12 Nov 2026): a signed-in human may record a payment; nothing from a client's email, AI output or Telegram text can.
+
+- **The form:** method (Bank transfer, UPI, Cash, Cheque, Wise/other app, Other), amount (starts as what is still owed, never more, integer minor units), date received (not in the future, in the freelancer's time zone) and an optional reference (200 characters at most). A confirm step shows exactly what will happen.
+- **PayPal first.** PayPal's record-payment call is made, with a `PayPal-Request-Id`, so the invoice and its pay link stop being payable. If PayPal refuses, nothing changes and the freelancer is told why. Only if PayPal accepts is the payment saved, and the invoice's status and paid amount then come from PayPal's own copy of the invoice, as for a webhook. If PayPal already shows a different amount paid than the app, the form refuses until they agree, so a half-finished earlier try can't be doubled.
+- **Stored** in `invoice_payments` (source `manual`, method, amount, currency, date received, reference, PayPal's payment id, who recorded it and when). Rows can't be edited or deleted, and one PayPal payment id is one row, so a later `INVOICING.INVOICE.PAID` webhook for the same payment changes nothing.
+- **Effects** are the same as a PayPal payment: reminders for the invoice stop, the Paid stamp and badge show, Recovery on Home counts it, the timeline says "Payment recorded by you · Bank transfer · USD 600.00", and the invoice history and the lawyer pack say how each invoice was paid.
+- **Retainer-cycle invoices** are not covered yet: closing an auto-pay catch-up invoice has to reactivate the subscription, which only the webhook path does.
+- **Cancel invoice** needs a reason, stops the reminders and shows Cancelled. It is refused on an invoice with money on it.
+- **Mark project complete** is allowed when every invoice is paid, cancelled or refunded and no milestone hold is live (capture or void it first). The project shows a Completed badge and its waiting reminders stop.
 
 ## Invoice templates
 
@@ -323,6 +336,7 @@ Sixteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 | maintenance_tasks | project_id, type (maintenance / renewal), task, repeat_months, next_due, est_cost, lead_days, repeat_from (done / scheduled), checklist, status, snoozed_until, last_notice_on, last_done_on, Telegram card fields, job_project_id, job_due_on, Gmail thread fields |
 | installment_plans | user_id, milestone_id, count (2 to 12), items (each installment's amount and due date), created_from (setup / deposit / client_request), status (active / completed / cancelled) |
 | invoices | milestone_id or retainer_id, paypal_invoice_id, paypal_order_id, link, amount, amount_paid, due_date, paid_at, status, installment_number, installment_count, installment_plan_id (all null for a plain invoice), template_id, pdf_path and pdf_source_sha256 (the working copy before it's sent), invoice_text, include_signature |
+| invoice_payments | user_id, invoice_id, source (manual), method (bank_transfer / upi / cash / cheque / wise / other), amount_cents, currency, received_on, reference, paypal_payment_id (unique per invoice), recorded_by, created_at. Append-only. |
 | invoice_archive_files | user_id, invoice_id, version, relative_path, sha256, source_sha256 (of the document, to tell whether it changed), template_name, signed, sent_at. Nearly append-only. |
 | calendar_entries | user_id, title, notes, kind (task / event / deadline / call), starts_on, ends_on, start_time, end_time, time_zone, client_id, project_id, milestone_id, status (open / done), done_at, remind_on_day, telegram_notified_at, created_by (user / assistant). The freelancer's own items only: app-made dates are read from their own tables, never copied here. |
 | calendar_sources | user_id, name, kind (url / file), url_enc (the secret iCal address, encrypted; never returned), url_host, color, enabled, last_synced_at, last_error, event_count, sync_locked_until |
@@ -377,6 +391,7 @@ The AI suggests and drafts. Money, status changes and legal claims stay under ha
 
 - API keys and OAuth tokens are encrypted at rest, never logged, and never sent back to the browser.
 - Every PayPal webhook is signature-verified before it changes anything.
+- Money is marked paid only by a verified webhook or by the signed-in freelancer's own confirmed Record a payment form. Client email, AI output and Telegram text never can.
 - Client emails are untrusted input. Text in a reply can't change an invoice status, amount or schedule on its own.
 - Gmail scopes are gmail.send and gmail.readonly, because Google has no thread-limited read scope. The app reads only threads whose IDs it stored when sending, enforced in code and covered by tests. It never lists or searches the mailbox.
 - PayPal live endpoints are never called. Tests never send real email. In development, real Gmail sends go only to addresses in `DEV_EMAIL_ALLOWLIST` (comma-separated, empty by default, meaning nothing sends); anything else is refused and logged.

@@ -92,6 +92,8 @@ export const createFakePaypal = () => {
     refuseReauthorize: false,
     captureStatus: "COMPLETED",
     refuseCapture: false,
+    /** PayPal refuses the next record-payment call. */
+    refuseRecordPayment: false,
   };
   const products = new Map<string, Record<string, unknown>>();
   const plans = new Map<string, Record<string, unknown>>();
@@ -474,6 +476,23 @@ export const createFakePaypal = () => {
         if (!["UNPAID", "SENT"].includes(invoice.status)) return unprocessable("CANT_CANCEL");
         invoice.status = "CANCELLED";
         return new HttpResponse(null, { status: 204 });
+      }),
+    ),
+
+    http.post(`${base}/:id/payments`, ({ request, params }) =>
+      withInvoice(request, params.id, async (invoice) => {
+        if (behaviour.refuseRecordPayment) return unprocessable("PAYMENT_NOT_ALLOWED");
+        if (!["UNPAID", "SENT", "PARTIALLY_PAID"].includes(invoice.status)) {
+          return unprocessable("INVALID_INVOICE_STATUS");
+        }
+        const body = (await request.clone().json()) as { amount: { value: string } };
+        const total = Math.round(Number(invoiceJson(invoice).amount.value) * 100);
+        const paid = Math.round(Number(invoice.paidValue ?? "0") * 100);
+        const added = Math.round(Number(body.amount.value) * 100);
+        if (paid + added > total) return unprocessable("PAYMENT_EXCEEDS_AMOUNT_DUE");
+        invoice.paidValue = ((paid + added) / 100).toFixed(2);
+        invoice.status = paid + added === total ? "MARKED_AS_PAID" : "PARTIALLY_PAID";
+        return HttpResponse.json({ payment_id: `EXTR-FAKE-${String(nextId++).padStart(4, "0")}` });
       }),
     ),
 
