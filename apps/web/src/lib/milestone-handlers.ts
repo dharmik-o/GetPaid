@@ -2,7 +2,7 @@ import { isUuid, type UserDbRunner } from "./db";
 import { captureHold, type HoldDeps } from "./hold-flow";
 import { fieldErrors, jsonResponse, notFound, readJson, serverError } from "./http";
 import { errorKind, logEvent } from "./log";
-import { markMilestoneStatus, saveMilestonePlan } from "./milestones";
+import { deleteMilestone, markMilestoneStatus, saveMilestonePlan } from "./milestones";
 
 // Server-only: PUT /api/projects/[id]/milestones and PATCH /api/milestones/[id].
 // `runAsUser` is injected so tests can use an in-memory database with real RLS.
@@ -44,6 +44,30 @@ export const milestoneHandlers = ({ runAsUser, holds }: Deps) => ({
       return "notFound" in result ? notFound("Project") : fieldErrors(result.errors);
     } catch (error) {
       return serverError("milestones.plan_failed", error);
+    }
+  },
+
+  remove: async (_request: Request, { params }: IdContext): Promise<Response> => {
+    const { id } = await params;
+    if (!isUuid(id)) return notFound("Milestone");
+    try {
+      const result = await runAsUser((db) => deleteMilestone(db, id));
+      if (result === "not_found") return notFound("Milestone");
+      if (result !== "deleted") {
+        return jsonResponse(
+          {
+            error:
+              result === "has_hold"
+                ? "This milestone has a hold on record, so it can't be deleted. Void the hold; the milestone stays with the project."
+                : "This milestone has an invoice on record, so it can't be deleted. Cancel the invoice if it is open; the milestone stays with the project.",
+          },
+          409,
+        );
+      }
+      logEvent("milestones.deleted", { milestoneId: id });
+      return jsonResponse({ deleted: true });
+    } catch (error) {
+      return serverError("milestones.delete_failed", error);
     }
   },
 

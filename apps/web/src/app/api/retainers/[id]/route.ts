@@ -18,3 +18,4 @@ const handlers = retainerHandlers({
 });
 
 export const POST = handlers.act;
+export const DELETE = handlers.remove;

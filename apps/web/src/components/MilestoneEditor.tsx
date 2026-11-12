@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
+import { sendJson } from "@/lib/api-client";
 import { formatAmountInput, parseAmount } from "@/lib/currencies";
 import { formatMoney } from "@/lib/format";
 import { checkPlan, milestoneCents, type PlanItem } from "@/lib/milestone-plan";
@@ -208,6 +209,21 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
     }
   };
 
+  /** A saved milestone with no invoice or hold on record: gone at once, not on the next Save. */
+  const deleteSaved = async (id: string, name: string) => {
+    if (!window.confirm(`Delete the milestone "${name}"? This can't be undone.`)) return;
+    setBusy(true);
+    setMessage(undefined);
+    const result = await sendJson(`/api/milestones/${id}`, "DELETE", {}, {});
+    setBusy(false);
+    if (!result.ok) {
+      setMessage(result.message);
+      return;
+    }
+    setRows((current) => current.filter((row) => row.id !== id));
+    router.refresh();
+  };
+
   const planErrors = [
     ...(plan?.errors ?? []),
     ...serverErrors.filter((e) => e.field === "milestones"),
@@ -381,6 +397,19 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                     >
                       Remove
                     </button>
+                    {row.id && !locked ? (
+                      <button
+                        type="button"
+                        className="link-button"
+                        aria-label={`Delete ${label}`}
+                        disabled={busy}
+                        onClick={() => {
+                          void deleteSaved(row.id ?? "", label);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               );

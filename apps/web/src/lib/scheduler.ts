@@ -53,7 +53,8 @@ const loadPlanRow = async (db: Db, invoiceId: string): Promise<PlanRow | undefin
      JOIN public.clients c ON c.id = coalesce(p.client_id, rt.client_id)
      JOIN public.users u ON u.id = i.user_id
      WHERE i.id = $1 AND i.status IN ('sent', 'partially_paid') AND i.due_date IS NOT NULL
-       AND i.reminders_held_at IS NULL AND i.retainer_settled_at IS NULL`,
+       AND i.reminders_held_at IS NULL AND i.retainer_settled_at IS NULL
+       AND p.archived_at IS NULL`,
     [invoiceId],
   );
   return rows[0];

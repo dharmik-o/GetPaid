@@ -138,7 +138,7 @@ export const SELECT_TASKS = `
   JOIN public.projects p ON p.id = mt.project_id
   JOIN public.clients c ON c.id = p.client_id
   JOIN public.users u ON u.id = mt.user_id
-  WHERE mt.status = 'active'`;
+  WHERE mt.status = 'active' AND p.archived_at IS NULL`;
 
 const checklistSchema = z.array(z.string());
 

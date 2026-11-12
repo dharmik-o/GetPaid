@@ -362,3 +362,25 @@ export const markMilestoneStatus = async (
   if (!milestone) throw new Error("The milestone could not be read back after saving.");
   return { ok: true, milestone };
 };
+
+export type DeleteMilestoneResult = "deleted" | "not_found" | "has_invoice" | "has_hold";
+
+/**
+ * Deletes one milestone, only while it has no invoice and no hold of any kind (a cancelled
+ * invoice or a voided hold is still a record, and would go with it). Positions keep their gaps:
+ * the plan is renumbered the next time it is saved.
+ */
+export const deleteMilestone = async (db: Db, id: string): Promise<DeleteMilestoneResult> => {
+  const { rows } = await db.query<{ invoices: boolean; holds: boolean }>(
+    `SELECT EXISTS (SELECT 1 FROM public.invoices i WHERE i.milestone_id = m.id) AS invoices,
+       EXISTS (SELECT 1 FROM public.milestone_holds h WHERE h.milestone_id = m.id) AS holds
+     FROM public.milestones m WHERE m.id = $1 FOR UPDATE`,
+    [id],
+  );
+  const found = rows[0];
+  if (!found) return "not_found";
+  if (found.invoices) return "has_invoice";
+  if (found.holds) return "has_hold";
+  await db.query("DELETE FROM public.milestones WHERE id = $1", [id]);
+  return "deleted";
+};

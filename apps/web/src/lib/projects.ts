@@ -30,6 +30,8 @@ export type Project = {
   /** The account and client settings merged: what the project uses where it sets nothing. */
   inherited: ScheduleSettings;
   status: string;
+  /** Archived projects are hidden from lists and Home, and plan no reminders. */
+  archived: boolean;
 };
 
 export type ProjectSummary = Pick<
@@ -38,7 +40,7 @@ export type ProjectSummary = Pick<
 >;
 
 /** A row on the Projects page. */
-export type ProjectListItem = ProjectSummary & Pick<Project, "clientId" | "clientName">;
+export type ProjectListItem = ProjectSummary & Pick<Project, "clientId" | "clientName" | "archived">;
 
 export type ProjectResult =
   | { ok: true; project: Project; warnings: FieldIssue[] }
@@ -134,13 +136,14 @@ type ProjectRow = {
   late_fee_clause: string | null;
   settings: unknown;
   status: string;
+  archived_at: string | null;
 };
 
 const SELECT_PROJECTS = `
   SELECT p.id::text, p.client_id::text, c.name AS client_name, c.time_zone AS client_time_zone,
     c.settings AS client_settings, u.default_settings AS account_settings, p.title,
     p.total_cents::text, p.currency, p.deadline::text, p.contract_terms, p.late_fee_clause,
-    p.settings, p.status
+    p.settings, p.status, p.archived_at::text
   FROM public.projects p
   JOIN public.clients c ON c.id = p.client_id
   JOIN public.users u ON u.id = p.user_id`;
@@ -159,6 +162,7 @@ const toProject = (row: ProjectRow): Project => ({
   settings: settingsOverrideSchema.parse(row.settings),
   inherited: mergeSettings({ account: row.account_settings, client: row.client_settings }),
   status: row.status,
+  archived: row.archived_at !== null,
 });
 
 export const getProject = async (db: Db, id: string): Promise<Project | undefined> => {
@@ -172,7 +176,8 @@ export const listProjectsForClient = async (
   clientId: string,
 ): Promise<ProjectSummary[]> => {
   const { rows } = await db.query<ProjectRow>(
-    `${SELECT_PROJECTS} WHERE p.client_id = $1 ORDER BY p.deadline NULLS LAST, p.created_at`,
+    `${SELECT_PROJECTS} WHERE p.client_id = $1 AND p.archived_at IS NULL
+     ORDER BY p.deadline NULLS LAST, p.created_at`,
     [clientId],
   );
   return rows.map(toProject).map(({ id, title, totalCents, currency, deadline, status }) => ({
@@ -185,9 +190,14 @@ export const listProjectsForClient = async (
   }));
 };
 
-export const listProjects = async (db: Db): Promise<ProjectListItem[]> => {
+/** Archived projects are left out unless asked for. */
+export const listProjects = async (
+  db: Db,
+  { includeArchived = false }: { includeArchived?: boolean } = {},
+): Promise<ProjectListItem[]> => {
   const { rows } = await db.query<ProjectRow>(
-    `${SELECT_PROJECTS} ORDER BY p.deadline NULLS LAST, p.created_at`,
+    `${SELECT_PROJECTS} ${includeArchived ? "" : "WHERE p.archived_at IS NULL"}
+     ORDER BY p.deadline NULLS LAST, p.created_at`,
   );
   return rows.map(toProject).map((project) => ({
     id: project.id,
@@ -198,6 +208,7 @@ export const listProjects = async (db: Db): Promise<ProjectListItem[]> => {
     status: project.status,
     clientId: project.clientId,
     clientName: project.clientName,
+    archived: project.archived,
   }));
 };
 
