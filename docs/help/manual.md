@@ -118,7 +118,7 @@ The landing page explains GetPaid to visitors. The dashboard is where you work.
 
 *Screen: The tour moves across pages by itself.*
 
-On your first visit a short tour points at each part of the app. Press **Got it** to move on, :** Back** to go back, or :** Skip tour** (or Esc) to close it. Some pages, such as a project, the calendar and the agreement builder, show a few extra tips the first time you open them. To see the tour again, go to :** Settings \> Guided tour \> Replay tour**; :** Reset page tips** brings the page tips back.
+On your first visit a short tour points at each part of the app, including how to close an invoice the client paid outside PayPal (**Record a payment**). Press **Got it** to move on, :** Back** to go back, or :** Skip tour** (or Esc) to close it. Some pages, such as a project, the calendar and the agreement builder, show a few extra tips the first time you open them. To see the tour again, go to :** Settings \> Guided tour \> Replay tour**; :** Reset page tips** brings the page tips back.
 
 ## Ask GetPaid (the Help button)
 

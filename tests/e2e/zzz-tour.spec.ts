@@ -40,7 +40,7 @@ test.afterAll(async ({ playwright }) => {
   await api.dispose();
 });
 
-test("a new user sees step 1, walks all 9 steps across pages, and never sees it again", async ({
+test("a new user sees step 1, walks all 10 steps across pages, and never sees it again", async ({
   page,
 }) => {
   await restart(page);
@@ -48,7 +48,7 @@ test("a new user sees step 1, walks all 9 steps across pages, and never sees it 
   const tour = page.getByRole("dialog");
   await expect(tour).toBeVisible();
   await expect(tour.getByRole("heading", { name: "Start here" })).toBeVisible();
-  await expect(tour).toContainText("1 of 9");
+  await expect(tour).toContainText("1 of 10");
   await page.evaluate(() => {
     window.__noReload = true;
   });
@@ -58,18 +58,19 @@ test("a new user sees step 1, walks all 9 steps across pages, and never sees it 
     "/",
     "/projects",
     "/projects",
+    "/projects",
     "/outbox",
     "/calendar",
     "/settings/integrations",
     "/settings/ai",
     "/settings",
   ];
-  for (let step = 1; step <= 9; step += 1) {
-    await expect(tour).toContainText(`${String(step)} of 9`);
+  for (let step = 1; step <= 10; step += 1) {
+    await expect(tour).toContainText(`${String(step)} of 10`);
     await expect(page).toHaveURL(
       (url) => url.pathname.replace(/\/projects\/[0-9a-f-]{36}/, "/projects") === paths[step - 1],
     );
-    if (step < 9) await tour.getByRole("button", { name: "Got it" }).click();
+    if (step < 10) await tour.getByRole("button", { name: "Got it" }).click();
   }
   await expect(tour).toContainText("Replay this tour any time from Settings.");
   await tour.getByRole("button", { name: "Finish" }).click();
@@ -85,10 +86,10 @@ test("Replay tour in Settings starts it again, and Skip on step 2 ends it", asyn
   await open(page, "/settings");
   await page.getByRole("button", { name: "Replay tour" }).click();
   const tour = page.getByRole("dialog");
-  await expect(tour).toContainText("1 of 9");
+  await expect(tour).toContainText("1 of 10");
   await expect(page).toHaveURL(/\/$/);
   await tour.getByRole("button", { name: "Got it" }).click();
-  await expect(tour).toContainText("2 of 9");
+  await expect(tour).toContainText("2 of 10");
   await tour.getByRole("button", { name: "Skip tour" }).click();
   await expect(tour).toHaveCount(0);
 

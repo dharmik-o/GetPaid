@@ -239,6 +239,7 @@ export const RecordPayment = ({
     <button
       className={className ?? "button button-secondary"}
       type="button"
+      data-tour="record-payment"
       onClick={() => {
         setOpen(true);
       }}

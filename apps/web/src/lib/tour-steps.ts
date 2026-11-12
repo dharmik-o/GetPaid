@@ -35,6 +35,12 @@ export const mainSteps = (projectId: string | null): MainStep[] => [
     body: "Each milestone becomes a PayPal invoice. PAID and OVERDUE stamps show where it stands.",
   },
   {
+    path: projectId ? `/projects/${projectId}` : "/projects",
+    target: "record-payment",
+    title: "Paid another way?",
+    body: "If a client pays by bank transfer, UPI, cash, cheque or another app, press Record a payment on the invoice. GetPaid closes the PayPal invoice, marks it paid and stops its reminders.",
+  },
+  {
     path: "/outbox",
     target: "outbox-card",
     title: "Outbox",
@@ -77,6 +83,11 @@ export const TIPS: Record<TipKey, TourStep[]> = {
       target: "milestone-card",
       title: "Milestone cards",
       body: "Each card shows its invoice, what is paid and the next reminder.",
+    },
+    {
+      target: "record-payment",
+      title: "Paid outside PayPal",
+      body: "Record a payment closes an invoice paid by bank transfer, UPI, cash or cheque. You confirm it first.",
     },
     {
       target: "project-agreement",
