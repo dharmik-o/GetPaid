@@ -1,4 +1,7 @@
+import { z } from "zod";
 import { isUuid } from "./db";
+import { toFieldIssues } from "./field-issues";
+import { CANCEL_REASONS } from "./invoice-closing";
 import { setPlanStatus } from "./installment-plans";
 import { conflict, NOT_FOUND, readBack, type FlowDeps, type InvoiceResult } from "./invoice-flow";
 import {
@@ -53,11 +56,23 @@ export const cancelInPaypal = async (
   return undefined;
 };
 
-export const cancelInvoice = async (deps: FlowDeps, invoiceId: string): Promise<InvoiceResult> => {
+const bodySchema = z.strictObject({
+  reason: z.enum(CANCEL_REASONS, { error: "must be picked from the list" }),
+});
+
+export const cancelInvoice = async (
+  deps: FlowDeps,
+  invoiceId: string,
+  raw: unknown,
+): Promise<InvoiceResult> => {
   if (!isUuid(invoiceId)) return NOT_FOUND;
   const loaded = await loadGroup(deps, invoiceId);
   if (!loaded) return NOT_FOUND;
   const { record, group } = loaded;
+  const body = bodySchema.safeParse(raw);
+  if (!body.success) {
+    return { ok: false, errors: toFieldIssues(body.error, { noun: "field" }) };
+  }
   if (record.status === "cancelled")
     return { ok: true, invoices: [toView(record)], sentNow: false };
 
@@ -71,7 +86,7 @@ export const cancelInvoice = async (deps: FlowDeps, invoiceId: string): Promise<
   }
   const restoreTo = group.find((r) => r.milestoneStatusBefore)?.milestoneStatusBefore ?? "accepted";
   await deps.runAsUser(async (db) => {
-    for (const member of group) await markCancelled(db, member, restoreTo);
+    for (const member of group) await markCancelled(db, member, restoreTo, body.data.reason);
     if (record.installmentPlanId) await setPlanStatus(db, record.installmentPlanId, "cancelled");
   });
   return {

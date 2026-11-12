@@ -1,11 +1,13 @@
 import type { UserDbRunner } from "./db";
 import { fieldErrors, jsonResponse, notFound, readJson, serverError } from "./http";
 import { cancelInvoice } from "./invoice-cancel";
+import { recordPayment } from "./invoice-payments";
 import { issueMilestoneInvoice, type InvoiceResult } from "./invoice-flow";
 import { logEvent } from "./log";
 import { PaypalError, type PaypalClient } from "./paypal";
 
-// Server-only: POST /api/milestones/[id]/invoice and POST /api/invoices/[id]/cancel.
+// Server-only: POST /api/milestones/[id]/invoice, POST /api/invoices/[id]/cancel (with a reason)
+// and POST /api/invoices/[id]/payments (money received outside PayPal).
 // Both answer { invoices }: one plain invoice, or the installments the request covered.
 // The database runner, PayPal client and clock are injected so tests can mock all three.
 
@@ -85,9 +87,20 @@ export const invoiceHandlers = (deps: Deps) => {
       );
     },
 
-    cancel: async (_request: Request, { params }: IdContext): Promise<Response> => {
+    cancel: async (request: Request, { params }: IdContext): Promise<Response> => {
       const { id } = await params;
-      return run("invoices.cancelled", "Invoice", (flow) => cancelInvoice(flow, id));
+      const body = await readJson(request);
+      if (!body.ok) return body.response;
+      return run("invoices.cancelled", "Invoice", (flow) => cancelInvoice(flow, id, body.body));
+    },
+
+    recordPayment: async (request: Request, { params }: IdContext): Promise<Response> => {
+      const { id } = await params;
+      const body = await readJson(request);
+      if (!body.ok) return body.response;
+      return run("invoices.payment_recorded", "Invoice", (flow) =>
+        recordPayment(flow, id, body.body),
+      );
     },
   };
 };

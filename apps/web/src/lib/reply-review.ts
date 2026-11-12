@@ -3,6 +3,7 @@ import type { Db } from "./db";
 import { toCents } from "./db-values";
 import { formatMoney } from "./format";
 import type { ReplySuggestion } from "./reply-labels";
+import { RECORDABLE_STATUSES } from "./invoice-closing";
 import { addCalendarDays, todayIn } from "./schedule";
 
 // Server-only (types are safe to import anywhere): replies waiting for the freelancer, and what
@@ -20,6 +21,10 @@ export type ReplyItem = {
   /** The client's own words: untrusted, and only ever shown as text. */
   text: string;
   invoiceId: string;
+  invoiceNumber: string;
+  /** What is still owed, in minor units, and whether the invoice is open to a payment record. */
+  owedCents: number;
+  recordable: boolean;
   /** Null for a retainer invoice, which can't be split: each cycle stands alone. */
   milestoneId: string | null;
   currency: string;
@@ -76,6 +81,7 @@ type ReplyRow = {
   invoice_number: string;
   amount_cents: unknown;
   amount_paid_cents: unknown;
+  invoice_status: string;
   currency: string;
   installment_number: number | null;
   installment_count: number | null;
@@ -89,7 +95,8 @@ type ReplyRow = {
 export const REPLY_SELECT = `
   SELECT msg.id::text, msg.body, msg.ai_classification, msg.thread_id, msg.review_status,
     msg.split_plan_id::text, i.id::text AS invoice_id, m.id::text AS milestone_id, i.invoice_number,
-    i.amount_cents::text, i.amount_paid_cents::text, i.currency, i.installment_number,
+    i.amount_cents::text, i.amount_paid_cents::text, i.status AS invoice_status, i.currency,
+    i.installment_number,
     i.installment_count, coalesce(m.name, rt.name) AS milestone_name, p.title, c.id::text AS client_id,
     c.name AS client_name, c.time_zone
   FROM public.messages msg
@@ -118,6 +125,9 @@ const toItem = (row: ReplyRow, now: Date): ReplyItem => {
     summary: classification.summary,
     text: row.body,
     invoiceId: row.invoice_id,
+    invoiceNumber: row.invoice_number,
+    owedCents: toCents(row.amount_cents) - toCents(row.amount_paid_cents),
+    recordable: row.milestone_id !== null && RECORDABLE_STATUSES.includes(row.invoice_status),
     milestoneId: row.milestone_id,
     currency: row.currency,
     amountDue: formatMoney(

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { FinalDemandButton } from "@/components/FinalDemandButton";
+import { RecordPayment } from "@/components/RecordPayment";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDay, formatMoney } from "@/lib/format";
+import { methodLabel } from "@/lib/invoice-closing";
 import {
   filterInvoices,
   groupByProject,
@@ -101,6 +103,11 @@ export const InvoiceTable = ({
               </td>
               <td data-label="Status">
                 <StatusBadge status={invoice.status}>{STATUS_LABELS[invoice.status]}</StatusBadge>
+                {invoice.paymentMethod ? (
+                  <div className="field-hint">Paid by {methodLabel(invoice.paymentMethod)}</div>
+                ) : invoice.status === "paid" || invoice.status === "partially_paid" ? (
+                  <div className="field-hint">Paid by PayPal</div>
+                ) : null}
               </td>
               <td data-label="Theme">{row.templateName ?? "Default"}</td>
               <td data-label="Signed">{row.signed ? "Yes" : "No"}</td>
@@ -114,6 +121,18 @@ export const InvoiceTable = ({
                 {invoice.status === "overdue" && firstOfInvoice ? (
                   <FinalDemandButton invoiceId={invoice.id} />
                 ) : null}
+                {invoice.closable && firstOfInvoice ? (
+                  <RecordPayment
+                    className="link-button"
+                    invoice={{
+                      invoiceId: invoice.id,
+                      invoiceNumber: invoice.number,
+                      currency: invoice.currency,
+                      owedCents: invoice.amountCents - invoice.amountPaidCents,
+                    }}
+                  />
+                ) : null}
+
               </td>
             </tr>
           );

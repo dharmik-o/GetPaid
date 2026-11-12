@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AgreementPanel } from "@/components/AgreementPanel";
+import { CompleteProject } from "@/components/CompleteProject";
 import { HoldPanel } from "@/components/HoldPanel";
 import { hasFilters, InvoiceFilters, InvoiceTable } from "@/components/InvoiceHistory";
 import { InvoicePanel } from "@/components/InvoicePanel";
@@ -88,7 +89,15 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
   return (
     <div className="page">
       <div className="page-header">
-        <h1>{project.title}</h1>
+        <h1>
+          {project.title}
+          {project.status === "completed" ? (
+            <>
+              {" "}
+              <span className="badge badge-paid">Completed</span>
+            </>
+          ) : null}
+        </h1>
         <Link href={`/clients/${project.clientId}`}>Back to {project.clientName}</Link>
       </div>
 
@@ -113,6 +122,7 @@ const ProjectPage = async ({ params, searchParams }: Props) => {
             })}
           </dd>
         </dl>
+        {project.status === "active" ? <CompleteProject projectId={project.id} /> : null}
       </section>
 
       <section className="card" aria-labelledby="agreement" data-tour="project-agreement">

@@ -9,6 +9,7 @@ import {
   startsTicked,
   type SignatureChoice,
 } from "@/components/IncludeSignature";
+import { RecordPayment } from "@/components/RecordPayment";
 import { fieldLabel, sendJson } from "@/lib/api-client";
 import { formatAmountInput, parseAmount } from "@/lib/currencies";
 import { formatMoney } from "@/lib/format";
@@ -239,6 +240,21 @@ export const ReplyCard = ({ reply, offer, signature = NO_SIGNATURE }: Props) => 
         >
           Resume reminders
         </button>
+        {reply.label === "paid_elsewhere" && reply.recordable ? (
+          <RecordPayment
+            label="Record their payment"
+            className="button"
+            onRecorded={() => {
+              void act({ action: "resume" });
+            }}
+            invoice={{
+              invoiceId: reply.invoiceId,
+              invoiceNumber: reply.invoiceNumber,
+              currency: reply.currency,
+              owedCents: reply.owedCents,
+            }}
+          />
+        ) : null}
         {offer && !splitting ? (
           <button
             className="button button-secondary"

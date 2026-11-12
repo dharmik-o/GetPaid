@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Db } from "./db";
 import { toCents } from "./db-values";
 import { formatFullDay } from "./format";
+import { RECORDABLE_STATUSES } from "./invoice-closing";
 import { todayIn } from "./schedule";
 
 // Server-only: every invoice of a project or client, with each saved version. Read as the signed-in
@@ -52,6 +53,10 @@ export type HistoryInvoice = {
   signed: boolean;
   /** Newest first. Empty until a PDF has been saved. */
   versions: ArchivedVersion[];
+  /** How it was last paid when the freelancer recorded it by hand (a method key); else null. */
+  paymentMethod: string | null;
+  /** Open, and one the freelancer can record a payment on (not a retainer cycle). */
+  closable: boolean;
 };
 
 type Row = {
@@ -77,6 +82,8 @@ type Row = {
   template_name: string | null;
   first_sent_at: Date | string | null;
   versions: unknown;
+  payment_method: string | null;
+  is_milestone: boolean;
 };
 
 const versionsSchema = z.array(
@@ -130,7 +137,10 @@ const SELECT_HISTORY = `
     (SELECT min(r.sent_at) FROM public.reminders r WHERE r.invoice_id = i.id) AS first_sent_at,
     (SELECT coalesce(json_agg(json_build_object('version', f.version, 'sentAt', f.sent_at,
        'templateName', f.template_name, 'signed', f.signed) ORDER BY f.version DESC), '[]'::json)
-     FROM public.invoice_archive_files f WHERE f.invoice_id = i.id) AS versions
+     FROM public.invoice_archive_files f WHERE f.invoice_id = i.id) AS versions,
+    (SELECT pay.method FROM public.invoice_payments pay WHERE pay.invoice_id = i.id
+     ORDER BY pay.created_at DESC LIMIT 1) AS payment_method,
+    (i.milestone_id IS NOT NULL) AS is_milestone
   FROM public.invoices i
   LEFT JOIN public.milestones m ON m.id = i.milestone_id
   LEFT JOIN public.retainers rt ON rt.id = i.retainer_id
@@ -152,6 +162,7 @@ const toInvoice = (row: Row, now: Date): HistoryInvoice => {
     .filter((sent): sent is string => sent !== null)
     .sort()[0];
   const sentAt = toIso(row.first_sent_at) ?? toIso(firstVersionSent ?? null);
+  const status = displayStatus(row.status, row.due_date, todayIn(now, row.time_zone));
   return {
     id: row.id,
     number: row.invoice_number,
@@ -165,7 +176,7 @@ const toInvoice = (row: Row, now: Date): HistoryInvoice => {
           : { number: row.installment_number, count: row.installment_count },
       retainerCycleOn: row.retainer_cycle_on,
     }),
-    status: displayStatus(row.status, row.due_date, todayIn(now, row.time_zone)),
+    status,
     amountCents: toCents(row.amount_cents),
     amountPaidCents: toCents(row.amount_paid_cents),
     currency: row.currency,
@@ -177,6 +188,8 @@ const toInvoice = (row: Row, now: Date): HistoryInvoice => {
     templateName: row.template_name,
     signed: row.include_signature,
     versions,
+    paymentMethod: row.payment_method,
+    closable: row.is_milestone && RECORDABLE_STATUSES.includes(row.status),
   };
 };
 

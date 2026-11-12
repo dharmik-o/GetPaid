@@ -78,6 +78,8 @@ const fake = (overrides: Partial<HistoryInvoice>): HistoryInvoice => ({
   sentAt: "2026-12-01T10:00:00.000Z",
   day: "2026-12-01",
   templateName: "Classic",
+  paymentMethod: null,
+  closable: false,
   signed: false,
   versions: [],
   ...overrides,

@@ -22,6 +22,7 @@ export const OWNED_TABLES = [
   "calendar_sources",
   "calendar_events",
   "agreements",
+  "invoice_payments",
 ] as const;
 
 export type OwnedTable = (typeof OWNED_TABLES)[number];
@@ -94,6 +95,8 @@ export const seedOwnerSql = ({ label, userId: u, rows: r }: Owner): string => `
     VALUES ('${r.calendar_sources}', '${u}', 'Work', 'url', 'encrypted-${label}', 'calendar.example.test');
   INSERT INTO public.calendar_events (id, user_id, source_id, uid, occurrence_start, all_day, title)
     VALUES ('${r.calendar_events}', '${u}', '${r.calendar_sources}', 'uid-${label}', '2026-12-03T10:00:00Z', false, 'Imported meeting');
+  INSERT INTO public.invoice_payments (id, user_id, invoice_id, method, amount_cents, currency, received_on, paypal_payment_id, recorded_by)
+    VALUES ('${r.invoice_payments}', '${u}', '${r.invoices}', 'bank_transfer', 10000, 'USD', '2026-12-05', 'EXTR-SEED-${label}', '${u}');
   INSERT INTO public.agreements (id, user_id, project_id, client_id, number, status, options, facts, body_html, body_sha256)
     VALUES ('${r.agreements}', '${u}', '${r.projects}', '${r.clients}', 'AGR-000001', 'void', '{}', '{}', '<p>Seed</p>', '${"0".repeat(64)}');
 `;
