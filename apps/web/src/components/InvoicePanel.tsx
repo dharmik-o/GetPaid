@@ -275,7 +275,7 @@ export const InvoicePanel = ({
     if (first) {
       const unpaid = open.every((i) => ["draft", "sent"].includes(i.status));
       return (
-        <>
+        <div className="stack-actions">
           {next ? signatureField(row) : null}
           {next ? (
             <button
@@ -318,7 +318,7 @@ export const InvoicePanel = ({
               label={first.installment ? "Cancel installment plan" : "Cancel invoice"}
             />
           ) : null}
-        </>
+        </div>
       );
     }
     const blocked = blockedReason(row);

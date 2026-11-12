@@ -364,52 +364,59 @@ export const MilestoneEditor = ({ projectId, totalCents, currency, initial }: Pr
                     )}
                   </td>
                   <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link-button"
-                      aria-label={`Move ${label} up`}
-                      disabled={index === 0}
-                      onClick={() => {
-                        move(index, -1);
-                      }}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="link-button"
-                      aria-label={`Move ${label} down`}
-                      disabled={index === rows.length - 1}
-                      onClick={() => {
-                        move(index, 1);
-                      }}
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      className="link-button"
-                      aria-label={`Remove ${label}`}
-                      disabled={locked}
-                      onClick={() => {
-                        setRows((current) => current.filter((_, i) => i !== index));
-                      }}
-                    >
-                      Remove
-                    </button>
-                    {row.id && !locked ? (
+                    <div className="row-buttons">
+                      {index > 0 ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={`Move ${label} up`}
+                          title="Move up"
+                          onClick={() => {
+                            move(index, -1);
+                          }}
+                        >
+                          ↑ Up
+                        </button>
+                      ) : null}
+                      {index < rows.length - 1 ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={`Move ${label} down`}
+                          title="Move down"
+                          onClick={() => {
+                            move(index, 1);
+                          }}
+                        >
+                          ↓ Down
+                        </button>
+                      ) : null}
                       <button
                         type="button"
-                        className="link-button"
-                        aria-label={`Delete ${label}`}
-                        disabled={busy}
+                        className="link-button button-danger"
+                        title="Remove this milestone from the list"
+                        aria-label={`Remove ${label}`}
+                        disabled={locked}
                         onClick={() => {
-                          void deleteSaved(row.id ?? "", label);
+                          setRows((current) => current.filter((_, i) => i !== index));
                         }}
                       >
-                        Delete
+                        Remove
                       </button>
-                    ) : null}
+                      {row.id && !locked ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={`Delete ${label}`}
+                          disabled={busy}
+                          onClick={() => {
+                            void deleteSaved(row.id ?? "", label);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               );

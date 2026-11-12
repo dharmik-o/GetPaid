@@ -63,7 +63,7 @@ export const ProjectDangerZone = ({ projectId, title, archived, open }: Props) =
   return (
     <section className="card" aria-labelledby="danger">
       <h2 id="danger">Danger zone</h2>
-      <div>
+      <div className="danger-block">
         <h3>{archived ? "Restore project" : "Archive project"}</h3>
         <p className="muted">
           {archived
@@ -79,7 +79,7 @@ export const ProjectDangerZone = ({ projectId, title, archived, open }: Props) =
           {archived ? "Restore project" : "Archive project"}
         </button>
       </div>
-      <div>
+      <div className="danger-block">
         <h3>Delete project</h3>
         <p className="muted">
           Removes the project for good, with its milestones, invoices, reminders, agreements, holds
