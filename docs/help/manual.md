@@ -656,7 +656,7 @@ For judges to click a link, run GetPaid on a small always-on server with HTTPS. 
 
 1.  Create the VM, reserve its public IP, and open ports 80 and 443. Upgrade the account to Pay As You Go and set a \$1 budget alert, so the free server isn't reclaimed when idle.
 2.  Point your DuckDNS name at the IP (and clear the IPv6 box).
-3.  On the server: clone the repo, run `bash deploy/server-setup.sh`, and create a new `.env` with **new** secrets. Set `DOMAIN`, `APP_PUBLIC_URL`, `WEBHOOK_URL`, `DEMO_MODE=true`, a 16+ character `DEMO_PASSWORD`, `DEMO_COOKIE_SECRET`, and `DEV_EMAIL_ALLOWLIST`.
+3.  On the server: clone the repo, run `bash deploy/server-setup.sh`, and create a new `.env` with **new** secrets. Set `DOMAIN`, `APP_PUBLIC_URL`, `WEBHOOK_URL`, `DEMO_MODE=true`, a `DEMO_USERNAME` and an 8+ character `DEMO_PASSWORD`, `DEMO_COOKIE_SECRET`, and `DEV_EMAIL_ALLOWLIST`.
 4.  Start it: `docker compose up -d --build --wait`, then run the database steps.
 5.  Point the outside services at the new address: the PayPal webhook URL, the Google OAuth redirect URI, and the n8n workflows (Telegram is re-registered when you publish).
 6.  Add your AI key in Settings \> AI, connect Gmail and Telegram, and share the link and the demo password.

@@ -16,6 +16,9 @@ import { safeText } from "./quoted-text";
 export const NO_MODEL = "Set a model in Settings > AI, then ask again.";
 export const FAILED =
   "I couldn't get a reliable answer from your AI model. Try again, or download the manual (PDF).";
+/** When the model fails, the closest part of the manual is shown instead, cut to this length. */
+const FALLBACK_CHARS = 900;
+const MAX_SOURCES = 6;
 export const NOT_IN_MANUAL =
   "I couldn't find that in the manual. Download the manual (PDF) to look it up yourself.";
 
@@ -27,6 +30,8 @@ export type HelpAnswer = {
   answer: string;
   sources: { id: string; title: string }[];
   links: HelpLink[];
+  /** True when the AI model failed and the answer is the closest manual section, as written. */
+  fromManual?: boolean;
 };
 
 export type HelpResult =
@@ -74,12 +79,35 @@ export const checkHelpAnswer = (
   given: readonly HelpSection[],
 ): HelpAnswer => {
   const byId = new Map(given.map((section) => [section.id, section]));
-  const sources = [...new Set(raw.sources)].flatMap((id) => {
-    const section = byId.get(id);
-    return section ? [{ id, title: section.title }] : [];
-  });
+  const sources = [...new Set(raw.sources)]
+    .flatMap((id) => {
+      const section = byId.get(id);
+      return section ? [{ id, title: section.title }] : [];
+    })
+    .slice(0, MAX_SOURCES);
   return { answer: raw.answer.trim(), sources, links: allowedLinks(raw.links) };
 };
+
+/** Cut at a paragraph or sentence end before the limit, so the excerpt reads as whole text. */
+const excerpt = (text: string, limit: number): string => {
+  const clean = text.trim();
+  if (clean.length <= limit) return clean;
+  const cut = clean.slice(0, limit);
+  const end = Math.max(cut.lastIndexOf("\n\n"), cut.lastIndexOf(". "));
+  return `${(end > limit / 2 ? cut.slice(0, end + 1) : cut).trimEnd()} …`;
+};
+
+/** The model failed: show the best-matching manual section itself, so the question still gets help. */
+export const manualFallback = (section: HelpSection): HelpAnswer => ({
+  answer: [
+    "Your AI model didn't answer this time, so here's the closest part of the manual.",
+    section.path.join(" > "),
+    excerpt(section.text, FALLBACK_CHARS),
+  ].join("\n\n"),
+  sources: [{ id: section.id, title: section.title }],
+  links: [],
+  fromManual: true,
+});
 
 export const askHelp = async (deps: HelpDeps, question: string): Promise<HelpResult> => {
   const sections = retrieveSections(question, { limit: SECTIONS_TO_SEND }).map(
@@ -94,7 +122,12 @@ export const askHelp = async (deps: HelpDeps, question: string): Promise<HelpRes
     messages: helpMessages(sections, question),
     schema: helpAnswerSchema,
   });
-  if (!result.ok) return { ok: false, error: FAILED, reason: "failed" };
+  if (!result.ok) {
+    const best = sections[0];
+    return best
+      ? { ok: true, ...manualFallback(best) }
+      : { ok: false, error: FAILED, reason: "failed" };
+  }
   return { ok: true, ...checkHelpAnswer(result.output, sections) };
 };
 

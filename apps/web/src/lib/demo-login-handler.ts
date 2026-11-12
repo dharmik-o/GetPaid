@@ -3,6 +3,7 @@ import {
   DEMO_COOKIE,
   DEMO_COOKIE_MAX_AGE,
   demoSettingsProblem,
+  demoUsername,
   isDemoMode,
   passwordMatches,
   safeNext,
@@ -13,8 +14,8 @@ import { toFieldIssues } from "./field-issues";
 import { fieldErrors, jsonResponse, notFound, readJson } from "./http";
 import { errorKind, logEvent } from "./log";
 
-// Server-only: POST /api/demo-login { password, next }. Checks the shared demo password, with a
-// limit on wrong guesses per IP, and sets the signed cookie that proxy.ts looks for.
+// Server-only: POST /api/demo-login { username, password, next }. Checks the shared demo username
+// and password, with a limit on wrong guesses per IP, and sets the signed cookie proxy.ts looks for.
 
 const MAX_FAILURES = 5;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -61,6 +62,7 @@ export const createLoginLimiter = () => {
 };
 
 const bodySchema = z.object({
+  username: z.string().max(200).default(""),
   password: z.string().min(1).max(500),
   next: z.string().max(2000).optional(),
 });
@@ -90,7 +92,7 @@ export const demoLoginHandler = ({
     if (wait > 0) {
       logEvent("demo_login.blocked", {});
       const blocked = jsonResponse(
-        { error: "Too many wrong passwords. Wait 10 minutes, then try again." },
+        { error: "Too many wrong tries. Wait 10 minutes, then try again." },
         429,
       );
       blocked.headers.set("retry-after", String(wait));
@@ -101,10 +103,16 @@ export const demoLoginHandler = ({
     const parsed = bodySchema.safeParse(read.body);
     if (!parsed.success) return fieldErrors(toFieldIssues(parsed.error, { noun: "field" }));
 
-    if (!passwordMatches(parsed.data.password, env.DEMO_PASSWORD ?? "")) {
+    // Both are always checked, so the time taken doesn't say which one was wrong.
+    const nameOk = passwordMatches(parsed.data.username.trim(), demoUsername(env));
+    const passwordOk = passwordMatches(parsed.data.password, env.DEMO_PASSWORD ?? "");
+    if (!nameOk || !passwordOk) {
       limiter.fail(key, now());
       logEvent("demo_login.failed", {});
-      return jsonResponse({ error: "That password isn't right. Check it and try again." }, 401);
+      return jsonResponse(
+        { error: "That username or password isn't right. Check them and try again." },
+        401,
+      );
     }
     limiter.reset(key);
     logEvent("demo_login.ok", {});

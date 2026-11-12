@@ -6,22 +6,22 @@
     "answer": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 1200
+      "maxLength": 3000
     },
     "sources": {
-      "maxItems": 6,
+      "maxItems": 20,
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 120
+        "maxLength": 300
       }
     },
     "links": {
-      "maxItems": 6,
+      "maxItems": 20,
       "type": "array",
       "items": {
         "type": "string",
-        "maxLength": 80
+        "maxLength": 300
       }
     }
   },

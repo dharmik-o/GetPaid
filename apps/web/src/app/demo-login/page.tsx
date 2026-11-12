@@ -19,10 +19,10 @@ const DemoLoginPage = async ({ searchParams }: { searchParams: Promise<{ next?: 
         <h1>Demo sign-in</h1>
       </div>
       <section className="card" aria-labelledby="demo-login-heading">
-        <h2 id="demo-login-heading">Enter the demo password</h2>
+        <h2 id="demo-login-heading">Sign in to the demo</h2>
         <p className="field-hint">
           This is a public demo with sandbox payments, and emails only go to the demo inbox. The
-          password was given to you with the link.
+          username and password were given to you with the link.
         </p>
         <DemoLoginForm next={safeNext(next)} />
       </section>

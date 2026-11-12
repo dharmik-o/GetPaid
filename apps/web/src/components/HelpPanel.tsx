@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
 import { HelpAnswerView, type HelpAnswerData } from "@/components/HelpAnswerView";
 import { Icon } from "@/components/Icon";
 import { MAX_QUESTION_CHARS } from "@/lib/help-limits";
+import { MANUAL_PDF } from "@/lib/help-links";
 
 // "Ask GetPaid": a Help button in the header that opens a side panel. It only explains, from the
 // manual; it can't change anything. The question and answer live in this component only.
@@ -161,9 +162,15 @@ export const HelpPanel = () => {
             </form>
             <div aria-live="polite">
               {error ? (
-                <p className="banner banner-error" role="alert">
-                  {error}
-                </p>
+                <div className="help-answer">
+                  <p className="banner banner-error" role="alert">
+                    {error}
+                  </p>
+                  <a className="link-button" href={MANUAL_PDF} download>
+                    <Icon name="file" size={16} />
+                    Download the manual (PDF)
+                  </a>
+                </div>
               ) : null}
               {answer ? <HelpAnswerView {...answer} /> : null}
             </div>

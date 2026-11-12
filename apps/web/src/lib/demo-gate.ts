@@ -1,16 +1,21 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 // The public demo (decision E7): production with DEMO_MODE=true. The seeded demo freelancer then
-// runs behind one shared password, so strangers can't use the dashboard. Pure helpers; the
+// runs behind one shared username and password, so strangers can't use the dashboard. Pure helpers; the
 // request handling is in proxy.ts and demo-login-handler.ts. Server-only.
 
 export const DEMO_COOKIE = "gp_demo";
 export const DEMO_COOKIE_MAX_AGE = 7 * 24 * 60 * 60;
-const MIN_PASSWORD_CHARS = 16;
+const MIN_PASSWORD_CHARS = 8;
+/** The demo sign-in name when DEMO_USERNAME isn't set. */
+export const DEFAULT_DEMO_USERNAME = "admin";
 const MIN_SECRET_CHARS = 32;
 
 export type DemoEnv = Partial<
-  Record<"NODE_ENV" | "DEMO_MODE" | "DEMO_PASSWORD" | "DEMO_COOKIE_SECRET", string>
+  Record<
+    "NODE_ENV" | "DEMO_MODE" | "DEMO_USERNAME" | "DEMO_PASSWORD" | "DEMO_COOKIE_SECRET",
+    string
+  >
 >;
 
 export const isDemoMode = (env: DemoEnv = process.env): boolean =>
@@ -28,6 +33,10 @@ export const demoSettingsProblem = (env: DemoEnv): string | undefined => {
 };
 
 const digest = (value: string): Buffer => createHash("sha256").update(value).digest();
+
+/** The sign-in name: DEMO_USERNAME, or "admin". */
+export const demoUsername = (env: DemoEnv): string =>
+  env.DEMO_USERNAME?.trim() || DEFAULT_DEMO_USERNAME;
 
 /** Constant-time password check (both sides hashed, so lengths never leak). */
 export const passwordMatches = (given: string, expected: string): boolean =>

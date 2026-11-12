@@ -147,7 +147,12 @@ describe("POST /api/demo-login", () => {
       new Request("https://demo.example/api/demo-login", {
         method: "POST",
         headers: { "content-type": "application/json", "x-forwarded-for": `${ip}, 10.0.0.2` },
-        body: JSON.stringify(body),
+        // The username is "admin" (the default) unless a test gives its own.
+        body: JSON.stringify(
+          typeof body === "object" && body !== null && !("username" in body)
+            ? { username: "admin", ...body }
+            : body,
+        ),
       }),
     );
 
@@ -181,6 +186,21 @@ describe("POST /api/demo-login", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ next: "/" });
     }
+  });
+
+  it("refuses a wrong or missing username, even with the right password", async () => {
+    for (const username of ["root", "Admin ", "", "admin2"]) {
+      const response = await login(build().handler, { username, password: PASSWORD });
+      expect(response.status).toBe(401);
+      expect(response.headers.get("set-cookie")).toBeNull();
+    }
+  });
+
+  it("uses DEMO_USERNAME when it's set, and accepts a short password with symbols", async () => {
+    const custom = build({ ...DEMO, DEMO_USERNAME: "judge", DEMO_PASSWORD: "#123abc*" });
+    expect((await login(custom.handler, { password: "#123abc*" })).status).toBe(401);
+    const ok = await login(custom.handler, { username: " judge ", password: "#123abc*" });
+    expect(ok.status).toBe(200);
   });
 
   it("refuses a wrong password without setting a cookie", async () => {
@@ -251,8 +271,8 @@ describe("production without the demo gate", () => {
   });
 
   it("refuses to start with a short demo password or cookie secret, and says which", () => {
-    const shortPassword = { ...DEMO, DEMO_PASSWORD: "x".repeat(15) };
-    expect(authProblem(shortPassword)).toContain("DEMO_PASSWORD must be at least 16");
+    const shortPassword = { ...DEMO, DEMO_PASSWORD: "x".repeat(7) };
+    expect(authProblem(shortPassword)).toContain("DEMO_PASSWORD must be at least 8");
     const shortSecret = { ...DEMO, DEMO_COOKIE_SECRET: "x".repeat(31) };
     expect(() => currentUserId(shortSecret)).toThrow("DEMO_COOKIE_SECRET must be at least 32");
     expect(authProblem({ ...DEMO, DEMO_PASSWORD: undefined })).toContain("DEMO_PASSWORD");

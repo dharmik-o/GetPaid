@@ -2,9 +2,10 @@
 
 import { useState, type SyntheticEvent } from "react";
 
-// The demo gate's one-field form. The server decides where to go next (a path on this site only).
+// The demo gate's sign-in form: the shared username and password. The server decides where to go next (a path on this site only).
 
 export const DemoLoginForm = ({ next }: { next: string }) => {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -17,7 +18,7 @@ export const DemoLoginForm = ({ next }: { next: string }) => {
       const response = await fetch("/api/demo-login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password, next }),
+        body: JSON.stringify({ username, password, next }),
       });
       const result = (await response.json()) as { next?: string; error?: string };
       if (!response.ok || !result.next) {
@@ -35,7 +36,22 @@ export const DemoLoginForm = ({ next }: { next: string }) => {
   return (
     <form className="form" onSubmit={(event) => void submit(event)} noValidate>
       <div className="field">
-        <label htmlFor="demo-password">Demo password</label>
+        <label htmlFor="demo-username">Username</label>
+        <input
+          id="demo-username"
+          type="text"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={username}
+          aria-invalid={Boolean(error)}
+          onChange={(e) => {
+            setUsername(e.target.value);
+          }}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="demo-password">Password</label>
         <input
           id="demo-password"
           type="password"
@@ -52,7 +68,11 @@ export const DemoLoginForm = ({ next }: { next: string }) => {
           </div>
         ) : null}
       </div>
-      <button type="submit" className="button" disabled={busy || password === ""}>
+      <button
+        type="submit"
+        className="button"
+        disabled={busy || username.trim() === "" || password === ""}
+      >
         {busy ? "Checking…" : "Open the demo"}
       </button>
     </form>

@@ -103,12 +103,17 @@ export const calendarAnswerSchema = z.strictObject({
  * open. Links are only ever shown from an allowlist (lib/help-links.ts), and sources only if they
  * were among the sections it was given (lib/help-assistant.ts).
  */
+/**
+ * The prompt asks for 1,200 characters at most; the schema allows more, so a slightly long answer
+ * isn't thrown away. Sources and links are only suggestions here: lib/help-assistant.ts keeps only
+ * the section ids it sent and the allowlisted routes, and caps how many are shown.
+ */
 export const helpAnswerSchema = z.strictObject({
-  answer: z.string().min(1).max(1200),
+  answer: z.string().min(1).max(3000),
   /** Ids of the manual sections the answer is based on. */
-  sources: z.array(z.string().max(120)).max(6),
+  sources: z.array(z.string().max(300)).max(20),
   /** App routes to open, such as /settings/ai. */
-  links: z.array(z.string().max(80)).max(6),
+  links: z.array(z.string().max(300)).max(20),
 });
 
 export type HelpAnswer = z.infer<typeof helpAnswerSchema>;

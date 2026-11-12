@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { calendarAssistantHandlers } from "@/lib/calendar-assistant-handlers";
 import { createSecretBox } from "@/lib/crypto";
 import { runAsUser, type Db } from "@/lib/db";
-import { FAILED, NO_MODEL, NOT_IN_MANUAL } from "@/lib/help-assistant";
+import { NO_MODEL, NOT_IN_MANUAL } from "@/lib/help-assistant";
 import { helpHandlers } from "@/lib/help-handlers";
 import { PROMPT_TEXT } from "@/lib/prompt-text";
 import { USER_A, USER_B, seedOwnerSql } from "../db/fixtures";
@@ -135,21 +135,37 @@ describe("POST /api/help: the answer", () => {
     expect(body.sources).toEqual([]);
   });
 
-  it("shows an error and no answer when the model's output fails the schema, after one retry", async () => {
+  it("shows the closest manual section instead, never the bad output, when the model fails the schema twice", async () => {
     for (const bad of [
-      { ...answer({}), answer: "x".repeat(1201) },
+      { ...answer({}), answer: "x".repeat(3001) },
       { answer: "no other keys", sources: [] },
       { ...answer({}), extra: true },
       { ...answer({}), links: "/settings/ai" },
     ]) {
       sent = [];
       reply = bad;
-      const { response, body } = await ask();
-      expect(response.status).toBe(502);
-      expect(body.error).toBe(FAILED);
-      expect(body).not.toHaveProperty("answer");
+      const { response, body } = await ask("How do I record a bank transfer?");
+      expect(response.status).toBe(200);
+      expect(body.fromManual).toBe(true);
+      expect(body.answer).toMatch(/^Your AI model didn't answer this time/);
+      expect(body.answer).not.toContain("xxxx");
+      expect(body.answer).not.toContain("no other keys");
+      expect(body.sources).toHaveLength(1);
+      expect(body.links).toEqual([]);
       expect(sent).toHaveLength(2);
     }
+  });
+
+  it("accepts a slightly long answer, and caps sources and links", async () => {
+    reply = {
+      answer: "y".repeat(1500),
+      sources: Array.from({ length: 12 }, () => "who-can-receive-emails"),
+      links: Array.from({ length: 12 }, () => "/settings/ai"),
+    };
+    const { response, body } = await ask("How do I record a bank transfer?");
+    expect(response.status).toBe(200);
+    expect(body.answer).toHaveLength(1500);
+    expect(body.links).toEqual([{ href: "/settings/ai", label: "Settings > AI" }]);
   });
 
   it("says to set a model when there is none, and calls nothing", async () => {
