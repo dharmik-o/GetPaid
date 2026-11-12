@@ -120,6 +120,16 @@ The landing page explains GetPaid to visitors. The dashboard is where you work.
 
 On your first visit a short tour points at each part of the app. Press **Got it** to move on, :** Back** to go back, or :** Skip tour** (or Esc) to close it. Some pages, such as a project, the calendar and the agreement builder, show a few extra tips the first time you open them. To see the tour again, go to :** Settings \> Guided tour \> Replay tour**; :** Reset page tips** brings the page tips back.
 
+## Ask GetPaid (the Help button)
+
+*Screen: The Help button in the header, and its side panel.*
+
+The **Help** button (a question mark, top right on every page) opens a side panel where you can ask how to use GetPaid in your own words, or press one of the suggestions: "How do I record a bank transfer?", "How do I connect Telegram?", "How do reminders work?".
+
+The answer is written from this manual only. Under it, **From the manual** names the sections it used, there are links to the pages it mentions, and **Download the manual (PDF)** gets the full manual. If the manual doesn't cover your question, it says so rather than guessing. It can't change anything in your account: it only explains.
+
+Ask GetPaid uses your own AI model. Pick one in **Settings > AI** (the per-task field **Help assistant** can use a different model; left empty it uses your main model). With no model set, it says "Set a model in Settings > AI". The Calendar's assistant also answers how-to questions about using GetPaid the same way.
+
 **Chapter 5**
 
 # Clients

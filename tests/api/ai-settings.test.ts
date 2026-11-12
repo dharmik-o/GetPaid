@@ -42,7 +42,12 @@ type Connection = {
 type Settings = {
   main: Connection | null;
   cloudFallback: Connection | null;
-  taskModels: { sort: string | null; tier3: string | null; calendar: string | null };
+  taskModels: {
+    sort: string | null;
+    tier3: string | null;
+    calendar: string | null;
+    help: string | null;
+  };
 };
 type Issue = { field: string; message: string };
 
@@ -96,7 +101,7 @@ describe("GET /api/settings/ai", () => {
     expect(await settingsOf(await get())).toEqual({
       main: null,
       cloudFallback: null,
-      taskModels: { sort: null, tier3: null, calendar: null },
+      taskModels: { sort: null, tier3: null, calendar: null, help: null },
     });
   });
 
@@ -125,6 +130,7 @@ describe("PUT /api/settings/ai", () => {
     expect(saved.map((r) => [r.task, r.fallback_order, r.model])).toEqual([
       ["calendar", 1, "claude-sonnet-5-5"],
       ["draft", 1, "claude-sonnet-5-5"],
+      ["help", 1, "claude-sonnet-5-5"],
       ["sort", 1, "claude-sonnet-5-5"],
       ["tier3", 1, "claude-sonnet-5-5"],
     ]);
@@ -186,15 +192,22 @@ describe("PUT /api/settings/ai", () => {
     const settings = await settingsOf(response);
     expect(settings.main).toEqual({ ...ollama, isLocal: true, hasKey: false });
     expect(settings.cloudFallback).toMatchObject({ provider: "claude", hasKey: true });
-    expect(settings.taskModels).toEqual({ sort: "llama3.2:1b", tier3: null, calendar: null });
+    expect(settings.taskModels).toEqual({
+      sort: "llama3.2:1b",
+      tier3: null,
+      calendar: null,
+      help: null,
+    });
     const saved = await rows();
     expect(saved.map((r) => [r.task, r.fallback_order, r.model, r.is_local])).toEqual([
       ["calendar", 1, "llama3.2", true],
       ["draft", 1, "llama3.2", true],
+      ["help", 1, "llama3.2", true],
       ["sort", 1, "llama3.2:1b", true],
       ["tier3", 1, "llama3.2", true],
       ["calendar", 2, "claude-sonnet-5-5", false],
       ["draft", 2, "claude-sonnet-5-5", false],
+      ["help", 2, "claude-sonnet-5-5", false],
       ["sort", 2, "claude-sonnet-5-5", false],
       ["tier3", 2, "claude-sonnet-5-5", false],
     ]);

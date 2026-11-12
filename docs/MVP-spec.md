@@ -230,7 +230,7 @@ Users pick any cloud or local model in Settings. Every model is reached through 
 - **Provider presets:** Claude, OpenAI, Gemini, Groq, OpenRouter, Ollama (local), LM Studio (local), Custom URL.
 - **Fields:** base URL, API key (blank for local), model name.
 - **Test connection:** runs 4 sample tasks (sort 2 replies, draft a Tier 1 email, draft a Tier 2 email) and shows pass or fail for each.
-- **Per-task models (optional):** a small or local model for sorting replies, a stronger one for drafting, the strongest for Tier 3.
+- **Per-task models (optional):** a small or local model for sorting replies, a stronger one for drafting, the strongest for Tier 3, and their own for the calendar assistant and the help assistant. A task left empty uses the main model.
 
 **Reliability rules**
 
@@ -279,6 +279,17 @@ A client may pay by bank transfer, UPI, cash, cheque or another app. The freelan
 - **Archive project:** hides the project from the Projects list (until "Show archived" is on), the client's page, Home's figures, Upcoming and the Maintenance list, and stops its reminders (waiting and approved drafts are skipped, and the scheduler plans none while it is archived). Every record stays, nothing is cancelled in PayPal, and Restore shows it again; reminders are planned afresh. The calendar still shows its dates.
 - **Delete project:** the freelancer types the project's exact name. It removes the project with its milestones, invoices, reminders, agreements, holds, maintenance jobs and the calendar entries tied to it, in one transaction as the signed-in user (RLS). Invoice PDFs already in the invoice archive stay on disk, as when a client is deleted. Unpaid open PayPal invoices and open holds are listed, and need the tick "Cancel them in PayPal too": invoices are cancelled and holds voided first, outside the transaction, and if any PayPal call fails nothing is deleted. An invoice with money on it is never cancelled, so it stops the delete.
 - **Delete one milestone:** only while it has no invoice (even a cancelled one) and no hold. **Delete a retainer:** only if it has never charged: no invoice, nothing paid, and no auto-pay still set up in PayPal. Otherwise it can only be cancelled.
+
+## Ask GetPaid (help assistant)
+
+A Help button (a question-mark icon) in the header of every dashboard page opens a side panel where the freelancer asks how to use the app. It explains; it never changes data and never claims to have done anything.
+
+- **Knowledge:** `docs/help/manual.md`, the owner's manual, cut into sections by heading. `npm run help:sections` writes `apps/web/src/content/help-sections.json`, which is committed (the web build has no `docs/` folder), and a test fails if the two drift. For each question the app scores the sections with plain keyword scoring (BM25, no embeddings and no outside service) and sends only the best 4 to 5 to the model. The manual is trusted text; the question is untrusted and is quoted data.
+- **The AI task:** `help`, with its own model in Settings > AI (empty means the main model). Cloud models through an API key are the expected use. There is no template fallback: with no model at all it says "Set a model in Settings > AI". If no section shares a word with the question, it says the manual doesn't cover it, without asking a model.
+- **The answer** (`prompts/help-assistant.md`, `prompts/schemas/help-answer.schema.json`): `answer` (at most 1,200 characters, plain steps), `sources` (section ids) and `links` (app routes). Code keeps only sources that were among the sections sent and only links from a fixed allowlist of routes (`lib/help-links.ts`); the rest are dropped. An answer that fails the schema, after one retry, shows an error and no answer.
+- **The panel:** a question box, three suggestions ("How do I record a bank transfer?", "How do I connect Telegram?", "How do reminders work?"), the answer as plain text, "From the manual: <section names>", the allowed links, and "Download the manual (PDF)".
+- **The calendar assistant** sends a how-to question about using the app (an opening such as "How do I" or "Why do", and no date, weekday or calendar word) to the same help task and shows the answer the same way. Other questions stay with the calendar.
+- Nothing the user asked or the model answered is logged.
 
 ## Invoice templates
 
@@ -332,7 +343,7 @@ Sixteen tables cover the MVP (`invoice_templates` arrives with the Invoice templ
 | Table | Key fields |
 | --- | --- |
 | users | id, name, email, time_zone, usual_days_late (self-reported baseline for days saved), Gmail token (encrypted), PayPal account, Telegram chat ID, Telegram link code (hash and expiry), default settings, default_template_id, business_name, address, logo (embedded image), invoice_paper (A4 / Letter), invoice_show_qr, signature_source (upload / typed), signature_image_data_url, signature_typed_name, signature_name, signature_title, signature_default |
-| ai_providers | user_id, task (sort / draft / tier3), provider, base_url, model, api_key (encrypted), fallback_order |
+| ai_providers | user_id, task (sort / draft / tier3 / calendar / help), provider, base_url, model, api_key (encrypted), fallback_order |
 | clients | user_id, name, email, country, time_zone, settings override, default_template_id (optional), company, address |
 | projects | client_id, title, total, currency, contract terms, late-fee clause, settings override, status, archived_at |
 | milestones | project_id, name, deliverable, amount or %, deadline, acceptance window, payment mode, settings override, status |

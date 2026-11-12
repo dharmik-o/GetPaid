@@ -24,7 +24,12 @@ export type SavedConnection = {
 export type SavedAiSettings = {
   main: SavedConnection | null;
   cloudFallback: SavedConnection | null;
-  taskModels: { sort: string | null; tier3: string | null; calendar: string | null };
+  taskModels: {
+    sort: string | null;
+    tier3: string | null;
+    calendar: string | null;
+    help: string | null;
+  };
 };
 
 type FieldIssue = { field: string; message: string };
@@ -53,6 +58,7 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
   const [sortModel, setSortModel] = useState(initial.taskModels.sort ?? "");
   const [tier3Model, setTier3Model] = useState(initial.taskModels.tier3 ?? "");
   const [calendarModel, setCalendarModel] = useState(initial.taskModels.calendar ?? "");
+  const [helpModel, setHelpModel] = useState(initial.taskModels.help ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ text: string; error: boolean }>();
   const [saving, setSaving] = useState(false);
@@ -71,6 +77,7 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
         sort: sortModel.trim() || null,
         tier3: tier3Model.trim() || null,
         calendar: calendarModel.trim() || null,
+        help: helpModel.trim() || null,
       },
     };
     try {
@@ -194,6 +201,21 @@ export const AiSettingsForm = ({ initial, localAiUrl, localModels }: Props) => {
           />
           {errors["taskModels.calendar"] ? (
             <div className="field-error">{errors["taskModels.calendar"]}</div>
+          ) : null}
+        </div>
+        <div className="field">
+          <label htmlFor="help-model">Help assistant (Ask GetPaid)</label>
+          <input
+            id="help-model"
+            value={helpModel}
+            placeholder={`Same as the main model (${main.model || "not set"})`}
+            aria-invalid={Boolean(errors["taskModels.help"])}
+            onChange={(e) => {
+              setHelpModel(e.target.value);
+            }}
+          />
+          {errors["taskModels.help"] ? (
+            <div className="field-error">{errors["taskModels.help"]}</div>
           ) : null}
         </div>
       </fieldset>

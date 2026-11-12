@@ -18,7 +18,7 @@ const render = (initial: SavedAiSettings) =>
 const EMPTY: SavedAiSettings = {
   main: null,
   cloudFallback: null,
-  taskModels: { sort: null, tier3: null, calendar: null },
+  taskModels: { sort: null, tier3: null, calendar: null, help: null },
 };
 
 describe("AiSettingsForm", () => {

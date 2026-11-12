@@ -28,6 +28,7 @@
     "hold:check": "tsx --env-file-if-exists=.env scripts/hold-check.ts",
     "n8n:go-live": "tsx scripts/n8n-go-live.ts",
     "legal:check": "tsx scripts/legal-check.ts",
+    "help:sections": "tsx scripts/build-help-sections.ts",
     "ai:schemas": "tsx scripts/generate-ai-schemas.ts",
     "ai:prompts": "tsx scripts/generate-prompt-text.ts && prettier --write apps/web/src/lib/prompt-text.ts apps/web/src/lib/statute-table.ts apps/web/src/lib/reference-rate-table.ts"
   },

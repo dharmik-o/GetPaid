@@ -39,8 +39,22 @@ const draftFrom = (user: string) => {
   return { subject: `Invoice ${facts.invoiceNumber ?? ""}`, body: lines.join("\n") };
 };
 
+/** An answer to the help assistant's prompt: the first manual section it was sent, and two links, one not allowed. */
+const helpAnswer = (user: string) => {
+  const first = /<section id="([^"]+)"/.exec(user)?.[1];
+  return {
+    answer: "1. Open the invoice. 2. Press Record a payment.",
+    sources: first ? [first] : [],
+    links: ["/settings/ai", "https://evil.example/steal"],
+  };
+};
+
 const answer = (body: ChatBody): object => {
   const [system, user] = body.messages;
+  if (system?.content.includes("You help a freelancer use GetPaid")) {
+    modelCalls.push({ model: body.model, kind: "help" });
+    return helpAnswer(user?.content ?? "");
+  }
   const isSort = system?.content.includes("sort a client's email reply") ?? false;
   modelCalls.push({ model: body.model, kind: isSort ? "sort" : "draft" });
   return isSort

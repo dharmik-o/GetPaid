@@ -36,6 +36,7 @@ export const PROMPT_FILES = [
   "redraft_from_feedback",
   "classify_reply",
   "calendar_assistant",
+  "help-assistant",
 ] as const;
 
 /** A prompt file without its title line. */
@@ -47,7 +48,11 @@ export const promptBody = (name: string): string => {
 };
 
 export const promptModuleSource = (): string => {
-  const entries = PROMPT_FILES.map((name) => `  ${name}: ${JSON.stringify(promptBody(name))},`);
+  // A file name with a dash (help-assistant) can't be an unquoted key.
+  const key = (name: string): string => (/^[A-Za-z_]\w*$/.test(name) ? name : JSON.stringify(name));
+  const entries = PROMPT_FILES.map(
+    (name) => `  ${key(name)}: ${JSON.stringify(promptBody(name))},`,
+  );
   return [
     "// Generated from prompts/*.md by `npm run ai:prompts`; don't edit by hand.",
     "// tests/prompts.test.ts fails if this file and the prompts drift.",
