@@ -70,10 +70,10 @@ export const DemoLoginForm = ({ next }: { next: string }) => {
       </div>
       <button
         type="submit"
-        className="button"
+        className="button login-submit"
         disabled={busy || username.trim() === "" || password === ""}
       >
-        {busy ? "Checking…" : "Open the demo"}
+        {busy ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );

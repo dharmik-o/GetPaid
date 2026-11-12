@@ -1058,3 +1058,9 @@ Choices made while building, newest last. Each entry: date, question, choice, wh
 - **Lawyer pack restyle:** A4 with 22/20/24 mm margins, the invoice fonts, a summary of totals, and readable event titles with the raw event name underneath.
 - **Demo sign-in is a username and a password** (owner's request): `DEMO_USERNAME` (default `admin`) and `DEMO_PASSWORD`, compared in constant time, both always checked, with the same 5-tries limit. The minimum password length drops from 16 to 8 characters at the owner's choice; the cookie secret still needs 32. A short password is easier to guess, which the limit per IP only slows down: everything behind it is sandbox only.
 - **When the help assistant's model fails, the closest manual section is shown** instead of only an error, marked "Your AI model didn't answer this time…", with the manual download link under it. The error banner (no model, network) also offers the download. The help answer's schema now allows up to 3,000 characters and 20 sources and links, which code filters and caps, so a slightly long answer isn't thrown away; the prompt still asks for 1,200.
+
+## 2026-11-12: sign-in page redesign (owner's request)
+
+- **Question:** the demo sign-in page looked plain and didn't suit a phone. Where should a new sign-in land, and what should the logo do?
+- **Choice:** the page is a centered card under a large logo (about 78% of a phone's width, at most 26rem on a larger screen). After signing in, the visitor lands on `/welcome`. A deeper page they had asked for (for example a shared link to `/outbox`) is still honoured, so only a plain `/` becomes `/welcome`. The logo is now a link to `/welcome` everywhere it appears.
+- **Why:** it's what the owner asked for, and it keeps shared deep links working. The off-site check in `safeNext` is unchanged, and `afterLoginPath` builds on it.

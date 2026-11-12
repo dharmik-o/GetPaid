@@ -70,6 +70,17 @@ describe("the logo", () => {
     expect(html).not.toContain("<path");
   });
 
+  it("links to the welcome page, so a click on it anywhere goes home", () => {
+    const html = renderToStaticMarkup(createElement(Logo));
+    expect(html).toContain('href="/welcome"');
+    expect(html).toContain('aria-label="GetPaid home"');
+  });
+
+  it("sits in a sign-in panel about three quarters of a phone's width", () => {
+    const rule = /\.login-panel \{[^}]*\}/.exec(css)?.[0] ?? "";
+    expect(rule).toContain("78vw");
+  });
+
   it("takes its shape from the stamp file and its colour from a token, so it suits each theme", () => {
     expect(existsSync(stamp)).toBe(true);
     const rule = /\.logo-mark \{[^}]*\}/.exec(css)?.[0] ?? "";

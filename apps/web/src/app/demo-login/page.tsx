@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { DemoLoginForm } from "@/components/DemoLoginForm";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { BRAND_NAME } from "@/lib/brand";
 import { safeNext } from "@/lib/demo-gate";
 
 export const metadata: Metadata = {
-  title: `${BRAND_NAME}: demo sign-in`,
+  title: `${BRAND_NAME}: sign in`,
   robots: { index: false },
 };
 
@@ -14,18 +17,24 @@ export const dynamic = "force-dynamic";
 const DemoLoginPage = async ({ searchParams }: { searchParams: Promise<{ next?: string }> }) => {
   const { next } = await searchParams;
   return (
-    <main className="content">
-      <div className="page-header">
-        <h1>Demo sign-in</h1>
+    <main className="login">
+      <div className="login-theme">
+        <ThemeToggle />
       </div>
-      <section className="card" aria-labelledby="demo-login-heading">
-        <h2 id="demo-login-heading">Sign in to the demo</h2>
-        <p className="field-hint">
-          This is a public demo with sandbox payments, and emails only go to the demo inbox. The
-          username and password were given to you with the link.
-        </p>
-        <DemoLoginForm next={safeNext(next)} />
-      </section>
+      <div className="login-panel">
+        <Logo large />
+        <section className="login-card" aria-labelledby="demo-login-heading">
+          <h1 id="demo-login-heading">Sign in</h1>
+          <p className="login-lead">
+            A public demo: payments are sandbox and emails only go to the demo inbox. Use the
+            username and password that came with the link.
+          </p>
+          <DemoLoginForm next={safeNext(next)} />
+        </section>
+        <Link className="login-back" href="/welcome">
+          Back to the welcome page
+        </Link>
+      </div>
     </main>
   );
 };

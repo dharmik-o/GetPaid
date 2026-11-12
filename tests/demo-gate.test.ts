@@ -6,6 +6,7 @@ import {
   demoCookieValid,
   gateDecision,
   isOpenPath,
+  afterLoginPath,
   safeNext,
   signDemoCookie,
   type DemoEnv,
@@ -135,6 +136,13 @@ describe("where to go after signing in", () => {
     expect(safeNext(next)).toBe("/");
   });
 
+  it("lands on the welcome page after signing in, unless a deeper page was asked for", () => {
+    expect(afterLoginPath("/")).toBe("/welcome");
+    expect(afterLoginPath(undefined)).toBe("/welcome");
+    expect(afterLoginPath("//evil.com")).toBe("/welcome");
+    expect(afterLoginPath("/outbox")).toBe("/outbox");
+  });
+
   it("keeps a path on this site", () => {
     expect(safeNext("/outbox")).toBe("/outbox");
     expect(safeNext("/projects/1?tab=a#b")).toBe("/projects/1?tab=a#b");
@@ -180,11 +188,18 @@ describe("POST /api/demo-login", () => {
     expect(demoCookieValid(value, SECRET, NOW)).toBe(true);
   });
 
-  it("sends an off-site next to the home page, never off the site", async () => {
+  it("sends an off-site next to the welcome page, never off the site", async () => {
     for (const next of ["//evil.com", "https://evil.com", "/\\evil.com"]) {
       const response = await login(build().handler, { password: PASSWORD, next });
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ next: "/" });
+      expect(await response.json()).toEqual({ next: "/welcome" });
+    }
+  });
+
+  it("lands on the welcome page when no deeper page was asked for", async () => {
+    for (const next of [undefined, "/"]) {
+      const response = await login(build().handler, { password: PASSWORD, next });
+      expect(await response.json()).toEqual({ next: "/welcome" });
     }
   });
 

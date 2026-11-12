@@ -78,6 +78,12 @@ export const safeNext = (next: unknown): string => {
   return next;
 };
 
+/** Where a fresh sign-in lands: the welcome page, unless the visitor was heading to a page deeper in the app. */
+export const afterLoginPath = (next: unknown): string => {
+  const safe = safeNext(next);
+  return safe === "/" ? "/welcome" : safe;
+};
+
 const OPEN_EXACT = new Set([
   "/welcome",
   "/demo-login",

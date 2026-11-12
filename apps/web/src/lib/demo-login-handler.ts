@@ -1,12 +1,12 @@
 import { z } from "zod";
 import {
+  afterLoginPath,
   DEMO_COOKIE,
   DEMO_COOKIE_MAX_AGE,
   demoSettingsProblem,
   demoUsername,
   isDemoMode,
   passwordMatches,
-  safeNext,
   signDemoCookie,
   type DemoEnv,
 } from "./demo-gate";
@@ -122,7 +122,7 @@ export const demoLoginHandler = ({
       // The tour is a nicety: a failed reset must not lock the demo out.
       logEvent("demo_login.tour_reset_failed", { error: errorKind(error) });
     }
-    const response = jsonResponse({ next: safeNext(parsed.data.next) });
+    const response = jsonResponse({ next: afterLoginPath(parsed.data.next) });
     const cookie = signDemoCookie(env.DEMO_COOKIE_SECRET ?? "", now());
     response.headers.append(
       "set-cookie",
